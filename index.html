@@ -6,7 +6,7 @@
 <title>WatchDog 3000 · Suchitepéquez</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{--bg:#F0EEEA;--surf:#fff;--surf2:#F7F5F1;--brd:rgba(0,0,0,0.08);
@@ -17,7 +17,7 @@
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
 nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
   justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
-  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .nav-t{font-size:15px;font-weight:700}.nav-s{font-size:10px;color:#A8B8CC;margin-top:2px}
 .nav-r{font-size:11px;color:#A8B8CC;display:flex;gap:14px;flex-wrap:wrap}
 .dot{width:7px;height:7px;border-radius:50%;background:#4ADE80;display:inline-block;animation:pulse 2s infinite}
@@ -28,22 +28,19 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .spinner{width:42px;height:42px;border:4px solid var(--brd);border-top-color:var(--navy);
   border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+#loading p{color:var(--muted);font-size:13px}
 
-#picker{display:none;max-width:420px;margin:60px auto;padding:30px 28px;
+#picker{display:none;max-width:440px;margin:60px auto;padding:30px 28px;
   background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
   box-shadow:var(--shd);text-align:center}
-#picker h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:6px}
-#picker p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
-#picker code{background:#F0F4FA;padding:1px 6px;border-radius:4px;font-size:11px;color:var(--navy)}
-#drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:28px 20px;
+#picker h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px}
+#picker p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+#picker code{background:#F0F4FA;padding:2px 6px;border-radius:4px;font-size:11px;color:var(--navy)}
+#drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:26px 20px;
   cursor:pointer;transition:all .2s;display:block}
 #drop-zone:hover,#drop-zone.over{border-color:var(--navy);background:#F0F4FA}
-#drop-zone .ico{font-size:34px;margin-bottom:8px}
-#drop-zone .lbl{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px}
-#drop-zone .sub2{font-size:11px;color:var(--sub)}
-#dashboard{display:none}
 
-/* layout */
+#dashboard{display:none}
 main{max-width:1280px;margin:0 auto;padding:20px 20px 40px}
 .banner{background:linear-gradient(135deg,var(--navy),#2C5282);color:#fff;
   border-radius:var(--r);padding:20px 24px;margin-bottom:20px;
@@ -68,13 +65,10 @@ main{max-width:1280px;margin:0 auto;padding:20px 20px 40px}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{background:var(--navy);color:#fff;padding:8px 12px;text-align:right;font-weight:600;font-size:11px}
-thead th:first-child{text-align:left;border-radius:var(--r2) 0 0 0}
-thead th:last-child{border-radius:0 var(--r2) 0 0}
-tbody tr{border-bottom:.5px solid var(--brd)}
-tbody tr:nth-child(even){background:var(--surf2)}
+thead th:first-child{text-align:left;border-radius:var(--r2) 0 0 0}thead th:last-child{border-radius:0 var(--r2) 0 0}
+tbody tr{border-bottom:.5px solid var(--brd)}tbody tr:nth-child(even){background:var(--surf2)}
 tbody tr.rn{background:#EBF4FC}
-tbody td{padding:8px 12px;text-align:right}
-tbody td:first-child{text-align:left;font-weight:600;color:var(--navy)}
+tbody td{padding:8px 12px;text-align:right}tbody td:first-child{text-align:left;font-weight:600;color:var(--navy)}
 tfoot td{background:var(--surf2);padding:8px 12px;text-align:right;font-weight:600;color:var(--navy);border-top:1.5px solid var(--navy)}
 tfoot td:first-child{text-align:left}
 .rb{background:#2E86AB;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:600}
@@ -91,33 +85,33 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
     <div class="nav-s">Suchitep&eacute;quez, Guatemala &bull; ID 54400111</div>
   </div>
   <div class="nav-r">
-    <span>&#128205; 14.364°N, -91.552°W</span>
-    <span>&#128345; UTC-6</span>
+    <span>&#128205; 14.364°N, -91.552°W &bull; UTC-6</span>
+    <span id="nav-src"></span>
     <span id="nav-ts"></span>
   </div>
 </nav>
 
-<!-- Cargando -->
 <div id="loading">
   <div class="spinner"></div>
-  <p style="color:var(--muted);font-size:13px">Cargando datos...</p>
+  <p id="load-msg">Conectando con Google Sheets...</p>
 </div>
 
-<!-- Selector de archivo (modo local) -->
 <div id="picker">
-  <div style="font-size:36px;margin-bottom:10px">&#128202;</div>
-  <h3>Seleccion&aacute; el archivo de datos</h3>
-  <p>En <strong>GitHub Pages</strong> se carga autom&aacute;ticamente.<br>
-     Abriendo <strong>localmente</strong>, seleccion&aacute; <code>datos.xlsx</code>:</p>
+  <div style="font-size:36px;margin-bottom:10px">&#128196;</div>
+  <h3>Cargar archivo de datos</h3>
+  <p>
+    <strong>Opci&oacute;n 1:</strong> Configur&aacute; la URL de tu Google Sheet en el script
+    (ver comentario <code>SHEETS_URL</code> al final del HTML).<br><br>
+    <strong>Opci&oacute;n 2:</strong> Seleccion&aacute; el archivo <code>datos.xlsx</code> manualmente:
+  </p>
   <label id="drop-zone">
-    <input type="file" id="file-input" accept=".xlsx" style="display:none">
-    <div class="ico">&#128196;</div>
-    <div class="lbl">Clic para seleccionar datos.xlsx</div>
-    <div class="sub2">o arrastr&aacute; el archivo aqu&iacute;</div>
+    <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none">
+    <div style="font-size:28px;margin-bottom:8px">&#128194;</div>
+    <div style="font-weight:600;color:var(--navy);margin-bottom:4px">Clic para seleccionar archivo</div>
+    <div style="font-size:11px;color:var(--sub)">datos.xlsx o CSV &bull; tambi&eacute;n pod&eacute;s arrastrar</div>
   </label>
 </div>
 
-<!-- Dashboard (aparece al cargar datos) -->
 <div id="dashboard">
 <main>
   <div class="banner">
@@ -126,11 +120,10 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <p id="banner-sub">WatchDog 3000 Wireless &bull; ID 54400111 &bull; Firmware 00.01.75</p>
     </div>
     <div class="chips">
-      <span class="chip" id="chip1">&#127303; Temporada de lluvias</span>
-      <span class="chip" id="chip2"></span>
+      <span class="chip">&#127303; Temporada de lluvias</span>
+      <span class="chip" id="chip-dias"></span>
     </div>
   </div>
-
   <div class="kpi-grid">
     <div class="kpi"><div class="kl">Lluvia total</div>
       <div class="kv" id="kv1" style="color:var(--steel)">—</div>
@@ -148,7 +141,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <div class="kv" id="kv5" style="color:var(--navy)">—</div>
       <div class="ks" id="ks5">—</div></div>
   </div>
-
   <div class="panels r1"><div class="panel">
     <div class="ph">
       <span class="pt">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
@@ -159,7 +151,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
     </div>
     <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
   </div></div>
-
   <div class="panels r3">
     <div class="panel"><div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
       <div style="position:relative;height:185px"><canvas id="cT"></canvas></div></div>
@@ -168,14 +159,12 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
     <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario</span></div>
       <div style="position:relative;height:185px"><canvas id="cW"></canvas></div></div>
   </div>
-
   <div class="panels r2">
     <div class="panel"><div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
       <div style="position:relative;height:155px"><canvas id="cH"></canvas></div></div>
     <div class="panel"><div class="ph"><span class="pt">&#9889; Voltaje &mdash; ciclo panel solar</span></div>
       <div style="position:relative;height:155px"><canvas id="cV"></canvas></div></div>
   </div>
-
   <div class="panel" style="margin-bottom:16px">
     <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario</span></div>
     <div class="tw"><table>
@@ -188,28 +177,85 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <tfoot><tr id="tf"></tr></tfoot>
     </table></div>
   </div>
-
   <footer id="ft">WatchDog 3000 Wireless &bull; ID 54400111 &bull; Suchitep&eacute;quez, Guatemala</footer>
 </main>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-const EXCEL='datos.xlsx';
+// ════════════════════════════════════════════════════════════════════
+//  CONFIGURACIÓN — pegá la URL de tu Google Sheet publicado como CSV
+//
+//  Pasos:
+//  1. Abrí tu Google Sheet con los datos
+//  2. Archivo → Compartir → Publicar en la web
+//  3. Seleccioná la hoja "Datos" y formato "Valores separados por comas (.csv)"
+//  4. Clic en "Publicar" y copiá la URL que aparece
+//  5. Pegala abajo entre las comillas
+//
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← PEGAR URL AQUÍ
+//
+//  Ejemplo:
+//  const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/ABC123.../pub?output=csv&gid=0';
+//
+//  Si SHEETS_URL está vacío → aparece el selector de archivo local (xlsx o csv)
+//  Actualización automática cada N minutos (0 = desactivado):
+const AUTO_REFRESH_MIN = 10;
+// ════════════════════════════════════════════════════════════════════
+
 const GC='rgba(0,0,0,0.06)',TC='#999';
 const XT={color:TC,font:{size:10},maxRotation:0,autoSkip:true};
 Chart.defaults.font.family="'Inter',system-ui,sans-serif";
-let chartsBuilt=false;
+let refreshTimer=null;
+const chartRefs={};
 
-// ── Leer y procesar el workbook ───────────────────────────────────────
-function buildFromWorkbook(wb){
-  if(chartsBuilt) return;
-  chartsBuilt=true;
+function showPicker(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('picker').style.display='block';
+}
 
-  // Hoja Datos
-  const ws   = wb.Sheets['Datos'];
-  const rows = XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
+// ── Agrega agrupación diaria desde filas crudas ──────────────────────
+function aggregateByDay(rows){
+  const map={};
+  rows.forEach(r=>{
+    const day=(r['Dia']||r['Fecha']||'').substring(0,10);
+    if(!day) return;
+    if(!map[day]) map[day]=[];
+    map[day].push(r);
+  });
+  const keys=Object.keys(map).sort();
+  return keys.map(k=>{
+    const recs=map[k];
+    const tc=recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
+    const hm=recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
+    const rn=recs.map(r=>parseFloat(r['Lluvia (mm/10min)'])||0);
+    const wd=recs.map(r=>parseFloat(r['Viento (mph)'])||0);
+    const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+    return {
+      dia: k.substring(5,7)+'/'+k.substring(3,5),  // "15/06"
+      tmin:tc.length?Math.min(...tc):0, tavg:+avg(tc).toFixed(1), tmax:tc.length?Math.max(...tc):0,
+      hmin:hm.length?Math.min(...hm):0, havg:+avg(hm).toFixed(1), hmax:hm.length?Math.max(...hm):0,
+      rain:+rn.reduce((x,y)=>x+y,0).toFixed(1), wmax:wd.length?Math.max(...wd):0
+    };
+  });
+}
 
-  const tsL=[], tsT=[], tsH=[], tsR=[], tsW=[], tsV=[];
+// ── Destruye charts existentes ────────────────────────────────────────
+function destroyCharts(){
+  ['cS','cT','cR','cW','cH','cV'].forEach(id=>{
+    if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
+  });
+}
+
+// ── Construye el dashboard desde filas CSV ────────────────────────────
+function buildFromRows(rows, source){
+  destroyCharts();
+  // Filtrar filas vacías o encabezados duplicados
+  rows=rows.filter(r=>r['Dia']&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
+
+  if(!rows.length){showPicker();return;}
+
+  const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[],tsV=[];
   rows.forEach(r=>{
     const dia=(r['Dia']||'').substring(0,5);
     const hora=(r['Hora']||'').substring(0,5);
@@ -221,38 +267,24 @@ function buildFromWorkbook(wb){
     tsV.push(parseFloat(r['Voltaje (V)'])||0);
   });
 
-  // Hoja Resumen Diario
-  const ws2  = wb.Sheets['Resumen Diario'];
-  const allD = XLSX.utils.sheet_to_json(ws2,{raw:false,defval:''});
-  const D    = allD.filter(r=>r['Fecha']&&r['Fecha']!=='TOTAL / PROM'&&r['Fecha'].trim()!=='');
+  const D=aggregateByDay(rows);
+  const dL=D.map(d=>d.dia), dTn=D.map(d=>d.tmin), dTa=D.map(d=>d.tavg), dTx=D.map(d=>d.tmax);
+  const dR=D.map(d=>d.rain), dW=D.map(d=>d.wmax);
+  const dHn=D.map(d=>d.hmin), dHa=D.map(d=>d.havg), dHx=D.map(d=>d.hmax);
 
-  const dL=[],dTn=[],dTa=[],dTx=[],dR=[],dW=[],dHn=[],dHa=[],dHx=[];
-  D.forEach(r=>{
-    dL.push((r['Fecha']||'').substring(0,5));
-    dTn.push(parseFloat(r['Temp Min (C)'])||0);
-    dTa.push(parseFloat(r['Temp Prom (C)'])||0);
-    dTx.push(parseFloat(r['Temp Max (C)'])||0);
-    dR.push(parseFloat(r['Lluvia Total (mm)'])||0);
-    dW.push(parseFloat(r['Viento Max (mph)'])||0);
-    dHn.push(parseFloat(r['HR Min (%)'])||0);
-    dHa.push(parseFloat(r['HR Prom (%)'])||0);
-    dHx.push(parseFloat(r['HR Max (%)'])||0);
-  });
-
-  // Stats
-  const totR =(dR.reduce((a,b)=>a+b,0)).toFixed(1);
-  const tMax =Math.max(...tsT).toFixed(1);
-  const tMin =Math.min(...tsT).toFixed(1);
-  const wMax =Math.max(...tsW);
-  const dias =D.filter(r=>parseFloat(r['Lluvia Total (mm)'])>0).length;
-  const now  =new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const fi   =(rows[0]?.['Dia']||'').substring(0,5);
-  const ff   =(rows[rows.length-1]?.['Dia']||'').substring(0,5);
+  const totR=dR.reduce((a,b)=>a+b,0).toFixed(1);
+  const tMax=Math.max(...tsT).toFixed(1), tMin=Math.min(...tsT).toFixed(1);
+  const wMax=Math.max(...tsW), dias=dR.filter(v=>v>0).length;
+  const fi=(rows[0]?.['Dia']||'').substring(0,5);
+  const ff=(rows[rows.length-1]?.['Dia']||'').substring(0,5);
+  const now=new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   // UI
   document.getElementById('banner-sub').textContent=
     `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
-  document.getElementById('chip2').textContent=`📅 ${D.length} días registrados`;
+  document.getElementById('chip-dias').textContent=`📅 ${D.length} días registrados`;
+  document.getElementById('nav-src').innerHTML=
+    `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
   document.getElementById('nav-ts').textContent=`🔄 ${now}`;
   document.getElementById('kv1').innerHTML=`${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
   document.getElementById('ks1').textContent=`${dias} día(s) con lluvia`;
@@ -264,12 +296,11 @@ function buildFromWorkbook(wb){
   document.getElementById('ft').textContent=
     `WatchDog 3000 Wireless • ID 54400111 • Suchitepéquez, Guatemala • ${fi} – ${ff}`;
 
-  // Charts
-  new Chart('cS',{type:'line',data:{labels:tsL,datasets:[
+  // Gráficas
+  chartRefs['cS']=new Chart('cS',{type:'line',data:{labels:tsL,datasets:[
     {label:'T',data:tsT,yAxisID:'yT',borderColor:'#E05A2B',borderWidth:1.2,pointRadius:0,tension:0.1},
     {label:'H',data:tsH,yAxisID:'yH',borderColor:'#1F7FDF',borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
       tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.parsed.y}°C`:` ${c.parsed.y}% HR`}}},
     scales:{x:{grid:{color:GC},ticks:{...XT,maxTicksLimit:8}},
@@ -277,128 +308,132 @@ function buildFromWorkbook(wb){
       yH:{position:'right',grid:{display:false},ticks:{color:'#1F7FDF',font:{size:9},callback:v=>v+'%'},min:40,max:100}}
   }});
 
-  new Chart('cT',{data:{labels:dL,datasets:[
+  chartRefs['cT']=new Chart('cT',{data:{labels:dL,datasets:[
     {type:'bar',data:dL.map((_,i)=>[dTn[i],dTx[i]]),backgroundColor:'rgba(224,90,43,.18)',
      borderColor:'rgba(224,90,43,.4)',borderWidth:1,borderRadius:4,order:2},
     {type:'line',data:dTa,borderColor:'#E05A2B',borderWidth:2.5,pointRadius:5,
      pointBackgroundColor:'#E05A2B',tension:0,order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{callbacks:{
-      label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}°C`:` Prom ${c.parsed.y}°C`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:20,max:40}}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}°C`:` Prom ${c.parsed.y}°C`}}},
+    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:20,max:40}}
   }});
 
-  new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:dR,
-    backgroundColor:dR.map(v=>v>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
-    borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
-      scales:{x:{grid:{display:false},ticks:XT},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
+  chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:dR,
+    backgroundColor:dR.map(v=>v>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),borderRadius:5,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
+      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
 
-  new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:dW,
+  chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:dW,
     backgroundColor:'rgba(26,158,114,.7)',borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y} mph`}}},
-      scales:{x:{grid:{display:false},ticks:XT},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mph'},min:0}}}});
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y} mph`}}},
+      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mph'},min:0}}}});
 
-  new Chart('cH',{data:{labels:dL,datasets:[
+  chartRefs['cH']=new Chart('cH',{data:{labels:dL,datasets:[
     {type:'bar',data:dL.map((_,i)=>[dHn[i],dHx[i]]),backgroundColor:'rgba(31,127,223,.12)',
      borderColor:'rgba(31,127,223,.35)',borderWidth:1,borderRadius:4,order:2},
     {type:'line',data:dHa,borderColor:'#1F7FDF',borderWidth:2.5,pointRadius:5,
      pointBackgroundColor:'#1F7FDF',tension:0,order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},tooltip:{callbacks:{
-      label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}%`:` Prom ${c.parsed.y}%`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:40,max:100}}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}%`:` Prom ${c.parsed.y}%`}}},
+    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:40,max:100}}
   }});
 
   const vN=Math.min(150,tsV.length);
-  new Chart('cV',{type:'line',data:{labels:tsL.slice(0,vN),datasets:[{data:tsV.slice(0,vN),
+  chartRefs['cV']=new Chart('cV',{type:'line',data:{labels:tsL.slice(0,vN),datasets:[{data:tsV.slice(0,vN),
     borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:0.1}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(3)}V`}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(3)}V`}}},
       scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
         y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v.toFixed(0)+'V'},min:5,max:10}}}});
 
   // Tabla
   const tb=document.getElementById('tb');
-  D.forEach(r=>{
-    const rain=parseFloat(r['Lluvia Total (mm)'])||0;
+  tb.innerHTML='';
+  D.forEach(d=>{
     const tr=document.createElement('tr');
-    if(rain>0) tr.className='rn';
+    if(d.rain>0) tr.className='rn';
     tr.innerHTML=`
-      <td>${(r['Fecha']||'').substring(0,5)}</td>
-      <td>${parseFloat(r['Temp Min (C)'])||0}°C</td>
-      <td>${parseFloat(r['Temp Prom (C)'])||0}°C</td>
-      <td>${parseFloat(r['Temp Max (C)'])||0}°C</td>
-      <td>${parseFloat(r['HR Min (%)'])||0}%</td>
-      <td>${parseFloat(r['HR Prom (%)'])||0}%</td>
-      <td>${parseFloat(r['HR Max (%)'])||0}%</td>
-      <td>${rain>0?`<span class="rb">${rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
-      <td>${parseFloat(r['Viento Max (mph)'])||0} mph</td>`;
+      <td>${d.dia}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
+      <td>${d.hmin}%</td><td>${d.havg}%</td><td>${d.hmax}%</td>
+      <td>${d.rain>0?`<span class="rb">${d.rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
+      <td>${d.wmax} mph</td>`;
     tb.appendChild(tr);
   });
-  const sR=(dR.reduce((a,b)=>a+b,0)).toFixed(1);
   const aT=(dTa.reduce((a,b)=>a+b,0)/dTa.length).toFixed(1);
   const aH=(dHa.reduce((a,b)=>a+b,0)/dHa.length).toFixed(1);
   document.getElementById('tf').innerHTML=`
     <td>Total / Prom</td>
     <td>${Math.min(...dTn).toFixed(1)}°C</td><td>${aT}°C</td><td>${Math.max(...dTx).toFixed(1)}°C</td>
     <td>${Math.min(...dHn).toFixed(1)}%</td><td>${aH}%</td><td>${Math.max(...dHx).toFixed(1)}%</td>
-    <td><strong>${sR} mm</strong></td><td>${Math.max(...dW)} mph</td>`;
+    <td><strong>${totR} mm</strong></td><td>${Math.max(...dW)} mph</td>`;
 
   document.getElementById('loading').style.display  ='none';
   document.getElementById('picker').style.display   ='none';
   document.getElementById('dashboard').style.display='block';
+
+  // Auto-refresh desde Google Sheets
+  if(source==='sheets'&&AUTO_REFRESH_MIN>0){
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(()=>{
+      document.getElementById('load-msg').textContent='Actualizando datos...';
+      loadFromSheets();
+    }, AUTO_REFRESH_MIN*60*1000);
+  }
 }
 
-// ── Carga desde FileReader (modo local) ──────────────────────────────
+// ── Carga desde Google Sheets ─────────────────────────────────────────
+function loadFromSheets(){
+  Papa.parse(SHEETS_URL,{
+    download:true, header:true, skipEmptyLines:true,
+    complete:r=>buildFromRows(r.data,'sheets'),
+    error:()=>showPicker()
+  });
+}
+
+// ── Carga desde archivo local (xlsx o csv) ────────────────────────────
 function loadFromFile(file){
-  if(!file||!file.name.endsWith('.xlsx')) return;
+  if(!file) return;
   document.getElementById('picker').style.display ='none';
   document.getElementById('loading').style.display='flex';
+  document.getElementById('load-msg').textContent='Leyendo archivo...';
+
+  if(file.name.endsWith('.csv')){
+    Papa.parse(file,{header:true,skipEmptyLines:true,
+      complete:r=>buildFromRows(r.data,'local'),
+      error:()=>showPicker()});
+    return;
+  }
+  // xlsx
   const fr=new FileReader();
   fr.onload=e=>{
     const wb=XLSX.read(e.target.result,{type:'array',cellDates:false});
-    buildFromWorkbook(wb);
+    const ws=wb.Sheets['Datos'];
+    if(!ws){alert('No se encontró la hoja "Datos" en el Excel');showPicker();return;}
+    const rows=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
+    buildFromRows(rows,'local');
   };
   fr.readAsArrayBuffer(file);
 }
 
-// ── Intenta fetch automático (GitHub Pages) ──────────────────────────
-async function init(){
-  try{
-    const r=await fetch(EXCEL);
-    if(!r.ok) throw new Error(r.status);
-    const buf=await r.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array',cellDates:false});
-    buildFromWorkbook(wb);
-  }catch(e){
-    // Modo local: mostrar selector
-    document.getElementById('loading').style.display='none';
-    document.getElementById('picker').style.display ='block';
-  }
-}
-
-// ── Drag & drop ──────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
+  // Drag & drop
   const z=document.getElementById('drop-zone');
   const fi=document.getElementById('file-input');
-  if(!z) return;
   fi.addEventListener('change',()=>loadFromFile(fi.files[0]));
   z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over')});
   z.addEventListener('dragleave',()=>z.classList.remove('over'));
-  z.addEventListener('drop',e=>{
-    e.preventDefault();z.classList.remove('over');
-    loadFromFile(e.dataTransfer.files[0]);
-  });
-});
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');loadFromFile(e.dataTransfer.files[0])});
 
-init();
+  if(SHEETS_URL){
+    loadFromSheets();
+  } else {
+    document.getElementById('load-msg').textContent='Configurá la URL del Google Sheet o seleccioná un archivo.';
+    showPicker();
+  }
+});
 </script>
 </body>
 </html>
