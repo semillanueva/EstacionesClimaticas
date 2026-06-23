@@ -136,7 +136,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <div class="ks">m&iacute;nimo nocturno</div></div>
     <div class="kpi"><div class="kl">Viento m&aacute;ximo</div>
       <div class="kv" id="kv4" style="color:var(--teal)">—</div>
-      <div class="ks">mph &bull; r&aacute;faga m&aacute;xima</div></div>
+      <div class="ks">km/h &bull; r&aacute;faga m&aacute;xima</div></div>
     <div class="kpi"><div class="kl">Registros</div>
       <div class="kv" id="kv5" style="color:var(--navy)">—</div>
       <div class="ks" id="ks5">—</div></div>
@@ -171,7 +171,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <thead><tr>
         <th>Fecha</th><th>T M&iacute;n</th><th>T Prom</th><th>T M&aacute;x</th>
         <th>HR M&iacute;n</th><th>HR Prom</th><th>HR M&aacute;x</th>
-        <th>Lluvia (mm)</th><th>Viento M&aacute;x</th>
+        <th>Lluvia (mm)</th><th>Viento M&aacute;x (km/h)</th>
       </tr></thead>
       <tbody id="tb"></tbody>
       <tfoot><tr id="tf"></tr></tfoot>
@@ -232,10 +232,10 @@ function aggregateByDay(rows){
     const wd=recs.map(r=>parseFloat(r['Viento (mph)'])||0);
     const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
     return {
-      dia: k.substring(5,7)+'/'+k.substring(3,5),  // "15/06"
+      dia: k.substring(0,2)+'/'+k.substring(3,5),  // "15/06"
       tmin:tc.length?Math.min(...tc):0, tavg:+avg(tc).toFixed(1), tmax:tc.length?Math.max(...tc):0,
       hmin:hm.length?Math.min(...hm):0, havg:+avg(hm).toFixed(1), hmax:hm.length?Math.max(...hm):0,
-      rain:+rn.reduce((x,y)=>x+y,0).toFixed(1), wmax:wd.length?Math.max(...wd):0
+      rain:+rn.reduce((x,y)=>x+y,0).toFixed(1), wmax:wd.length?+((Math.max(...wd))*1.60934).toFixed(1):0
     };
   });
 }
@@ -263,7 +263,7 @@ function buildFromRows(rows, source){
     tsT.push(parseFloat(r['Temperatura (C)'])||0);
     tsH.push(parseFloat(r['Humedad (%HR)'])||0);
     tsR.push(parseFloat(r['Lluvia (mm/10min)'])||0);
-    tsW.push(parseFloat(r['Viento (mph)'])||0);
+    tsW.push(+((parseFloat(r['Viento (mph)'])||0)*1.60934).toFixed(1));
     tsV.push(parseFloat(r['Voltaje (V)'])||0);
   });
 
@@ -290,7 +290,7 @@ function buildFromRows(rows, source){
   document.getElementById('ks1').textContent=`${dias} día(s) con lluvia`;
   document.getElementById('kv2').innerHTML=`${tMax}<span style="font-size:13px;font-weight:500"> °C</span>`;
   document.getElementById('kv3').innerHTML=`${tMin}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv4').innerHTML=`${wMax}<span style="font-size:13px;font-weight:500"> mph</span>`;
+  document.getElementById('kv4').innerHTML=`${wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
   document.getElementById('kv5').textContent=rows.length;
   document.getElementById('ks5').textContent=`${D.length} días • 10 min/reg.`;
   document.getElementById('ft').textContent=
@@ -314,7 +314,7 @@ function buildFromRows(rows, source){
     {type:'line',data:dTa,borderColor:'#E05A2B',borderWidth:2.5,pointRadius:5,
      pointBackgroundColor:'#E05A2B',tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}°C`:` Prom ${c.parsed.y}°C`}}},
+    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}°C`:` Prom ${c.parsed.y}°C`}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:20,max:40}}
   }});
 
@@ -327,8 +327,8 @@ function buildFromRows(rows, source){
   chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:dW,
     backgroundColor:'rgba(26,158,114,.7)',borderRadius:5,borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y} mph`}}},
-      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mph'},min:0}}}});
+      tooltip:{callbacks:{label:c=>` ${c.parsed.y} km/h`}}},
+      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
 
   chartRefs['cH']=new Chart('cH',{data:{labels:dL,datasets:[
     {type:'bar',data:dL.map((_,i)=>[dHn[i],dHx[i]]),backgroundColor:'rgba(31,127,223,.12)',
@@ -336,7 +336,7 @@ function buildFromRows(rows, source){
     {type:'line',data:dHa,borderColor:'#1F7FDF',borderWidth:2.5,pointRadius:5,
      pointBackgroundColor:'#1F7FDF',tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.parsed.y[0]}–${c.parsed.y[1]}%`:` Prom ${c.parsed.y}%`}}},
+    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}%`:` Prom ${c.parsed.y}%`}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:40,max:100}}
   }});
 
@@ -358,7 +358,7 @@ function buildFromRows(rows, source){
       <td>${d.dia}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
       <td>${d.hmin}%</td><td>${d.havg}%</td><td>${d.hmax}%</td>
       <td>${d.rain>0?`<span class="rb">${d.rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
-      <td>${d.wmax} mph</td>`;
+      <td>${d.wmax} km/h</td>`;
     tb.appendChild(tr);
   });
   const aT=(dTa.reduce((a,b)=>a+b,0)/dTa.length).toFixed(1);
@@ -367,7 +367,7 @@ function buildFromRows(rows, source){
     <td>Total / Prom</td>
     <td>${Math.min(...dTn).toFixed(1)}°C</td><td>${aT}°C</td><td>${Math.max(...dTx).toFixed(1)}°C</td>
     <td>${Math.min(...dHn).toFixed(1)}%</td><td>${aH}%</td><td>${Math.max(...dHx).toFixed(1)}%</td>
-    <td><strong>${totR} mm</strong></td><td>${Math.max(...dW)} mph</td>`;
+    <td><strong>${totR} mm</strong></td><td>${Math.max(...dW)} km/h</td>`;
 
   document.getElementById('loading').style.display  ='none';
   document.getElementById('picker').style.display   ='none';
