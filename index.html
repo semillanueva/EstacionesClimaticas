@@ -3,18 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WatchDog 3000 · Suchitepéquez</title>
+<title>WatchDog 3000 · Estaciones Climáticas · Guatemala</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#F0EEEA;--surf:#fff;--surf2:#F7F5F1;--brd:rgba(0,0,0,0.08);
   --shd:0 1px 4px rgba(0,0,0,0.08);--navy:#1D3461;--blue:#1F7FDF;
-  --coral:#E05A2B;--teal:#1A9E72;--steel:#2E86AB;--txt:#18181A;
-  --muted:#6E6D68;--sub:#9A9891;--r:12px;--r2:8px}
+  --coral:#E05A2B;--teal:#1A9E72;--steel:#2E86AB;--amber:#E8A838;
+  --txt:#18181A;--muted:#6E6D68;--sub:#9A9891;--r:12px;--r2:8px}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+
 nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
   justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
   position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
@@ -23,57 +25,100 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .dot{width:7px;height:7px;border-radius:50%;background:#4ADE80;display:inline-block;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-/* estados */
-#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:65vh;gap:14px}
+/* TABS */
+.tabs-bar{background:var(--surf);border-bottom:1px solid var(--brd);
+  padding:0 20px;display:flex;gap:0;position:sticky;top:52px;z-index:99;
+  box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.tab{padding:12px 18px;font-size:13px;font-weight:500;color:var(--muted);
+  border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--navy)}
+.tab.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
+.tab.sj.active{border-bottom-color:#E05A2B;color:#E05A2B}
+.tab.ov.active{border-bottom-color:#1A9E72;color:#1A9E72}
+.tab.cmp.active{border-bottom-color:var(--navy);color:var(--navy)}
+
+/* LOADING / PICKER */
+#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px}
 .spinner{width:42px;height:42px;border:4px solid var(--brd);border-top-color:var(--navy);
   border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading p{color:var(--muted);font-size:13px}
-
-#picker{display:none;max-width:440px;margin:60px auto;padding:30px 28px;
-  background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
-  box-shadow:var(--shd);text-align:center}
-#picker h3{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:8px}
-#picker p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+#picker{display:none;max-width:420px;margin:60px auto;padding:28px;background:var(--surf);
+  border-radius:var(--r);border:.5px solid var(--brd);box-shadow:var(--shd);text-align:center}
+#picker h3{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:8px}
+#picker p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:16px}
 #picker code{background:#F0F4FA;padding:2px 6px;border-radius:4px;font-size:11px;color:var(--navy)}
-#drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:26px 20px;
-  cursor:pointer;transition:all .2s;display:block}
+#drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:24px;cursor:pointer;transition:all .2s}
 #drop-zone:hover,#drop-zone.over{border-color:var(--navy);background:#F0F4FA}
 
+/* MAIN LAYOUT */
 #dashboard{display:none}
 main{max-width:1280px;margin:0 auto;padding:20px 20px 40px}
-.banner{background:linear-gradient(135deg,var(--navy),#2C5282);color:#fff;
-  border-radius:var(--r);padding:20px 24px;margin-bottom:20px;
+.banner{border-radius:var(--r);padding:20px 24px;margin-bottom:20px;
   display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.banner h2{font-size:17px;font-weight:700;margin-bottom:4px}
-.banner p{font-size:11px;color:#A8B8CC}
+.banner h2{font-size:17px;font-weight:700;margin-bottom:4px;color:#fff}
+.banner p{font-size:11px;color:rgba(255,255,255,.7)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{background:rgba(255,255,255,.12);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:500;color:#E2EAF4}
+.chip{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;
+  font-size:11px;font-weight:500;color:rgba(255,255,255,.9)}
 .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
-.kpi{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);padding:14px 16px;box-shadow:var(--shd)}
-.kl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:6px}
-.kv{font-size:24px;font-weight:700;line-height:1;margin-bottom:4px}.ks{font-size:11px;color:var(--sub)}
+.kpi{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
+  padding:14px 16px;box-shadow:var(--shd)}
+.kl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
+  color:var(--muted);margin-bottom:6px}
+.kv{font-size:24px;font-weight:700;line-height:1;margin-bottom:4px}
+.ks{font-size:11px;color:var(--sub)}
 .panels{display:grid;gap:16px;margin-bottom:16px}
-.r1{grid-template-columns:1fr}.r2{grid-template-columns:1fr 1fr}.r3{grid-template-columns:2fr 1fr 1fr}
-.panel{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);box-shadow:var(--shd);padding:16px 18px}
-.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.r1{grid-template-columns:1fr}.r2{grid-template-columns:1fr 1fr}
+.r3{grid-template-columns:2fr 1fr 1fr}
+.panel{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
+  box-shadow:var(--shd);padding:16px 18px}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+  flex-wrap:wrap;gap:8px}
 .pt{font-size:12px;font-weight:600}
 .leg{display:flex;gap:12px;flex-wrap:wrap}
 .li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
 .ll{width:14px;height:2px;border-radius:1px;flex-shrink:0}
 .ld{width:14px;height:0;border-top:2px dashed;flex-shrink:0}
+
+/* COMPARE */
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.cmp-card{border-radius:var(--r);padding:16px 18px;border:.5px solid var(--brd);box-shadow:var(--shd)}
+.cmp-card.sj{background:linear-gradient(135deg,#FFF5F2,#fff)}
+.cmp-card.ov{background:linear-gradient(135deg,#F0FAF4,#fff)}
+.cmp-hdr{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cmp-dot{width:10px;height:10px;border-radius:50%}
+.cmp-stat{display:flex;justify-content:space-between;padding:5px 0;
+  border-bottom:.5px solid var(--brd);font-size:12px}
+.cmp-stat:last-child{border-bottom:none}
+.cmp-stat .lbl{color:var(--muted)}
+.cmp-stat .val{font-weight:600}
+
+/* TABLE */
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{background:var(--navy);color:#fff;padding:8px 12px;text-align:right;font-weight:600;font-size:11px}
-thead th:first-child{text-align:left;border-radius:var(--r2) 0 0 0}thead th:last-child{border-radius:0 var(--r2) 0 0}
-tbody tr{border-bottom:.5px solid var(--brd)}tbody tr:nth-child(even){background:var(--surf2)}
+thead th{background:var(--navy);color:#fff;padding:8px 12px;text-align:right;
+  font-weight:600;font-size:11px}
+thead th:first-child{text-align:left;border-radius:var(--r2) 0 0 0}
+thead th:last-child{border-radius:0 var(--r2) 0 0}
+tbody tr{border-bottom:.5px solid var(--brd)}
+tbody tr:nth-child(even){background:var(--surf2)}
 tbody tr.rn{background:#EBF4FC}
-tbody td{padding:8px 12px;text-align:right}tbody td:first-child{text-align:left;font-weight:600;color:var(--navy)}
-tfoot td{background:var(--surf2);padding:8px 12px;text-align:right;font-weight:600;color:var(--navy);border-top:1.5px solid var(--navy)}
+tbody td{padding:8px 12px;text-align:right}
+tbody td:first-child{text-align:left;font-weight:600;color:var(--navy)}
+tfoot td{background:var(--surf2);padding:8px 12px;text-align:right;
+  font-weight:600;color:var(--navy);border-top:1.5px solid var(--navy)}
 tfoot td:first-child{text-align:left}
-.rb{background:#2E86AB;color:#fff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:600}
-footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;border-top:.5px solid var(--brd);margin-top:8px}
-@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.r2,.r3{grid-template-columns:1fr}.nav-r{display:none}}
+.rb{background:#2E86AB;color:#fff;border-radius:20px;padding:1px 7px;
+  font-size:10px;font-weight:600}
+footer{text-align:center;font-size:11px;color:var(--sub);
+  padding:24px 0 8px;border-top:.5px solid var(--brd);margin-top:8px}
+
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  .r2,.r3,.cmp-grid{grid-template-columns:1fr}
+  .nav-r,.tabs-bar{display:none}}
 @media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -81,49 +126,59 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
 
 <nav>
   <div>
-    <div class="nav-t">&#127782; WatchDog 3000 &mdash; Sembrad&iacute;o de Ma&iacute;z</div>
-    <div class="nav-s">Suchitep&eacute;quez, Guatemala &bull; ID 54400111</div>
+    <div class="nav-t">&#127782; WatchDog 3000 &mdash; Estaciones Clim&aacute;ticas</div>
+    <div class="nav-s">Suchitep&eacute;quez &amp; Ovejero, Jutiapa &bull; Guatemala</div>
   </div>
   <div class="nav-r">
-    <span>&#128205; 14.364°N, -91.552°W &bull; UTC-6</span>
+    <span>&#128205; UTC-6</span>
     <span id="nav-src"></span>
     <span id="nav-ts"></span>
   </div>
 </nav>
 
+<!-- Tabs de estación -->
+<div class="tabs-bar" id="tabs-bar" style="display:none">
+  <button class="tab active" id="tab-all"  onclick="setStation('all')">&#127760; Todas</button>
+  <button class="tab sj"    id="tab-sj"   onclick="setStation('CE')">&#127807; CE &mdash; Suchitep&eacute;quez</button>
+  <button class="tab ov"    id="tab-ov"   onclick="setStation('Ovejero')">&#127806; Ovejero &mdash; Jutiapa</button>
+  <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
+</div>
+
+<!-- Loading / Picker -->
 <div id="loading">
   <div class="spinner"></div>
   <p id="load-msg">Conectando con Google Sheets...</p>
 </div>
-
 <div id="picker">
   <div style="font-size:36px;margin-bottom:10px">&#128196;</div>
-  <h3>Cargar archivo de datos</h3>
-  <p>
-    <strong>Opci&oacute;n 1:</strong> Configur&aacute; la URL de tu Google Sheet en el script
-    (ver comentario <code>SHEETS_URL</code> al final del HTML).<br><br>
-    <strong>Opci&oacute;n 2:</strong> Seleccion&aacute; el archivo <code>datos.xlsx</code> manualmente:
-  </p>
+  <h3>Seleccion&aacute; el archivo de datos</h3>
+  <p>Configur&aacute; la URL del Google Sheet en <code>SHEETS_URL</code>,<br>
+     o seleccion&aacute; el CSV/Excel manualmente:</p>
   <label id="drop-zone">
     <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none">
     <div style="font-size:28px;margin-bottom:8px">&#128194;</div>
-    <div style="font-weight:600;color:var(--navy);margin-bottom:4px">Clic para seleccionar archivo</div>
+    <div style="font-weight:600;color:var(--navy);margin-bottom:4px">Clic para seleccionar</div>
     <div style="font-size:11px;color:var(--sub)">datos.xlsx o CSV &bull; tambi&eacute;n pod&eacute;s arrastrar</div>
   </label>
 </div>
 
+<!-- Dashboard -->
 <div id="dashboard">
 <main>
-  <div class="banner">
+
+  <!-- Banner (cambia color según estación) -->
+  <div class="banner" id="banner" style="background:linear-gradient(135deg,#1D3461,#2C5282)">
     <div>
-      <h2>Dashboard de Monitoreo Clim&aacute;tico</h2>
-      <p id="banner-sub">WatchDog 3000 Wireless &bull; ID 54400111 &bull; Firmware 00.01.75</p>
+      <h2 id="banner-title">Dashboard de Monitoreo Clim&aacute;tico</h2>
+      <p id="banner-sub">WatchDog 3000 Wireless &bull; ID: 54400111 &amp; 54400110 &bull; Firmware 00.01.75</p>
     </div>
-    <div class="chips">
+    <div class="chips" id="banner-chips">
       <span class="chip">&#127303; Temporada de lluvias</span>
       <span class="chip" id="chip-dias"></span>
     </div>
   </div>
+
+  <!-- KPIs -->
   <div class="kpi-grid">
     <div class="kpi"><div class="kl">Lluvia total</div>
       <div class="kv" id="kv1" style="color:var(--steel)">—</div>
@@ -141,125 +196,232 @@ footer{text-align:center;font-size:11px;color:var(--sub);padding:24px 0 8px;bord
       <div class="kv" id="kv5" style="color:var(--navy)">—</div>
       <div class="ks" id="ks5">—</div></div>
   </div>
-  <div class="panels r1"><div class="panel">
-    <div class="ph">
-      <span class="pt">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
-      <div class="leg">
-        <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura (°C)</span>
-        <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Humedad %HR</span>
+
+  <!-- Vista individual (serie temporal + gráficas diarias) -->
+  <div id="single-view">
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt" id="serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
+        <div class="leg">
+          <span class="li"><span class="ll" id="leg-t-line" style="background:#E05A2B"></span>Temperatura (°C)</span>
+          <span class="li"><span class="ld" id="leg-h-line" style="border-color:#1F7FDF"></span>Humedad %HR</span>
+        </div>
+      </div>
+      <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
+    </div></div>
+
+    <div class="panels r3">
+      <div class="panel"><div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
+        <div style="position:relative;height:185px"><canvas id="cT"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
+        <div style="position:relative;height:185px"><canvas id="cR"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
+        <div style="position:relative;height:185px"><canvas id="cW"></canvas></div></div>
+    </div>
+
+    <div class="panels r2">
+      <div class="panel"><div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
+        <div style="position:relative;height:155px"><canvas id="cH"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#9889; Voltaje &mdash; ciclo panel solar</span></div>
+        <div style="position:relative;height:155px"><canvas id="cV"></canvas></div></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario</span></div>
+      <div class="tw"><table>
+        <thead><tr>
+          <th>Fecha</th><th>T M&iacute;n</th><th>T Prom</th><th>T M&aacute;x</th>
+          <th>HR M&iacute;n</th><th>HR Prom</th><th>HR M&aacute;x</th>
+          <th>Lluvia (mm)</th><th>Viento M&aacute;x (km/h)</th>
+        </tr></thead>
+        <tbody id="tb"></tbody>
+        <tfoot><tr id="tf"></tr></tfoot>
+      </table></div>
+    </div>
+  </div>
+
+  <!-- Vista comparación -->
+  <div id="compare-view" style="display:none">
+    <div class="cmp-grid">
+      <div class="cmp-card sj">
+        <div class="cmp-hdr">
+          <span class="cmp-dot" style="background:#E05A2B"></span>
+          CE &mdash; Centro Experimental, Suchitep&eacute;quez
+        </div>
+        <div id="cmp-sj-stats"></div>
+      </div>
+      <div class="cmp-card ov">
+        <div class="cmp-hdr">
+          <span class="cmp-dot" style="background:#1A9E72"></span>
+          Ovejero &mdash; Jutiapa (Corredor Seco)
+        </div>
+        <div id="cmp-ov-stats"></div>
       </div>
     </div>
-    <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
-  </div></div>
-  <div class="panels r3">
-    <div class="panel"><div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
-      <div style="position:relative;height:185px"><canvas id="cT"></canvas></div></div>
-    <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
-      <div style="position:relative;height:185px"><canvas id="cR"></canvas></div></div>
-    <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario</span></div>
-      <div style="position:relative;height:185px"><canvas id="cW"></canvas></div></div>
+
+    <div class="panels r2">
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#127777; Temperatura diaria &mdash; comparaci&oacute;n</span>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
+            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="cCmpT"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#127783; Lluvia diaria &mdash; comparaci&oacute;n</span>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
+            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="cCmpR"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Tabla comparativa -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph" style="margin-bottom:14px">
+        <span class="pt">&#128203; Resumen comparativo por d&iacute;a</span>
+        <span style="font-size:10px;color:var(--sub)">Per&iacute;odo com&uacute;n: 15-22 jun 2026</span>
+      </div>
+      <div class="tw"><table>
+        <thead><tr>
+          <th>Fecha</th>
+          <th>T M&aacute;x SJ</th><th>T M&aacute;x OV</th>
+          <th>T M&iacute;n SJ</th><th>T M&iacute;n OV</th>
+          <th>Lluvia SJ</th><th>Lluvia OV</th>
+          <th>HR Prom SJ</th><th>HR Prom OV</th>
+        </tr></thead>
+        <tbody id="cmp-tb"></tbody>
+      </table></div>
+    </div>
   </div>
-  <div class="panels r2">
-    <div class="panel"><div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
-      <div style="position:relative;height:155px"><canvas id="cH"></canvas></div></div>
-    <div class="panel"><div class="ph"><span class="pt">&#9889; Voltaje &mdash; ciclo panel solar</span></div>
-      <div style="position:relative;height:155px"><canvas id="cV"></canvas></div></div>
-  </div>
-  <div class="panel" style="margin-bottom:16px">
-    <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario</span></div>
-    <div class="tw"><table>
-      <thead><tr>
-        <th>Fecha</th><th>T M&iacute;n</th><th>T Prom</th><th>T M&aacute;x</th>
-        <th>HR M&iacute;n</th><th>HR Prom</th><th>HR M&aacute;x</th>
-        <th>Lluvia (mm)</th><th>Viento M&aacute;x (km/h)</th>
-      </tr></thead>
-      <tbody id="tb"></tbody>
-      <tfoot><tr id="tf"></tr></tfoot>
-    </table></div>
-  </div>
-  <footer id="ft">WatchDog 3000 Wireless &bull; ID 54400111 &bull; Suchitep&eacute;quez, Guatemala</footer>
+
+  <footer id="ft">WatchDog 3000 &bull; Suchitep&eacute;quez (54400111) &amp; Ovejero-Jutiapa (54400110) &bull; Guatemala</footer>
 </main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ════════════════════════════════════════════════════════════════════
-//  CONFIGURACIÓN — pegá la URL de tu Google Sheet publicado como CSV
-//
-//  Pasos:
-//  1. Abrí tu Google Sheet con los datos
-//  2. Archivo → Compartir → Publicar en la web
-//  3. Seleccioná la hoja "Datos" y formato "Valores separados por comas (.csv)"
-//  4. Clic en "Publicar" y copiá la URL que aparece
-//  5. Pegala abajo entre las comillas
-//
-const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← PEGAR URL AQUÍ
-//
-//  Ejemplo:
-//  const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/ABC123.../pub?output=csv&gid=0';
-//
-//  Si SHEETS_URL está vacío → aparece el selector de archivo local (xlsx o csv)
-//  Actualización automática cada N minutos (0 = desactivado):
+// CONFIGURACIÓN
+const SHEETS_URL = '';   // ← PEGAR URL DEL GOOGLE SHEET AQUÍ
 const AUTO_REFRESH_MIN = 10;
 // ════════════════════════════════════════════════════════════════════
 
 const GC='rgba(0,0,0,0.06)',TC='#999';
 const XT={color:TC,font:{size:10},maxRotation:0,autoSkip:true};
 Chart.defaults.font.family="'Inter',system-ui,sans-serif";
-let refreshTimer=null;
-const chartRefs={};
 
-function showPicker(){
-  document.getElementById('loading').style.display='none';
-  document.getElementById('picker').style.display='block';
-}
+// Colores por estación
+const CLR = {
+  'CE': {main:'#E05A2B', light:'rgba(224,90,43,.18)', border:'rgba(224,90,43,.4)', hum:'#1F7FDF'},
+  'Ovejero':       {main:'#1A9E72', light:'rgba(26,158,114,.18)', border:'rgba(26,158,114,.4)', hum:'#185FA5'},
+  'all':           {main:'#1D3461', light:'rgba(29,52,97,.15)',   border:'rgba(29,52,97,.3)',  hum:'#1F7FDF'}
+};
+const BANNER_BG = {
+  'CE': 'linear-gradient(135deg,#7B2D1A,#C4512A)',
+  'Ovejero':       'linear-gradient(135deg,#0D4A30,#1A9E72)',
+  'all':           'linear-gradient(135deg,#1D3461,#2C5282)',
+  'compare':       'linear-gradient(135deg,#1D3461,#2C5282)'
+};
 
-// ── Agrega agrupación diaria desde filas crudas ──────────────────────
-function aggregateByDay(rows){
-  const map={};
-  rows.forEach(r=>{
-    const day=(r['Dia']||r['Fecha']||'').substring(0,10);
+let ALL_ROWS = [];
+let CUR_STATION = 'all';
+let refreshTimer = null;
+const chartRefs = {};
+
+// ── Agrupación diaria ──────────────────────────────────────────────
+function aggregateByDay(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const day = (r['Dia']||'').substring(0,10);
     if(!day) return;
-    if(!map[day]) map[day]=[];
+    if(!map[day]) map[day] = [];
     map[day].push(r);
   });
-  const keys=Object.keys(map).sort();
-  return keys.map(k=>{
-    const recs=map[k];
-    const tc=recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
-    const hm=recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
-    const rn=recs.map(r=>parseFloat(r['Lluvia (mm/10min)'])||0);
-    const wd=recs.map(r=>parseFloat(r['Viento (mph)'])||0);
-    const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  return Object.keys(map).sort().map(k => {
+    const recs = map[k];
+    const tc = recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
+    const hm = recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
+    const rn = recs.map(r=>parseFloat(r['Lluvia (mm/10min)'])||0);
+    const wd = recs.map(r=>parseFloat(r['Viento (mph)'])||0);
+    const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
     return {
-      dia: k.substring(0,2)+'/'+k.substring(3,5),  // "15/06"
-      tmin:tc.length?Math.min(...tc):0, tavg:+avg(tc).toFixed(1), tmax:tc.length?Math.max(...tc):0,
-      hmin:hm.length?Math.min(...hm):0, havg:+avg(hm).toFixed(1), hmax:hm.length?Math.max(...hm):0,
-      rain:+rn.reduce((x,y)=>x+y,0).toFixed(1), wmax:wd.length?+((Math.max(...wd))*1.60934).toFixed(1):0
+      dia: k.substring(0,2)+'/'+k.substring(3,5),
+      tmin: tc.length?+Math.min(...tc).toFixed(1):0,
+      tavg: +avg(tc).toFixed(1),
+      tmax: tc.length?+Math.max(...tc).toFixed(1):0,
+      hmin: hm.length?+Math.min(...hm).toFixed(1):0,
+      havg: +avg(hm).toFixed(1),
+      hmax: hm.length?+Math.max(...hm).toFixed(1):0,
+      rain: +rn.reduce((x,y)=>x+y,0).toFixed(1),
+      wmax: +(Math.max(...wd,0)*1.60934).toFixed(1)
     };
   });
 }
 
-// ── Destruye charts existentes ────────────────────────────────────────
-function destroyCharts(){
-  ['cS','cT','cR','cW','cH','cV'].forEach(id=>{
+// ── Destruye charts ────────────────────────────────────────────────
+function destroyCharts() {
+  ['cS','cT','cR','cW','cH','cV','cCmpT','cCmpR'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
 
-// ── Construye el dashboard desde filas CSV ────────────────────────────
-function buildFromRows(rows, source){
-  destroyCharts();
-  // Filtrar filas vacías o encabezados duplicados
-  rows=rows.filter(r=>r['Dia']&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
+// ── Muestra u oculta tabs según estaciones disponibles ────────────
+function setupTabs(rows) {
+  const stations = [...new Set(rows.map(r=>r['Estacion']).filter(Boolean))];
+  const bar = document.getElementById('tabs-bar');
+  if(stations.length > 1) {
+    bar.style.display = 'flex';
+    document.getElementById('tab-sj').style.display  = stations.includes('CE') ? '' : 'none';
+    document.getElementById('tab-ov').style.display  = stations.includes('Ovejero')       ? '' : 'none';
+    document.getElementById('tab-cmp').style.display = stations.length >= 2 ? '' : 'none';
+  } else {
+    bar.style.display = 'none';
+  }
+}
 
+// ── Cambia estación activa ─────────────────────────────────────────
+function setStation(st) {
+  CUR_STATION = st;
+  ['all','sj','ov','cmp'].forEach(id => {
+    document.getElementById('tab-'+id)?.classList.remove('active');
+  });
+  const tabMap = {'all':'all','CE':'sj','Ovejero':'ov','compare':'cmp'};
+  document.getElementById('tab-'+(tabMap[st]||'all'))?.classList.add('active');
+
+  document.getElementById('banner').style.background = BANNER_BG[st] || BANNER_BG['all'];
+  destroyCharts();
+
+  if(st === 'compare') {
+    document.getElementById('single-view').style.display  = 'none';
+    document.getElementById('compare-view').style.display = 'block';
+    buildCompareView();
+  } else {
+    document.getElementById('single-view').style.display  = 'block';
+    document.getElementById('compare-view').style.display = 'none';
+    const filtered = (st === 'all' || !st)
+      ? ALL_ROWS
+      : ALL_ROWS.filter(r => r['Estacion'] === st || !r['Estacion']);
+    renderDashboard(filtered);
+  }
+}
+
+// ── Renderiza dashboard principal ──────────────────────────────────
+function renderDashboard(rows) {
+  rows = rows.filter(r=>r['Dia']&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
   if(!rows.length){showPicker();return;}
+
+  const st  = CUR_STATION;
+  const clr = CLR[st] || CLR['all'];
 
   const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[],tsV=[];
   rows.forEach(r=>{
-    const dia=(r['Dia']||'').substring(0,5);
-    const hora=(r['Hora']||'').substring(0,5);
-    tsL.push(`${dia} ${hora}`);
+    tsL.push(`${(r['Dia']||'').substring(0,5)} ${(r['Hora']||'').substring(0,5)}`);
     tsT.push(parseFloat(r['Temperatura (C)'])||0);
     tsH.push(parseFloat(r['Humedad (%HR)'])||0);
     tsR.push(parseFloat(r['Lluvia (mm/10min)'])||0);
@@ -267,90 +429,95 @@ function buildFromRows(rows, source){
     tsV.push(parseFloat(r['Voltaje (V)'])||0);
   });
 
-  const D=aggregateByDay(rows);
-  const dL=D.map(d=>d.dia), dTn=D.map(d=>d.tmin), dTa=D.map(d=>d.tavg), dTx=D.map(d=>d.tmax);
-  const dR=D.map(d=>d.rain), dW=D.map(d=>d.wmax);
-  const dHn=D.map(d=>d.hmin), dHa=D.map(d=>d.havg), dHx=D.map(d=>d.hmax);
+  const D    = aggregateByDay(rows);
+  const dL   = D.map(d=>d.dia);
+  const totR = D.reduce((a,d)=>a+d.rain,0).toFixed(1);
+  const tMax = Math.max(...tsT).toFixed(1);
+  const tMin = Math.min(...tsT).toFixed(1);
+  const wMax = Math.max(...tsW).toFixed(1);
+  const dias = D.filter(d=>d.rain>0).length;
+  const fi   = (rows[0]?.['Dia']||'').substring(0,5);
+  const ff   = (rows[rows.length-1]?.['Dia']||'').substring(0,5);
+  const now  = new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const stNm = st==='all'?'Todas las estaciones': st==='CE'?'CE — Suchitepéquez':st==='Ovejero'?'Ovejero – Jutiapa':st;
 
-  const totR=dR.reduce((a,b)=>a+b,0).toFixed(1);
-  const tMax=Math.max(...tsT).toFixed(1), tMin=Math.min(...tsT).toFixed(1);
-  const wMax=Math.max(...tsW), dias=dR.filter(v=>v>0).length;
-  const fi=(rows[0]?.['Dia']||'').substring(0,5);
-  const ff=(rows[rows.length-1]?.['Dia']||'').substring(0,5);
-  const now=new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('banner-title').textContent = stNm+' — Dashboard Climático';
+  document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
+  document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
+  document.getElementById('nav-ts').textContent       = `🔄 ${now}`;
+  document.getElementById('kv1').innerHTML  = `${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
+  document.getElementById('ks1').textContent= `${dias} día(s) con lluvia`;
+  document.getElementById('kv2').innerHTML  = `${tMax}<span style="font-size:13px;font-weight:500"> °C</span>`;
+  document.getElementById('kv3').innerHTML  = `${tMin}<span style="font-size:13px;font-weight:500"> °C</span>`;
+  document.getElementById('kv4').innerHTML  = `${wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
+  document.getElementById('kv5').textContent= rows.length;
+  document.getElementById('ks5').textContent= `${D.length} días • 10 min/reg.`;
 
-  // UI
-  document.getElementById('banner-sub').textContent=
-    `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
-  document.getElementById('chip-dias').textContent=`📅 ${D.length} días registrados`;
-  document.getElementById('nav-src').innerHTML=
-    `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
-  document.getElementById('nav-ts').textContent=`🔄 ${now}`;
-  document.getElementById('kv1').innerHTML=`${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
-  document.getElementById('ks1').textContent=`${dias} día(s) con lluvia`;
-  document.getElementById('kv2').innerHTML=`${tMax}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv3').innerHTML=`${tMin}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv4').innerHTML=`${wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
-  document.getElementById('kv5').textContent=rows.length;
-  document.getElementById('ks5').textContent=`${D.length} días • 10 min/reg.`;
-  document.getElementById('ft').textContent=
-    `WatchDog 3000 Wireless • ID 54400111 • Suchitepéquez, Guatemala • ${fi} – ${ff}`;
+  // Actualiza leyenda colores
+  document.getElementById('leg-t-line').style.background = clr.main;
+  document.getElementById('leg-h-line').style.borderTopColor = clr.hum;
 
   // Gráficas
   chartRefs['cS']=new Chart('cS',{type:'line',data:{labels:tsL,datasets:[
-    {label:'T',data:tsT,yAxisID:'yT',borderColor:'#E05A2B',borderWidth:1.2,pointRadius:0,tension:0.1},
-    {label:'H',data:tsH,yAxisID:'yH',borderColor:'#1F7FDF',borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
-  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    {label:'T',data:tsT,yAxisID:'yT',borderColor:clr.main,borderWidth:1.2,pointRadius:0,tension:0.1},
+    {label:'H',data:tsH,yAxisID:'yH',borderColor:clr.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
       tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.parsed.y}°C`:` ${c.parsed.y}% HR`}}},
     scales:{x:{grid:{color:GC},ticks:{...XT,maxTicksLimit:8}},
-      yT:{position:'left',grid:{color:GC},ticks:{color:'#E05A2B',font:{size:9},callback:v=>v+'°C'},min:20,max:40},
-      yH:{position:'right',grid:{display:false},ticks:{color:'#1F7FDF',font:{size:9},callback:v=>v+'%'},min:40,max:100}}
+      yT:{position:'left',grid:{color:GC},ticks:{color:clr.main,font:{size:9},callback:v=>v+'°C'},min:15,max:40},
+      yH:{position:'right',grid:{display:false},ticks:{color:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
   }});
 
   chartRefs['cT']=new Chart('cT',{data:{labels:dL,datasets:[
-    {type:'bar',data:dL.map((_,i)=>[dTn[i],dTx[i]]),backgroundColor:'rgba(224,90,43,.18)',
-     borderColor:'rgba(224,90,43,.4)',borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:dTa,borderColor:'#E05A2B',borderWidth:2.5,pointRadius:5,
-     pointBackgroundColor:'#E05A2B',tension:0,order:1}
+    {type:'bar',data:D.map(d=>[d.tmin,d.tmax]),backgroundColor:clr.light,
+     borderColor:clr.border,borderWidth:1,borderRadius:4,order:2},
+    {type:'line',data:D.map(d=>d.tavg),borderColor:clr.main,borderWidth:2.5,
+     pointRadius:5,pointBackgroundColor:clr.main,tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}°C`:` Prom ${c.parsed.y}°C`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:20,max:40}}
+    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
+      ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
   }});
 
-  chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:dR,
-    backgroundColor:dR.map(v=>v>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),borderRadius:5,borderWidth:0}]},
+  chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.rain),
+    backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
+    borderRadius:5,borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
-      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
+      scales:{x:{grid:{display:false},ticks:XT},
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
 
-  chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:dW,
-    backgroundColor:'rgba(26,158,114,.7)',borderRadius:5,borderWidth:0}]},
+  chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.wmax),
+    backgroundColor:st==='Ovejero'?'rgba(26,158,114,.7)':'rgba(26,158,114,.7)',
+    borderRadius:5,borderWidth:0}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>` ${c.parsed.y} km/h`}}},
-      scales:{x:{grid:{display:false},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
+      scales:{x:{grid:{display:false},ticks:XT},
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
 
   chartRefs['cH']=new Chart('cH',{data:{labels:dL,datasets:[
-    {type:'bar',data:dL.map((_,i)=>[dHn[i],dHx[i]]),backgroundColor:'rgba(31,127,223,.12)',
+    {type:'bar',data:D.map(d=>[d.hmin,d.hmax]),backgroundColor:'rgba(31,127,223,.12)',
      borderColor:'rgba(31,127,223,.35)',borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:dHa,borderColor:'#1F7FDF',borderWidth:2.5,pointRadius:5,
-     pointBackgroundColor:'#1F7FDF',tension:0,order:1}
+    {type:'line',data:D.map(d=>d.havg),borderColor:clr.hum,borderWidth:2.5,
+     pointRadius:5,pointBackgroundColor:clr.hum,tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}%`:` Prom ${c.parsed.y}%`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:40,max:100}}
+    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
+      ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
   }});
 
   const vN=Math.min(150,tsV.length);
-  chartRefs['cV']=new Chart('cV',{type:'line',data:{labels:tsL.slice(0,vN),datasets:[{data:tsV.slice(0,vN),
-    borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:0.1}]},
+  chartRefs['cV']=new Chart('cV',{type:'line',data:{labels:tsL.slice(0,vN),
+    datasets:[{data:tsV.slice(0,vN),borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:0.1}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(3)}V`}}},
       scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
         y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v.toFixed(0)+'V'},min:5,max:10}}}});
 
   // Tabla
-  const tb=document.getElementById('tb');
-  tb.innerHTML='';
+  const tb=document.getElementById('tb'); tb.innerHTML='';
   D.forEach(d=>{
     const tr=document.createElement('tr');
     if(d.rain>0) tr.className='rn';
@@ -361,78 +528,184 @@ function buildFromRows(rows, source){
       <td>${d.wmax} km/h</td>`;
     tb.appendChild(tr);
   });
-  const aT=(dTa.reduce((a,b)=>a+b,0)/dTa.length).toFixed(1);
-  const aH=(dHa.reduce((a,b)=>a+b,0)/dHa.length).toFixed(1);
+  const aT=(D.reduce((a,d)=>a+d.tavg,0)/D.length).toFixed(1);
+  const aH=(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1);
   document.getElementById('tf').innerHTML=`
     <td>Total / Prom</td>
-    <td>${Math.min(...dTn).toFixed(1)}°C</td><td>${aT}°C</td><td>${Math.max(...dTx).toFixed(1)}°C</td>
-    <td>${Math.min(...dHn).toFixed(1)}%</td><td>${aH}%</td><td>${Math.max(...dHx).toFixed(1)}%</td>
-    <td><strong>${totR} mm</strong></td><td>${Math.max(...dW)} km/h</td>`;
+    <td>${Math.min(...D.map(d=>d.tmin)).toFixed(1)}°C</td><td>${aT}°C</td>
+    <td>${Math.max(...D.map(d=>d.tmax)).toFixed(1)}°C</td>
+    <td>${Math.min(...D.map(d=>d.hmin)).toFixed(1)}%</td><td>${aH}%</td>
+    <td>${Math.max(...D.map(d=>d.hmax)).toFixed(1)}%</td>
+    <td><strong>${totR} mm</strong></td>
+    <td>${Math.max(...D.map(d=>d.wmax)).toFixed(1)} km/h</td>`;
+}
+
+// ── Vista comparativa ──────────────────────────────────────────────
+function buildCompareView() {
+  const sj = ALL_ROWS.filter(r=>r['Estacion']==='CE'||(!r['Estacion']&&ALL_ROWS.every(x=>!x['Estacion'])));
+  const ov = ALL_ROWS.filter(r=>r['Estacion']==='Ovejero');
+  if(!sj.length||!ov.length){
+    document.getElementById('compare-view').innerHTML='<div class="panel"><p style="color:var(--muted);padding:20px">No hay datos de ambas estaciones para comparar. Asegurate de tener la columna "Estacion" en tu Google Sheet.</p></div>';
+    return;
+  }
+
+  const DSJ = aggregateByDay(sj);
+  const DOV = aggregateByDay(ov);
+
+  // Stats por estación
+  function stStats(D,rows) {
+    return {
+      tmax:Math.max(...D.map(d=>d.tmax)).toFixed(1),
+      tmin:Math.min(...D.map(d=>d.tmin)).toFixed(1),
+      tavg:(D.reduce((a,d)=>a+d.tavg,0)/D.length).toFixed(1),
+      rain:D.reduce((a,d)=>a+d.rain,0).toFixed(1),
+      diasRain:D.filter(d=>d.rain>0).length,
+      wmax:Math.max(...D.map(d=>d.wmax)).toFixed(1),
+      havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
+      n: rows.length,
+      dias: D.length
+    };
+  }
+
+  const sS=stStats(DSJ,sj), sO=stStats(DOV,ov);
+
+  function renderStats(containerId, s) {
+    document.getElementById(containerId).innerHTML=[
+      ['Temp. máxima', s.tmax+'°C'],
+      ['Temp. promedio', s.tavg+'°C'],
+      ['Temp. mínima', s.tmin+'°C'],
+      ['Humedad promedio', s.havg+'%'],
+      ['Lluvia total', s.rain+' mm'],
+      ['Días con lluvia', s.diasRain+' de '+s.dias],
+      ['Viento máximo', s.wmax+' km/h'],
+      ['Registros', s.n.toLocaleString()],
+    ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
+  }
+  renderStats('cmp-sj-stats', sS);
+  renderStats('cmp-ov-stats', sO);
+
+  // Período común (días que existen en ambas)
+  const sjDias = new Set(DSJ.map(d=>d.dia));
+  const ovDias = new Set(DOV.map(d=>d.dia));
+  const common = [...sjDias].filter(d=>ovDias.has(d)).sort();
+
+  const cSJ = DSJ.filter(d=>common.includes(d.dia));
+  const cOV = DOV.filter(d=>common.includes(d.dia));
+  const cL  = common;
+
+  // Chart temperatura comparativa
+  chartRefs['cCmpT']=new Chart('cCmpT',{type:'line',data:{labels:cL,datasets:[
+    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.tavg),borderColor:'#E05A2B',borderWidth:2,
+     pointRadius:4,pointBackgroundColor:'#E05A2B',tension:0,
+     backgroundColor:'rgba(224,90,43,.08)',fill:true},
+    {label:'Ovejero',data:cOV.map(d=>d.tavg),borderColor:'#1A9E72',borderWidth:2,
+     pointRadius:4,pointBackgroundColor:'#1A9E72',tension:0,
+     backgroundColor:'rgba(26,158,114,.08)',fill:true}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}°C`}}},
+    scales:{x:{grid:{color:GC},ticks:XT},
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
+  }});
+
+  // Chart lluvia comparativa
+  chartRefs['cCmpR']=new Chart('cCmpR',{type:'bar',data:{labels:cL,datasets:[
+    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.rain),backgroundColor:'rgba(224,90,43,.75)',borderRadius:4},
+    {label:'Ovejero',data:cOV.map(d=>d.rain),backgroundColor:'rgba(26,158,114,.75)',borderRadius:4}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} mm`}}},
+    scales:{x:{grid:{color:GC},ticks:XT},
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
+  }});
+
+  // Tabla comparativa
+  const cmpTb=document.getElementById('cmp-tb'); cmpTb.innerHTML='';
+  common.forEach(dia=>{
+    const s=DSJ.find(d=>d.dia===dia)||{};
+    const o=DOV.find(d=>d.dia===dia)||{};
+    const tr=document.createElement('tr');
+    const hasRain=(s.rain||0)>0||(o.rain||0)>0;
+    if(hasRain) tr.className='rn';
+    const rf=v=>v>0?`<span class="rb">${v}</span>`:'<span style="color:#ccc">—</span>';
+    tr.innerHTML=`
+      <td>${dia}</td>
+      <td>${s.tmax||'—'}°C</td><td>${o.tmax||'—'}°C</td>
+      <td>${s.tmin||'—'}°C</td><td>${o.tmin||'—'}°C</td>
+      <td>${rf(s.rain||0)}</td><td>${rf(o.rain||0)}</td>
+      <td>${s.havg||'—'}%</td><td>${o.havg||'—'}%</td>`;
+    cmpTb.appendChild(tr);
+  });
+
+  document.getElementById('nav-ts').textContent =
+    `🔄 ${new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+}
+
+// ── Carga y entrada de datos ───────────────────────────────────────
+function buildFromRows(rows, source) {
+  ALL_ROWS = rows.filter(r=>r['Temperatura (C)']);
+  setupTabs(ALL_ROWS);
+  const stations = [...new Set(ALL_ROWS.map(r=>r['Estacion']).filter(Boolean))];
+  document.getElementById('nav-src').innerHTML =
+    `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
+
+  // Mostrar por defecto primera estación o todas
+  if(stations.length===1) setStation(stations[0]);
+  else setStation('all');
 
   document.getElementById('loading').style.display  ='none';
   document.getElementById('picker').style.display   ='none';
   document.getElementById('dashboard').style.display='block';
 
-  // Auto-refresh desde Google Sheets
   if(source==='sheets'&&AUTO_REFRESH_MIN>0){
     clearTimeout(refreshTimer);
     refreshTimer=setTimeout(()=>{
-      document.getElementById('load-msg').textContent='Actualizando datos...';
+      document.getElementById('load-msg').textContent='Actualizando...';
       loadFromSheets();
     }, AUTO_REFRESH_MIN*60*1000);
   }
 }
 
-// ── Carga desde Google Sheets ─────────────────────────────────────────
-function loadFromSheets(){
-  Papa.parse(SHEETS_URL,{
-    download:true, header:true, skipEmptyLines:true,
-    complete:r=>buildFromRows(r.data,'sheets'),
-    error:()=>showPicker()
-  });
+function showPicker(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('picker').style.display ='block';
 }
 
-// ── Carga desde archivo local (xlsx o csv) ────────────────────────────
+function loadFromSheets(){
+  Papa.parse(SHEETS_URL,{download:true,header:true,skipEmptyLines:true,
+    complete:r=>buildFromRows(r.data,'sheets'),error:()=>showPicker()});
+}
+
 function loadFromFile(file){
   if(!file) return;
-  document.getElementById('picker').style.display ='none';
+  document.getElementById('picker').style.display='none';
   document.getElementById('loading').style.display='flex';
   document.getElementById('load-msg').textContent='Leyendo archivo...';
-
   if(file.name.endsWith('.csv')){
     Papa.parse(file,{header:true,skipEmptyLines:true,
-      complete:r=>buildFromRows(r.data,'local'),
-      error:()=>showPicker()});
+      complete:r=>buildFromRows(r.data,'local'),error:()=>showPicker()});
     return;
   }
-  // xlsx
   const fr=new FileReader();
   fr.onload=e=>{
     const wb=XLSX.read(e.target.result,{type:'array',cellDates:false});
     const ws=wb.Sheets['Datos'];
-    if(!ws){alert('No se encontró la hoja "Datos" en el Excel');showPicker();return;}
-    const rows=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
-    buildFromRows(rows,'local');
+    if(!ws){alert('No se encontró la hoja "Datos"');showPicker();return;}
+    buildFromRows(XLSX.utils.sheet_to_json(ws,{raw:false,defval:''}),'local');
   };
   fr.readAsArrayBuffer(file);
 }
 
-// ── Init ──────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  // Drag & drop
   const z=document.getElementById('drop-zone');
   const fi=document.getElementById('file-input');
   fi.addEventListener('change',()=>loadFromFile(fi.files[0]));
   z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over')});
   z.addEventListener('dragleave',()=>z.classList.remove('over'));
   z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');loadFromFile(e.dataTransfer.files[0])});
-
-  if(SHEETS_URL){
-    loadFromSheets();
-  } else {
-    document.getElementById('load-msg').textContent='Configurá la URL del Google Sheet o seleccioná un archivo.';
-    showPicker();
-  }
+  if(SHEETS_URL) loadFromSheets();
+  else { document.getElementById('load-msg').textContent='Configurá SHEETS_URL o seleccioná un archivo.'; showPicker(); }
 });
 </script>
 </body>
