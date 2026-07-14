@@ -268,7 +268,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="panel">
         <div class="ph">
           <span class="pt">&#128167; Punto de roc&iacute;o &amp; riesgo de hongos</span>
-          <div class="leg">
+          <div class="leg" id="dew-leg">
             <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
             <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
           </div>
@@ -667,20 +667,20 @@ function renderDashboard(rows) {
 
   // Gráficas
   const isAllStations = (st === 'all');
+  const ceMask = rows.map(r=>r['Estacion']==='CE');
+  const ovMask = rows.map(r=>r['Estacion']==='Ovejero');
   const serieLeg = document.getElementById('serie-leg');
   let sDatasets;
   if(isAllStations){
-    const ceMask = rows.map(r=>r['Estacion']==='CE');
-    const ovMask = rows.map(r=>r['Estacion']==='Ovejero');
     const ceTemp = tsT.map((v,i)=>ceMask[i]?v:null);
     const ovTemp = tsT.map((v,i)=>ovMask[i]?v:null);
     const ceHum  = tsH.map((v,i)=>ceMask[i]?v:null);
     const ovHum  = tsH.map((v,i)=>ovMask[i]?v:null);
     sDatasets = [
-      {label:'CE Temp',data:ceTemp,yAxisID:'yT',borderColor:CLR.CE.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:false},
-      {label:'Ovejero Temp',data:ovTemp,yAxisID:'yT',borderColor:CLR.Ovejero.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:false},
-      {label:'CE Humedad',data:ceHum,yAxisID:'yH',borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:false},
-      {label:'Ovejero Humedad',data:ovHum,yAxisID:'yH',borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:false}
+      {label:'CE Temp',data:ceTemp,yAxisID:'yT',borderColor:CLR.CE.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'Ovejero Temp',data:ovTemp,yAxisID:'yT',borderColor:CLR.Ovejero.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'CE Humedad',data:ceHum,yAxisID:'yH',borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'Ovejero Humedad',data:ovHum,yAxisID:'yH',borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true}
     ];
     serieLeg.innerHTML = `
       <span class="li"><span class="ll" style="background:${CLR.CE.main}"></span>CE Temp</span>
@@ -788,34 +788,68 @@ function renderDashboard(rows) {
 
   // ── Punto de rocío + riesgo de hongos ────────────────────────────
   const tsDew = tsT.map((t,i)=>{ const dp=dewPointC(t, tsH[i]); return isNaN(dp)?null:+dp.toFixed(1); });
-  chartRefs['cDew'] = new Chart('cDew', {type:'line', data:{labels:tsL, datasets:[
-    {data:tsT, borderColor:clr.main, borderWidth:1.2, pointRadius:0, tension:0.1},
-    {data:tsDew, borderColor:'#1F7FDF', borderWidth:1, borderDash:[4,3], pointRadius:0, tension:0.1}
-  ]}, options:{responsive:true,maintainAspectRatio:false,
+  const dewLeg = document.getElementById('dew-leg');
+  let dewDatasets;
+  if(isAllStations){
+    const ceTemp = tsT.map((v,i)=>ceMask[i]?v:null);
+    const ovTemp = tsT.map((v,i)=>ovMask[i]?v:null);
+    const ceDew  = tsDew.map((v,i)=>ceMask[i]?v:null);
+    const ovDew  = tsDew.map((v,i)=>ovMask[i]?v:null);
+    dewDatasets = [
+      {label:'CE Temp',data:ceTemp,borderColor:CLR.CE.main,borderWidth:1.2,pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'Ovejero Temp',data:ovTemp,borderColor:CLR.Ovejero.main,borderWidth:1.2,pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'CE Rocío',data:ceDew,borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true},
+      {label:'Ovejero Rocío',data:ovDew,borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true}
+    ];
+    dewLeg.innerHTML = `
+      <span class="li"><span class="ll" style="background:${CLR.CE.main}"></span>CE Temp</span>
+      <span class="li"><span class="ll" style="background:${CLR.Ovejero.main}"></span>Ovejero Temp</span>
+      <span class="li"><span class="ld" style="border-color:${CLR.CE.hum}"></span>CE Rocío</span>
+      <span class="li"><span class="ld" style="border-color:${CLR.Ovejero.hum}"></span>Ovejero Rocío</span>`;
+  } else {
+    dewDatasets = [
+      {label:'Temperatura',data:tsT, borderColor:clr.main, borderWidth:1.2, pointRadius:0, tension:0.1},
+      {label:'Rocío',data:tsDew, borderColor:'#1F7FDF', borderWidth:1, borderDash:[4,3], pointRadius:0, tension:0.1}
+    ];
+    dewLeg.innerHTML = `
+      <span class="li"><span class="ll" style="background:${clr.main}"></span>Temperatura</span>
+      <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de rocío</span>`;
+  }
+  chartRefs['cDew'] = new Chart('cDew', {type:'line', data:{labels:tsL, datasets:dewDatasets},
+    options:{responsive:true,maintainAspectRatio:false,
     interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
-      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Temp ${c.parsed.y}°C`:` Rocío ${c.parsed.y}°C`}}},
+      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}},
     scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
       y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:10,max:40}}
   }});
-  const riskRecords = rows.filter(r=>{
+
+  // El riesgo de hongos se calcula solo con los registros de la estación
+  // activa (o de la última que reportó, si estamos en "Todas") para que
+  // el % no mezcle dos microclimas distintos en un solo dato engañoso.
+  const riskScope = isAllStations
+    ? rows.filter(r=>r['Estacion']===rows[rows.length-1]['Estacion'])
+    : rows;
+  const riskRecords = riskScope.filter(r=>{
     const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
     if(isNaN(t)||isNaN(h)) return false;
     const dp = dewPointC(t,h);
     return h>=90 && (t-dp)<=2.5;
   });
-  const riskPct = rows.length ? Math.round(riskRecords.length/rows.length*100) : 0;
+  const riskPct = riskScope.length ? Math.round(riskRecords.length/riskScope.length*100) : 0;
   const lastT = tsT[tsT.length-1], lastH = tsH[tsH.length-1];
   const lastDp = dewPointC(lastT, lastH);
   const riskNow = lastH>=90 && (lastT-lastDp)<=2.5;
+  const riskStNm = isAllStations ? (rows[rows.length-1]['Estacion']||'') : '';
   const fb = document.getElementById('fungus-banner');
   if(riskNow){
     fb.style.background='#FFF0EC'; fb.style.color='#A8401E';
-    fb.innerHTML = `⚠️ Riesgo alto de hongos en la última lectura (HR ${lastH.toFixed(0)}%, diferencia con el rocío de ${(lastT-lastDp).toFixed(1)}°C). ${riskPct}% de los registros del período estuvieron en este rango.`;
+    fb.innerHTML = `⚠️ Riesgo alto de hongos en la última lectura${riskStNm?` (${riskStNm})`:''} (HR ${lastH.toFixed(0)}%, diferencia con el rocío de ${(lastT-lastDp).toFixed(1)}°C). ${riskPct}% de los registros${riskStNm?` de ${riskStNm}`:' del período'} estuvieron en este rango.`;
   } else {
     fb.style.background='#EAF7EF'; fb.style.color='#176B45';
-    fb.innerHTML = `✅ Sin riesgo elevado en la última lectura. ${riskPct}% de los registros del período estuvieron en rango de riesgo (HR≥90% y diferencia con el rocío ≤2.5°C).`;
+    fb.innerHTML = `✅ Sin riesgo elevado en la última lectura${riskStNm?` (${riskStNm})`:''}. ${riskPct}% de los registros${riskStNm?` de ${riskStNm}`:' del período'} estuvieron en rango de riesgo (HR≥90% y diferencia con el rocío ≤2.5°C).`;
   }
+
 
   // ── Índice de calor diario ────────────────────────────────────────
   const heatObsMax = Math.max(45, ...D.map(d=>d.heatMax), ...D.map(d=>d.tmax));
