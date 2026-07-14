@@ -38,6 +38,17 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .tab.ov.active{border-bottom-color:#1A9E72;color:#1A9E72}
 .tab.cmp.active{border-bottom-color:var(--navy);color:var(--navy)}
 
+/* FILTRO DE FECHA */
+.filter-bar{background:var(--surf2);border-bottom:1px solid var(--brd);
+  padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  position:sticky;top:92px;z-index:98}
+.filter-bar .fl{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.filter-bar select{padding:5px 10px;border:1px solid var(--brd);border-radius:6px;
+  font-size:12px;background:#fff;color:var(--txt);cursor:pointer;font-family:inherit}
+.filter-bar select:hover{border-color:var(--navy)}
+.filter-clear{font-size:11px;color:var(--blue);cursor:pointer;background:none;border:none;
+  text-decoration:underline;font-family:inherit;display:none}
+
 /* LOADING / PICKER */
 #loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px}
 .spinner{width:42px;height:42px;border:4px solid var(--brd);border-top-color:var(--navy);
@@ -142,6 +153,14 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <button class="tab sj"    id="tab-sj"   onclick="setStation('CE')">&#127807; CE &mdash; Suchitep&eacute;quez</button>
   <button class="tab ov"    id="tab-ov"   onclick="setStation('Ovejero')">&#127806; Ovejero &mdash; Jutiapa</button>
   <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
+</div>
+
+<!-- Filtro de fecha (mes / año) -->
+<div class="filter-bar" id="filter-bar" style="display:none">
+  <span class="fl">&#128197; Filtrar por fecha:</span>
+  <select id="filter-month"><option value="all">Todos los meses</option></select>
+  <select id="filter-year"><option value="all">Todos los años</option></select>
+  <button class="filter-clear" id="filter-clear">Quitar filtro</button>
 </div>
 
 <!-- Loading / Picker -->
@@ -332,7 +351,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="panel" style="margin-bottom:16px">
       <div class="ph" style="margin-bottom:14px">
         <span class="pt">&#128203; Resumen comparativo por d&iacute;a</span>
-        <span style="font-size:10px;color:var(--sub)">Per&iacute;odo com&uacute;n: 15-22 jun 2026</span>
+        <span style="font-size:10px;color:var(--sub)" id="cmp-period">Per&iacute;odo com&uacute;n: —</span>
       </div>
       <div class="tw"><table>
         <thead><tr>
@@ -375,6 +394,35 @@ const BANNER_BG = {
   'compare':       'linear-gradient(135deg,#1D3461,#2C5282)'
 };
 
+// ── Funciones de fecha ─────────────────────────────────────────────
+// Nombres de mes en español para el selector de filtro
+const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
+  'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Extrae {d,m,y} de un campo "Dia" con formato DD/MM/YYYY
+function parseDiaParts(diaStr) {
+  const parts = (diaStr||'').substring(0,10).split('/');
+  if(parts.length<3) return null;
+  const d=parseInt(parts[0],10), m=parseInt(parts[1],10), y=parseInt(parts[2],10);
+  if(isNaN(d)||isNaN(m)||isNaN(y)) return null;
+  return {d,m,y};
+}
+
+// Timestamp para ordenar cronológicamente una clave "DD/MM/YYYY"
+function parseDiaKey(str) {
+  const p = parseDiaParts(str);
+  return p ? new Date(p.y, p.m-1, p.d).getTime() : 0;
+}
+
+// Timestamp completo (fecha + hora) para ordenar registros individuales
+function parseDiaHoraTS(r) {
+  const p = parseDiaParts(r['Dia']);
+  if(!p) return 0;
+  const hp = (r['Hora']||'00:00').substring(0,5).split(':');
+  const hh = parseInt(hp[0],10)||0, mm = parseInt(hp[1],10)||0;
+  return new Date(p.y, p.m-1, p.d, hh, mm).getTime();
+}
+
 // ── Funciones agroclimáticas ──────────────────────────────────────
 // Punto de rocío (fórmula de Magnus-Tetens)
 function dewPointC(tempC, rh) {
@@ -410,6 +458,8 @@ function dirToCompass(deg) {
 
 let ALL_ROWS = [];
 let CUR_STATION = 'all';
+let CUR_MONTH = 'all';
+let CUR_YEAR  = 'all';
 let LAST_RENDER_ROWS = null;
 let refreshTimer = null;
 const chartRefs = {};
@@ -423,7 +473,12 @@ function aggregateByDay(rows) {
     if(!map[day]) map[day] = [];
     map[day].push(r);
   });
-  return Object.keys(map).sort().map(k => {
+  // Orden cronológico real (no alfabético) — así enero siempre precede a
+  // diciembre y un año menor siempre precede a uno mayor.
+  const keys = Object.keys(map).sort((a,b)=>parseDiaKey(a)-parseDiaKey(b));
+  const years = new Set(keys.map(k=>k.substring(6,10)));
+  const multiYear = years.size > 1;
+  return keys.map(k => {
     const recs = map[k];
     const tc = recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
     const hm = recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
@@ -435,7 +490,9 @@ function aggregateByDay(rows) {
       return (!isNaN(t)&&!isNaN(h)) ? heatIndexC(t,h) : NaN;
     }).filter(v=>!isNaN(v));
     return {
-      dia: k.substring(0,2)+'/'+k.substring(3,5),
+      dia: multiYear
+        ? (k.substring(0,2)+'/'+k.substring(3,5)+'/'+k.substring(8,10))
+        : (k.substring(0,2)+'/'+k.substring(3,5)),
       tmin: tc.length?+Math.min(...tc).toFixed(1):0,
       tavg: +avg(tc).toFixed(1),
       tmax: tc.length?+Math.max(...tc).toFixed(1):0,
@@ -470,6 +527,46 @@ function setupTabs(rows) {
   }
 }
 
+// ── Filtro de fecha (mes / año) ────────────────────────────────────
+function setupDateFilter(rows) {
+  const years = new Set();
+  rows.forEach(r=>{
+    const p = parseDiaParts(r['Dia']);
+    if(p && p.y) years.add(p.y);
+  });
+  const yearSel  = document.getElementById('filter-year');
+  const monthSel = document.getElementById('filter-month');
+  const sortedYears = [...years].sort((a,b)=>a-b);
+
+  // Conserva la selección previa si sigue siendo válida (p.ej. tras un auto-refresh)
+  const prevYear = yearSel.value, prevMonth = monthSel.value;
+
+  yearSel.innerHTML = '<option value="all">Todos los años</option>' +
+    sortedYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+  monthSel.innerHTML = '<option value="all">Todos los meses</option>' +
+    MONTH_NAMES.map((nm,i)=>`<option value="${i+1}">${nm}</option>`).join('');
+
+  if([...yearSel.options].some(o=>o.value===prevYear))   yearSel.value  = prevYear;
+  if([...monthSel.options].some(o=>o.value===prevMonth)) monthSel.value = prevMonth;
+  CUR_YEAR  = yearSel.value;
+  CUR_MONTH = monthSel.value;
+
+  document.getElementById('filter-bar').style.display = sortedYears.length ? 'flex' : 'none';
+  document.getElementById('filter-clear').style.display =
+    (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+}
+
+function applyDateFilter(rows) {
+  if(CUR_MONTH==='all' && CUR_YEAR==='all') return rows;
+  return rows.filter(r=>{
+    const p = parseDiaParts(r['Dia']);
+    if(!p) return false;
+    if(CUR_YEAR!=='all'  && String(p.y)!==CUR_YEAR) return false;
+    if(CUR_MONTH!=='all' && p.m!==parseInt(CUR_MONTH,10)) return false;
+    return true;
+  });
+}
+
 // ── Cambia estación activa ─────────────────────────────────────────
 function setStation(st) {
   CUR_STATION = st;
@@ -489,10 +586,10 @@ function setStation(st) {
   } else {
     document.getElementById('single-view').style.display  = 'block';
     document.getElementById('compare-view').style.display = 'none';
-    const filtered = (st === 'all' || !st)
+    const stationFiltered = (st === 'all' || !st)
       ? ALL_ROWS
       : ALL_ROWS.filter(r => r['Estacion'] === st || !r['Estacion']);
-    renderDashboard(filtered);
+    renderDashboard(applyDateFilter(stationFiltered));
   }
 }
 
@@ -664,16 +761,19 @@ function renderDashboard(rows) {
   }
 
   // ── Índice de calor diario ────────────────────────────────────────
+  const heatObsMax = Math.max(45, ...D.map(d=>d.heatMax), ...D.map(d=>d.tmax));
+  const heatAxisMax = Math.ceil((heatObsMax + 3)/5)*5;
   chartRefs['cHeat'] = new Chart('cHeat', {data:{labels:dL, datasets:[
     {type:'bar', data:D.map(d=>d.tmax), backgroundColor:'rgba(232,168,56,.25)',
      borderColor:'rgba(232,168,56,.5)', borderWidth:1, borderRadius:4, order:2},
     {type:'line', data:D.map(d=>d.heatMax), borderColor:'#C4421A', borderWidth:2.5,
      pointRadius:4, pointBackgroundColor:'#C4421A', tension:0, order:1}
   ]}, options:{responsive:true,maintainAspectRatio:false,
+    layout:{padding:{top:14}},
     plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Temp. máx ${c.parsed.y}°C`:` Sensación ${c.parsed.y}°C`}}},
     scales:{x:{grid:{display:false},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:45}}
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:heatAxisMax}}
   }});
 
   // ── GDU / Grados-día de crecimiento ──────────────────────────────
@@ -725,10 +825,11 @@ function renderGDD(D){
 
 // ── Vista comparativa ──────────────────────────────────────────────
 function buildCompareView() {
-  const sj = ALL_ROWS.filter(r=>r['Estacion']==='CE'||(!r['Estacion']&&ALL_ROWS.every(x=>!x['Estacion'])));
-  const ov = ALL_ROWS.filter(r=>r['Estacion']==='Ovejero');
+  const dateFiltered = applyDateFilter(ALL_ROWS);
+  const sj = dateFiltered.filter(r=>r['Estacion']==='CE'||(!r['Estacion']&&dateFiltered.every(x=>!x['Estacion'])));
+  const ov = dateFiltered.filter(r=>r['Estacion']==='Ovejero');
   if(!sj.length||!ov.length){
-    document.getElementById('compare-view').innerHTML='<div class="panel"><p style="color:var(--muted);padding:20px">No hay datos de ambas estaciones para comparar. Asegurate de tener la columna "Estacion" en tu Google Sheet.</p></div>';
+    document.getElementById('compare-view').innerHTML='<div class="panel"><p style="color:var(--muted);padding:20px">No hay datos de ambas estaciones para comparar en el período seleccionado. Asegurate de tener la columna "Estacion" en tu Google Sheet, o quitá el filtro de fecha.</p></div>';
     return;
   }
 
@@ -767,14 +868,18 @@ function buildCompareView() {
   renderStats('cmp-sj-stats', sS);
   renderStats('cmp-ov-stats', sO);
 
-  // Período común (días que existen en ambas)
-  const sjDias = new Set(DSJ.map(d=>d.dia));
+  // Período común (días que existen en ambas) — se conserva el orden
+  // cronológico que ya trae DSJ (aggregateByDay ordena por fecha real).
   const ovDias = new Set(DOV.map(d=>d.dia));
-  const common = [...sjDias].filter(d=>ovDias.has(d)).sort();
+  const common = DSJ.map(d=>d.dia).filter(d=>ovDias.has(d));
 
   const cSJ = DSJ.filter(d=>common.includes(d.dia));
   const cOV = DOV.filter(d=>common.includes(d.dia));
   const cL  = common;
+
+  document.getElementById('cmp-period').textContent = common.length
+    ? `Período común: ${common[0]} – ${common[common.length-1]}`
+    : 'Período común: sin datos coincidentes';
 
   // Chart temperatura comparativa
   chartRefs['cCmpT']=new Chart('cCmpT',{type:'line',data:{labels:cL,datasets:[
@@ -828,7 +933,11 @@ function buildCompareView() {
 // ── Carga y entrada de datos ───────────────────────────────────────
 function buildFromRows(rows, source) {
   ALL_ROWS = rows.filter(r=>r['Temperatura (C)']);
+  // Orden cronológico real de todos los registros (fecha + hora), evita que
+  // el orden de llegada del CSV desordene meses/años en las series y tablas.
+  ALL_ROWS.sort((a,b)=>parseDiaHoraTS(a)-parseDiaHoraTS(b));
   setupTabs(ALL_ROWS);
+  setupDateFilter(ALL_ROWS);
   const stations = [...new Set(ALL_ROWS.map(r=>r['Estacion']).filter(Boolean))];
   document.getElementById('nav-src').innerHTML =
     `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
@@ -852,7 +961,7 @@ function buildFromRows(rows, source) {
 
 function showPicker(){
   document.getElementById('loading').style.display='none';
-  document.getElementById('picker').style.display ='block';
+  document.getElementById('picker').style.display='block';
 }
 
 function loadFromSheets(){
@@ -890,6 +999,26 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   document.getElementById('gdd-tbase').addEventListener('change', () => {
     if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
+  });
+
+  document.getElementById('filter-month').addEventListener('change', e=>{
+    CUR_MONTH = e.target.value;
+    document.getElementById('filter-clear').style.display =
+      (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+    setStation(CUR_STATION);
+  });
+  document.getElementById('filter-year').addEventListener('change', e=>{
+    CUR_YEAR = e.target.value;
+    document.getElementById('filter-clear').style.display =
+      (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+    setStation(CUR_STATION);
+  });
+  document.getElementById('filter-clear').addEventListener('click', ()=>{
+    CUR_MONTH='all'; CUR_YEAR='all';
+    document.getElementById('filter-month').value='all';
+    document.getElementById('filter-year').value='all';
+    document.getElementById('filter-clear').style.display='none';
+    setStation(CUR_STATION);
   });
 
   if(SHEETS_URL) loadFromSheets();
