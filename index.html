@@ -65,7 +65,7 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 
 /* MAIN LAYOUT */
 #dashboard{display:none}
-main{max-width:1280px;margin:0 auto;padding:20px 20px 40px}
+main{max-width:1600px;margin:0 auto;padding:20px 28px 40px}
 .banner{border-radius:var(--r);padding:20px 24px;margin-bottom:20px;
   display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .banner h2{font-size:17px;font-weight:700;margin-bottom:4px;color:#fff}
@@ -216,12 +216,19 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="ks" id="ks5">—</div></div>
   </div>
 
+  <!-- Sin datos para el filtro/estación actual -->
+  <div class="panel" id="no-data-panel" style="display:none;margin-bottom:16px;text-align:center;padding:32px 20px">
+    <div style="font-size:28px;margin-bottom:8px">&#128203;</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:4px">No hay registros para esta combinaci&oacute;n de estaci&oacute;n y filtro de fecha.</p>
+    <p style="color:var(--sub);font-size:11px">Prob&aacute; con otro mes/a&ntilde;o o quit&aacute; el filtro con el bot&oacute;n "Quitar filtro".</p>
+  </div>
+
   <!-- Vista individual (serie temporal + gráficas diarias) -->
   <div id="single-view">
     <div class="panels r1"><div class="panel">
       <div class="ph">
         <span class="pt" id="serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
-        <div class="leg">
+        <div class="leg" id="serie-leg">
           <span class="li"><span class="ll" id="leg-t-line" style="background:#E05A2B"></span>Temperatura (°C)</span>
           <span class="li"><span class="ld" id="leg-h-line" style="border-color:#1F7FDF"></span>Humedad %HR</span>
         </div>
@@ -423,6 +430,24 @@ function parseDiaHoraTS(r) {
   return new Date(p.y, p.m-1, p.d, hh, mm).getTime();
 }
 
+// Clave de día normalizada y con ceros a la izquierda ("DD/MM/YYYY").
+// Es clave que esto sea SIEMPRE de ancho fijo: si una estación exporta
+// fechas sin cero inicial (ej. "23/6/2026") y otra sí ("15/06/2026"),
+// agrupar por el string crudo generaría claves distintas para el mismo
+// día real, rompiendo el conteo de días y la comparación entre estaciones.
+function normalizeDayKey(diaStr) {
+  const p = parseDiaParts(diaStr);
+  if(!p) return null;
+  return String(p.d).padStart(2,'0')+'/'+String(p.m).padStart(2,'0')+'/'+p.y;
+}
+
+// Etiqueta corta "DD/MM" normalizada, para usar en ejes de gráficas y banners
+function formatDiaShort(diaStr) {
+  const p = parseDiaParts(diaStr);
+  if(!p) return (diaStr||'').substring(0,5);
+  return String(p.d).padStart(2,'0')+'/'+String(p.m).padStart(2,'0');
+}
+
 // ── Funciones agroclimáticas ──────────────────────────────────────
 // Punto de rocío (fórmula de Magnus-Tetens)
 function dewPointC(tempC, rh) {
@@ -468,7 +493,7 @@ const chartRefs = {};
 function aggregateByDay(rows) {
   const map = {};
   rows.forEach(r => {
-    const day = (r['Dia']||'').substring(0,10);
+    const day = normalizeDayKey(r['Dia']);
     if(!day) return;
     if(!map[day]) map[day] = [];
     map[day].push(r);
@@ -581,6 +606,7 @@ function setStation(st) {
 
   if(st === 'compare') {
     document.getElementById('single-view').style.display  = 'none';
+    document.getElementById('no-data-panel').style.display = 'none';
     document.getElementById('compare-view').style.display = 'block';
     buildCompareView();
   } else {
@@ -596,14 +622,16 @@ function setStation(st) {
 // ── Renderiza dashboard principal ──────────────────────────────────
 function renderDashboard(rows) {
   rows = rows.filter(r=>r['Dia']&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
-  if(!rows.length){showPicker();return;}
+  document.getElementById('picker').style.display = 'none';
+  if(!rows.length){ showNoData(); return; }
+  hideNoData();
 
   const st  = CUR_STATION;
   const clr = CLR[st] || CLR['all'];
 
   const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[],tsV=[];
   rows.forEach(r=>{
-    tsL.push(`${(r['Dia']||'').substring(0,5)} ${(r['Hora']||'').substring(0,5)}`);
+    tsL.push(`${formatDiaShort(r['Dia'])} ${(r['Hora']||'').substring(0,5)}`);
     tsT.push(parseFloat(r['Temperatura (C)'])||0);
     tsH.push(parseFloat(r['Humedad (%HR)'])||0);
     tsR.push(parseFloat(r['Lluvia (mm/10min)'])||0);
@@ -618,8 +646,8 @@ function renderDashboard(rows) {
   const tMin = Math.min(...tsT).toFixed(1);
   const wMax = Math.max(...tsW).toFixed(1);
   const dias = D.filter(d=>d.rain>0).length;
-  const fi   = (rows[0]?.['Dia']||'').substring(0,5);
-  const ff   = (rows[rows.length-1]?.['Dia']||'').substring(0,5);
+  const fi   = formatDiaShort(rows[0]?.['Dia']);
+  const ff   = formatDiaShort(rows[rows.length-1]?.['Dia']);
   const now  = new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
   const stNm = st==='all'?'Todas las estaciones': st==='CE'?'CE — Suchitepéquez':st==='Ovejero'?'Ovejero – Jutiapa':st;
 
@@ -635,21 +663,50 @@ function renderDashboard(rows) {
   document.getElementById('kv5').textContent= rows.length;
   document.getElementById('ks5').textContent= `${D.length} días • 10 min/reg.`;
 
-  // Actualiza leyenda colores
-  document.getElementById('leg-t-line').style.background = clr.main;
-  document.getElementById('leg-h-line').style.borderTopColor = clr.hum;
+  // Leyenda de la serie temporal (una línea por estación en la vista "Todas")
 
   // Gráficas
-  chartRefs['cS']=new Chart('cS',{type:'line',data:{labels:tsL,datasets:[
-    {label:'T',data:tsT,yAxisID:'yT',borderColor:clr.main,borderWidth:1.2,pointRadius:0,tension:0.1},
-    {label:'H',data:tsH,yAxisID:'yH',borderColor:clr.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
-  ]},options:{responsive:true,maintainAspectRatio:false,
+  const isAllStations = (st === 'all');
+  const serieLeg = document.getElementById('serie-leg');
+  let sDatasets;
+  if(isAllStations){
+    const ceMask = rows.map(r=>r['Estacion']==='CE');
+    const ovMask = rows.map(r=>r['Estacion']==='Ovejero');
+    const ceTemp = tsT.map((v,i)=>ceMask[i]?v:null);
+    const ovTemp = tsT.map((v,i)=>ovMask[i]?v:null);
+    const ceHum  = tsH.map((v,i)=>ceMask[i]?v:null);
+    const ovHum  = tsH.map((v,i)=>ovMask[i]?v:null);
+    sDatasets = [
+      {label:'CE Temp',data:ceTemp,yAxisID:'yT',borderColor:CLR.CE.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:false},
+      {label:'Ovejero Temp',data:ovTemp,yAxisID:'yT',borderColor:CLR.Ovejero.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:false},
+      {label:'CE Humedad',data:ceHum,yAxisID:'yH',borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:false},
+      {label:'Ovejero Humedad',data:ovHum,yAxisID:'yH',borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:false}
+    ];
+    serieLeg.innerHTML = `
+      <span class="li"><span class="ll" style="background:${CLR.CE.main}"></span>CE Temp</span>
+      <span class="li"><span class="ll" style="background:${CLR.Ovejero.main}"></span>Ovejero Temp</span>
+      <span class="li"><span class="ld" style="border-color:${CLR.CE.hum}"></span>CE Humedad</span>
+      <span class="li"><span class="ld" style="border-color:${CLR.Ovejero.hum}"></span>Ovejero Humedad</span>`;
+  } else {
+    sDatasets = [
+      {label:'T',data:tsT,yAxisID:'yT',borderColor:clr.main,borderWidth:1.2,pointRadius:0,tension:0.1},
+      {label:'H',data:tsH,yAxisID:'yH',borderColor:clr.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
+    ];
+    serieLeg.innerHTML = `
+      <span class="li"><span class="ll" style="background:${clr.main}"></span>Temperatura (°C)</span>
+      <span class="li"><span class="ld" style="border-color:${clr.hum}"></span>Humedad %HR</span>`;
+  }
+  chartRefs['cS']=new Chart('cS',{type:'line',data:{labels:tsL,datasets:sDatasets},
+    options:{responsive:true,maintainAspectRatio:false,
     interaction:{mode:'index',intersect:false},
     plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
-      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` ${c.parsed.y}°C`:` ${c.parsed.y}% HR`}}},
+      tooltip:{callbacks:{label:c=>{
+        const isHum = /Humedad|^H$/.test(c.dataset.label);
+        return ` ${c.dataset.label}: ${c.parsed.y}${isHum?'% HR':'°C'}`;
+      }}}},
     scales:{x:{grid:{color:GC},ticks:{...XT,maxTicksLimit:8}},
-      yT:{position:'left',grid:{color:GC},ticks:{color:clr.main,font:{size:9},callback:v=>v+'°C'},min:15,max:40},
-      yH:{position:'right',grid:{display:false},ticks:{color:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
+      yT:{position:'left',grid:{color:GC},ticks:{color:isAllStations?TC:clr.main,font:{size:9},callback:v=>v+'°C'},min:15,max:40},
+      yH:{position:'right',grid:{display:false},ticks:{color:isAllStations?TC:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
   }});
 
   chartRefs['cT']=new Chart('cT',{data:{labels:dL,datasets:[
@@ -829,7 +886,8 @@ function buildCompareView() {
   const sj = dateFiltered.filter(r=>r['Estacion']==='CE'||(!r['Estacion']&&dateFiltered.every(x=>!x['Estacion'])));
   const ov = dateFiltered.filter(r=>r['Estacion']==='Ovejero');
   if(!sj.length||!ov.length){
-    document.getElementById('compare-view').innerHTML='<div class="panel"><p style="color:var(--muted);padding:20px">No hay datos de ambas estaciones para comparar en el período seleccionado. Asegurate de tener la columna "Estacion" en tu Google Sheet, o quitá el filtro de fecha.</p></div>';
+    const diag = `CE: ${sj.length} registros · Ovejero: ${ov.length} registros · Total con filtro actual: ${dateFiltered.length} de ${ALL_ROWS.length}`;
+    document.getElementById('compare-view').innerHTML=`<div class="panel"><p style="color:var(--muted);padding:20px 20px 4px">No hay datos de ambas estaciones para comparar en el período seleccionado. Asegurate de tener la columna "Estacion" en tu Google Sheet, o quitá el filtro de fecha.</p><p style="color:var(--sub);font-size:11px;padding:0 20px 20px">${diag}</p></div>`;
     return;
   }
 
@@ -879,7 +937,7 @@ function buildCompareView() {
 
   document.getElementById('cmp-period').textContent = common.length
     ? `Período común: ${common[0]} – ${common[common.length-1]}`
-    : 'Período común: sin datos coincidentes';
+    : `Sin fechas en común (CE: ${DSJ[0].dia}–${DSJ[DSJ.length-1].dia} · Ovejero: ${DOV[0].dia}–${DOV[DOV.length-1].dia})`;
 
   // Chart temperatura comparativa
   chartRefs['cCmpT']=new Chart('cCmpT',{type:'line',data:{labels:cL,datasets:[
@@ -962,6 +1020,15 @@ function buildFromRows(rows, source) {
 function showPicker(){
   document.getElementById('loading').style.display='none';
   document.getElementById('picker').style.display='block';
+}
+
+function showNoData(){
+  document.getElementById('single-view').style.display='none';
+  document.getElementById('no-data-panel').style.display='block';
+}
+function hideNoData(){
+  document.getElementById('no-data-panel').style.display='none';
+  document.getElementById('single-view').style.display='block';
 }
 
 function loadFromSheets(){
