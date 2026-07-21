@@ -558,12 +558,21 @@ const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
 function parseDiaParts(diaStr) {
   const parts = (diaStr||'').substring(0,10).split('/');
   if(parts.length<3) return null;
-  const d=parseInt(parts[0],10), m=parseInt(parts[1],10), y=parseInt(parts[2],10);
+  const d=parseInt(parts[0],10), m=parseInt(parts[1],10);
+  let y=parseInt(parts[2],10);
   if(isNaN(d)||isNaN(m)||isNaN(y)) return null;
-  // Descarta valores imposibles o truncados (ej. un año mal tipeado como
-  // "226" en vez de "2026"), que si no se filtran aquí, corrompen el
-  // ordenamiento y activan por error el modo "multi-año" en las etiquetas.
-  if(d<1||d>31||m<1||m>12||y<2000||y>2099) return null;
+  if(d<1||d>31||m<1||m>12) return null;
+  // El reloj interno (RTC) de alguna estación a veces reporta el año
+  // corrido por 1000 (ej. "1026" en vez de "2026") tras un corte de
+  // energía o batería baja. En vez de descartar esas filas (lo cual las
+  // hacía desaparecer del dashboard aunque tuvieran datos válidos), se
+  // corrigen al vuelo sumando 1000 — mismo ajuste que aplica el conversor
+  // WD3 al subir datos nuevos. Solo se descarta si sigue siendo imposible.
+  if(y<2000||y>2099){
+    const fixed = y+1000;
+    if(fixed>=2000 && fixed<=2099) y = fixed;
+    else return null;
+  }
   return {d,m,y};
 }
 
