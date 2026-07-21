@@ -266,6 +266,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="chips" id="banner-chips">
       <span class="chip">&#127303; Temporada de lluvias</span>
       <span class="chip" id="chip-dias"></span>
+      <span class="chip" id="chip-altsource" style="display:none;background:rgba(31,127,223,.35)"></span>
     </div>
   </div>
 
@@ -311,6 +312,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="panels r1"><div class="panel">
       <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
       <div style="position:relative;height:200px"><canvas id="cT"></canvas></div>
+      <p id="tdaily-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p>
     </div></div>
 
     <div class="panels r2">
@@ -686,6 +688,11 @@ function aggregateByDay(rows) {
       const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
       return (!isNaN(t)&&!isNaN(h)) ? heatIndexC(t,h) : NaN;
     }).filter(v=>!isNaN(v));
+    // 'Fuente' es una columna opcional en la hoja "Datos": si algún registro
+    // del día trae un valor (ej. "SpecConnect (respaldo horario)" cuando se
+    // rellenó un hueco a mano), se marca el día para poder señalarlo en el
+    // dashboard. Si la columna no existe o está vacía, no cambia nada.
+    const fuentes = [...new Set(recs.map(r=>(r['Fuente']||'').trim()).filter(Boolean))];
     return {
       dia: multiYear ? `${dd}/${mm}/${String(kp.y).slice(-2)}` : `${dd}/${mm}`,
       y: kp.y, m: kp.m,
@@ -697,7 +704,9 @@ function aggregateByDay(rows) {
       hmax: hm.length?+Math.max(...hm).toFixed(1):0,
       rain: +rn.reduce((x,y)=>x+y,0).toFixed(1),
       wmax: +(Math.max(...wd,0)*1.60934).toFixed(1),
-      heatMax: heatVals.length?+Math.max(...heatVals).toFixed(1):0
+      heatMax: heatVals.length?+Math.max(...heatVals).toFixed(1):0,
+      altSource: fuentes.length>0,
+      fuente: fuentes.join(', ')
     };
   });
 }
@@ -848,6 +857,10 @@ function renderDashboard(rows) {
   document.getElementById('banner-title').textContent = stNm+' — Dashboard Climático';
   document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
   document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
+  const altDays = D.filter(d=>d.altSource).length;
+  const chipAlt = document.getElementById('chip-altsource');
+  if(altDays>0){ chipAlt.style.display='inline-block'; chipAlt.textContent = `📡 ${altDays} día(s) de fuente alterna`; }
+  else { chipAlt.style.display='none'; }
   document.getElementById('nav-ts').textContent       = `🔄 ${now}`;
   document.getElementById('kv1').innerHTML  = `${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
   document.getElementById('ks1').textContent= `${dias} día(s) con lluvia`;
@@ -907,12 +920,22 @@ function renderDashboard(rows) {
     {type:'bar',data:D.map(d=>[d.tmin,d.tmax]),backgroundColor:clr.light,
      borderColor:clr.border,borderWidth:1,borderRadius:4,order:2},
     {type:'line',data:D.map(d=>d.tavg),borderColor:clr.main,borderWidth:2.5,
-     pointRadius:5,pointBackgroundColor:clr.main,tension:0,order:1}
+     pointRadius:D.map(d=>d.altSource?6:5),
+     pointBackgroundColor:D.map(d=>d.altSource?'#fff':clr.main),
+     pointBorderColor:clr.main, pointBorderWidth:D.map(d=>d.altSource?2.5:0),
+     tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}°C`:` Prom ${c.parsed.y}°C`}}},
+    tooltip:{callbacks:{label:c=>{
+      if(c.datasetIndex===0) return ` Rango ${c.raw[0]}–${c.raw[1]}°C`;
+      const d = D[c.dataIndex];
+      return d.altSource ? ` Prom ${c.parsed.y}°C · ⚠ fuente alterna (${d.fuente})` : ` Prom ${c.parsed.y}°C`;
+    }}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
       ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
   }});
+  document.getElementById('tdaily-note').textContent = D.some(d=>d.altSource)
+    ? '○ punto hueco = día completado con datos de una fuente alterna (ver columna "Fuente" en la tabla de abajo)'
+    : '';
 
   chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.rain),
     backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
@@ -1078,8 +1101,11 @@ function renderDashboard(rows) {
   D.forEach(d=>{
     const tr=document.createElement('tr');
     if(d.rain>0) tr.className='rn';
+    const diaLabel = d.altSource
+      ? `${d.dia} <span title="Completado con: ${d.fuente}" style="cursor:help;color:var(--blue);font-size:10px">&#128225;</span>`
+      : d.dia;
     tr.innerHTML=`
-      <td>${d.dia}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
+      <td>${diaLabel}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
       <td>${d.hmin}%</td><td>${d.havg}%</td><td>${d.hmax}%</td>
       <td>${d.rain>0?`<span class="rb">${d.rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
       <td>${d.wmax} km/h</td>`;
