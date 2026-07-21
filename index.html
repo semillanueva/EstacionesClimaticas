@@ -488,6 +488,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div id="wd3-resample-note" style="display:none;background:#FFF8E8;border:1px solid #F0D89A;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#7A5A10;margin-bottom:10px;line-height:1.6"></div>
+    <div id="wd3-baddate-note" style="display:none;background: #FFF0EC;border:1px solid #F0B3A0;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#A8401E;margin-bottom:10px;line-height:1.6"></div>
 
     <div class="tw">
       <table>
@@ -1382,7 +1383,7 @@ function resampleTo10Min(rows) {
 // ── Parseo del archivo WD3 ──────────────────────────────────────────
 function parseWD3(text) {
   const lines = text.split(/\r?\n/);
-  let serial = null, skipped = 0;
+  let serial = null, skipped = 0, corrected = 0, discarded = 0;
   const rows = [];
 
   for (const raw of lines) {
@@ -1402,8 +1403,27 @@ function parseWD3(text) {
     const ts = f[1]; // YYYYMMDDHHmm
     if (!ts || ts.length < 12) { skipped++; continue; }
 
-    const year  = ts.substring(0,4), month = ts.substring(4,6), day = ts.substring(6,8);
+    let year  = ts.substring(0,4);
+    const month = ts.substring(4,6), day = ts.substring(6,8);
     const hour  = ts.substring(8,10), min  = ts.substring(10,12);
+
+    // El reloj interno (RTC) de la estación a veces se desconfigura tras
+    // un corte de energía/batería baja y reporta el año corrido por 1000
+    // (ej. "1026" en vez de "2026"). En vez de perder esos registros,
+    // se corrige sumando 1000 — el mismo ajuste que antes se hacía a mano
+    // con buscar/reemplazar en el Sheet. Si aun corregido el año sigue
+    // siendo imposible, ahí sí se descarta (dato irrecuperable).
+    let yearNum = parseInt(year, 10);
+    if (yearNum < 2015 || yearNum > 2035) {
+      const fixedYear = yearNum + 1000;
+      if (fixedYear >= 2015 && fixedYear <= 2035) {
+        year = String(fixedYear);
+        corrected++;
+      } else {
+        discarded++;
+        continue;
+      }
+    }
 
     const rainIn  = parseFloat(f[5]);
     const tempF   = parseFloat(f[6]);
@@ -1440,7 +1460,7 @@ function parseWD3(text) {
     });
   }
 
-  return { rows, serial, skipped };
+  return { rows, serial, skipped, corrected, discarded };
 }
 
 // ── UI: carga de archivo ────────────────────────────────────────────
@@ -1448,7 +1468,7 @@ function wd3HandleFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    let { rows, serial, skipped } = parseWD3(e.target.result);
+    let { rows, serial, skipped, corrected, discarded } = parseWD3(e.target.result);
     if (!rows.length) {
       alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
       return;
@@ -1463,13 +1483,38 @@ function wd3HandleFile(file) {
     }
 
     PARSED_ROWS = rows;
-    wd3RenderPreview(rows, serial, skipped, file.name);
+    wd3RenderPreview(rows, serial, skipped, corrected, discarded, file.name);
   };
   reader.onerror = () => alert('No se pudo leer el archivo.');
   reader.readAsText(file);
 }
 
-function wd3RenderPreview(rows, serial, skipped, filename) {
+function wd3HandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let { rows, serial, skipped, corrected, discarded } = parseWD3(e.target.result);
+    if (!rows.length) {
+      alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
+      return;
+    }
+
+    const stationCode = STATION_MAP[serial] || serial || '??';
+    RESAMPLE_INFO = null;
+    if (RESAMPLE_TO_10MIN[stationCode]) {
+      const before = rows.length;
+      rows = resampleTo10Min(rows);
+      RESAMPLE_INFO = { applied: true, before: before, after: rows.length };
+    }
+
+    PARSED_ROWS = rows;
+    wd3RenderPreview(rows, serial, skipped, corrected, discarded, file.name);
+  };
+  reader.onerror = () => alert('No se pudo leer el archivo.');
+  reader.readAsText(file);
+}
+
+function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename) {
   const stationCode = STATION_MAP[serial] || serial || '??';
   const stationName = stationCode === 'CE' ? 'CE — Centro Experimental, Suchitepéquez'
                      : stationCode === 'Ovejero' ? 'Ovejero — Jutiapa (corredor seco)'
@@ -1479,10 +1524,27 @@ function wd3RenderPreview(rows, serial, skipped, filename) {
   document.getElementById('wd3-s-station').innerHTML =
     `<span class="tag ${stationCode==='CE'?'ce':'ov'}">${stationName}</span>`;
   document.getElementById('wd3-s-rows').textContent = rows.length.toLocaleString();
-  document.getElementById('wd3-s-skip').textContent  = skipped.toLocaleString();
+  document.getElementById('wd3-s-skip').textContent  = (skipped + discarded).toLocaleString();
   document.getElementById('wd3-s-range').textContent = `${rows[0].Dia} → ${rows[rows.length-1].Dia}`;
   document.getElementById('wd3-prev-total').textContent = rows.length;
 
+  const baddateNote = document.getElementById('wd3-baddate-note');
+  if (corrected > 0 || discarded > 0) {
+    baddateNote.style.display = 'block';
+    let msg = '';
+    if (corrected > 0) {
+      msg += `🔧 <strong>${corrected.toLocaleString()} registro(s) con año corregido automáticamente</strong> (ej. "1026" → "2026"). `;
+    }
+    if (discarded > 0) {
+      msg += `⚠️ ${discarded.toLocaleString()} registro(s) con fecha irrecuperable fueron descartados. `;
+    }
+    msg += `Esto indica que el reloj interno de la estación ${stationName.split(' —')[0]} se desconfiguró (batería/RTC baja o corte de energía). Revisá la fecha/hora con WatchDog Mobile antes de la próxima sincronización.`;
+    baddateNote.innerHTML = msg;
+  } else {
+    baddateNote.style.display = 'none';
+  }
+
+  // ... el resto de la función sigue exactamente igual (resample-note, tabla, etc.)
   const resampleNote = document.getElementById('wd3-resample-note');
   if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
     resampleNote.style.display = 'block';
