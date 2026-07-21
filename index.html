@@ -308,21 +308,22 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
     </div></div>
 
-    <div class="panels r3">
-      <div class="panel"><div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
-        <div style="position:relative;height:185px"><canvas id="cT"></canvas></div></div>
-      <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
-        <div style="position:relative;height:185px"><canvas id="cR"></canvas></div></div>
-      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
-        <div style="position:relative;height:185px"><canvas id="cW"></canvas></div></div>
-    </div>
+    <div class="panels r1"><div class="panel">
+      <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
+      <div style="position:relative;height:200px"><canvas id="cT"></canvas></div>
+    </div></div>
 
     <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
-        <div style="position:relative;height:155px"><canvas id="cH"></canvas></div></div>
-      <div class="panel"><div class="ph"><span class="pt">&#9889; Voltaje &mdash; ciclo panel solar</span></div>
-        <div style="position:relative;height:155px"><canvas id="cV"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
+        <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
+        <div style="position:relative;height:220px"><canvas id="cW"></canvas></div></div>
     </div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
+      <div style="position:relative;height:200px"><canvas id="cH"></canvas></div>
+    </div></div>
 
     <div class="panels r2">
       <div class="panel">
@@ -694,7 +695,7 @@ function aggregateByDay(rows) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cV','cCmpT','cCmpR','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cCmpT','cCmpR','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -790,14 +791,13 @@ function renderDashboard(rows) {
   const st  = CUR_STATION;
   const clr = CLR[st] || CLR['all'];
 
-  const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[],tsV=[];
+  const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[];
   rows.forEach(r=>{
     tsL.push(`${formatDiaShort(r['Dia'])} ${(r['Hora']||'').substring(0,5)}`);
     tsT.push(parseFloat(r['Temperatura (C)'])||0);
     tsH.push(parseFloat(r['Humedad (%HR)'])||0);
     tsR.push(parseFloat(r['Lluvia (mm/10min)'])||0);
     tsW.push(+((parseFloat(r['Viento (mph)'])||0)*1.60934).toFixed(1));
-    tsV.push(parseFloat(r['Voltaje (V)'])||0);
   });
 
   const D    = aggregateByDay(rows);
@@ -907,14 +907,6 @@ function renderDashboard(rows) {
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
       ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
   }});
-
-  const vN=Math.min(150,tsV.length);
-  chartRefs['cV']=new Chart('cV',{type:'line',data:{labels:tsL.slice(0,vN),
-    datasets:[{data:tsV.slice(0,vN),borderColor:'#7F77DD',borderWidth:1.5,pointRadius:0,tension:0.1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(3)}V`}}},
-      scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v.toFixed(0)+'V'},min:5,max:10}}}});
 
   LAST_RENDER_ROWS = rows;
 
