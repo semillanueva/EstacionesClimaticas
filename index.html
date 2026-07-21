@@ -321,6 +321,14 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#127783; Lluvia total por mes &mdash; comparaci&oacute;n</span>
+        <span class="ks" id="rmonth-total" style="font-size:11px;color:var(--sub)"></span>
+      </div>
+      <div style="position:relative;height:200px"><canvas id="cRMonth"></canvas></div>
+    </div></div>
+
+    <div class="panels r1"><div class="panel">
       <div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
       <div style="position:relative;height:200px"><canvas id="cH"></canvas></div>
     </div></div>
@@ -680,6 +688,7 @@ function aggregateByDay(rows) {
     }).filter(v=>!isNaN(v));
     return {
       dia: multiYear ? `${dd}/${mm}/${String(kp.y).slice(-2)}` : `${dd}/${mm}`,
+      y: kp.y, m: kp.m,
       tmin: tc.length?+Math.min(...tc).toFixed(1):0,
       tavg: +avg(tc).toFixed(1),
       tmax: tc.length?+Math.max(...tc).toFixed(1):0,
@@ -693,9 +702,33 @@ function aggregateByDay(rows) {
   });
 }
 
+const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+// ── Agrupación mensual (a partir del array ya agregado por día) ────
+function aggregateByMonth(D) {
+  const map = {};
+  const order = [];
+  D.forEach(d => {
+    const key = `${d.y}-${String(d.m).padStart(2,'0')}`;
+    if(!map[key]){ map[key] = { y:d.y, m:d.m, rain:0, diasConLluvia:0, dias:0 }; order.push(key); }
+    map[key].rain += d.rain;
+    map[key].dias += 1;
+    if(d.rain > 0) map[key].diasConLluvia += 1;
+  });
+  return order.sort().map(key => {
+    const b = map[key];
+    return {
+      mes: `${MONTH_ABBR[b.m-1]} ${b.y}`,
+      rain: +b.rain.toFixed(1),
+      diasConLluvia: b.diasConLluvia,
+      dias: b.dias
+    };
+  });
+}
+
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cCmpT','cCmpR','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -888,6 +921,23 @@ function renderDashboard(rows) {
       tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
       scales:{x:{grid:{display:false},ticks:XT},
         y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
+
+  const MR = aggregateByMonth(D);
+  document.getElementById('rmonth-total').textContent =
+    MR.length ? `${MR.reduce((a,b)=>a+b.rain,0).toFixed(1)} mm acumulados en ${MR.length} mes(es)` : '';
+  chartRefs['cRMonth']=new Chart('cRMonth',{type:'bar',data:{labels:MR.map(b=>b.mes),datasets:[{
+    data:MR.map(b=>b.rain),
+    backgroundColor:'rgba(46,134,171,.75)', borderRadius:6, borderWidth:0,
+    maxBarThickness:70
+  }]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>{
+        const b = MR[c.dataIndex];
+        return [` ${c.parsed.y} mm total`, ` ${b.diasConLluvia} de ${b.dias} día(s) con lluvia`];
+      }}}},
+    scales:{x:{grid:{display:false},ticks:{color:TC,font:{size:10}}},
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
+  }});
 
   chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.wmax),
     backgroundColor:st==='Ovejero'?'rgba(26,158,114,.7)':'rgba(26,158,114,.7)',
