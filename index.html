@@ -131,6 +131,74 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   .r2,.r3,.cmp-grid{grid-template-columns:1fr}
   .nav-r,.tabs-bar{display:none}}
 @media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+/* Botón de cambio de página en la barra superior */
+.nav-tab-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
+  padding:7px 14px;border-radius:20px;font-size:11.5px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:background .15s;white-space:nowrap}
+.nav-tab-btn:hover{background:rgba(255,255,255,.22)}
+.nav-tab-btn.back{background:rgba(255,255,255,.9);color:var(--navy)}
+
+/* ── Página "Cargar datos WD3" (antes conversor-wd3.html), con estilos
+      propios escopados bajo #page-uploader para no chocar con el dashboard ── */
+#page-uploader main{max-width:980px;margin:0 auto;padding:24px 20px 50px}
+#page-uploader .panel{padding:20px 22px;margin-bottom:18px}
+#page-uploader .panel h3{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--navy)}
+#page-uploader .panel .hint{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+
+#wd3-drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:30px;cursor:pointer;
+  transition:all .2s;text-align:center;display:block}
+#wd3-drop-zone:hover,#wd3-drop-zone.over{border-color:var(--navy);background:#F0F4FA}
+#wd3-drop-zone .ic{font-size:30px;margin-bottom:8px}
+#wd3-drop-zone .t1{font-weight:600;color:var(--navy);margin-bottom:4px}
+#wd3-drop-zone .t2{font-size:11px;color:var(--sub)}
+
+#page-uploader .cfg-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+#page-uploader .cfg-field{flex:1;min-width:200px}
+#page-uploader .cfg-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px}
+#page-uploader .cfg-field input,#page-uploader .cfg-field select{width:100%;padding:8px 10px;border:1px solid var(--brd);
+  border-radius:var(--r2);font-size:12px;font-family:inherit;background:var(--surf2)}
+
+#page-uploader .btn{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;
+  border:none;padding:10px 18px;border-radius:var(--r2);font-size:12px;font-weight:600;
+  cursor:pointer;transition:opacity .15s}
+#page-uploader .btn:hover{opacity:.88}
+#page-uploader .btn:disabled{opacity:.4;cursor:not-allowed}
+#page-uploader .btn.sec{background:var(--surf2);color:var(--navy);border:1px solid var(--brd)}
+#page-uploader .btn.go{background:var(--teal)}
+
+#page-uploader .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+#page-uploader .sbox{background:var(--surf2);border-radius:var(--r2);padding:10px 12px}
+#page-uploader .sbox .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+#page-uploader .sbox .v{font-size:18px;font-weight:700;color:var(--navy)}
+#page-uploader .sbox.warn .v{color:var(--coral)}
+
+#page-uploader .tw{overflow-x:auto;margin-top:10px;border:.5px solid var(--brd);border-radius:var(--r2)}
+#page-uploader table{width:100%;border-collapse:collapse;font-size:11px}
+#page-uploader thead th{background:var(--navy);color:#fff;padding:6px 10px;text-align:right;font-weight:600;white-space:nowrap}
+#page-uploader thead th:first-child,#page-uploader thead th:nth-child(2),#page-uploader thead th:nth-child(3){text-align:left}
+#page-uploader tbody tr:nth-child(even){background:var(--surf2)}
+#page-uploader tbody td{padding:6px 10px;text-align:right;white-space:nowrap}
+#page-uploader tbody td:first-child,#page-uploader tbody td:nth-child(2),#page-uploader tbody td:nth-child(3){text-align:left;font-weight:600;color:var(--navy)}
+
+#page-uploader .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600}
+#page-uploader .tag.ce{background:#FFF0E8;color:var(--coral)}
+#page-uploader .tag.ov{background:#E8F8F0;color:var(--teal)}
+
+#wd3-log{font-family:'SF Mono',Consolas,monospace;font-size:11px;background:#0F1B2E;color:#9CD8B5;
+  border-radius:var(--r2);padding:12px 14px;max-height:200px;overflow-y:auto;line-height:1.7;display:none}
+#wd3-log .err{color:#FF8A7A}
+#wd3-log .ok{color:#9CD8B5}
+#wd3-log .info{color:#A8C8E8}
+
+#page-uploader .step{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--sub);margin-bottom:14px}
+#page-uploader .step .n{width:18px;height:18px;border-radius:50%;background:var(--brd);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+#page-uploader .step.active .n{background:var(--navy);color:#fff}
+#page-uploader .step.done .n{background:var(--teal);color:#fff}
+#page-uploader .step.active{color:var(--txt);font-weight:600}
+
+#page-uploader footer{text-align:center;font-size:11px;color:var(--sub);padding:20px 0 8px}
+@media(max-width:700px){#page-uploader .summary{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -144,8 +212,12 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <span>&#128205; UTC-6</span>
     <span id="nav-src"></span>
     <span id="nav-ts"></span>
+    <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
   </div>
 </nav>
+
+<!-- ═══════════════════ PÁGINA: DASHBOARD ═══════════════════ -->
+<div id="page-dashboard">
 
 <!-- Tabs de estación -->
 <div class="tabs-bar" id="tabs-bar" style="display:none">
@@ -376,6 +448,81 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <footer id="ft">WatchDog 3000 &bull; Suchitep&eacute;quez (54400111) &amp; Ovejero-Jutiapa (54400110) &bull; Guatemala</footer>
 </main>
 </div>
+</div><!-- /page-dashboard -->
+
+<!-- ═══════════════════ PÁGINA: CARGAR DATOS WD3 ═══════════════════ -->
+<div id="page-uploader" style="display:none">
+<main>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+    <div>
+      <h2 style="font-size:16px;font-weight:700;color:var(--navy)">&#128260; Conversor WD3 &rarr; Google Sheets</h2>
+      <p style="font-size:11px;color:var(--muted)">WatchDog 3000 &middot; Suchitep&eacute;quez &amp; Ovejero, Jutiapa</p>
+    </div>
+    <button class="nav-tab-btn back" onclick="showPage('dashboard')">&larr; Volver al dashboard</button>
+  </div>
+  <div style="height:14px"></div>
+
+  <div class="panel">
+    <div class="step active" id="wd3-step1"><span class="n">1</span> Cargar archivo .WD3</div>
+    <h3>&#128193; Archivo de la estaci&oacute;n</h3>
+    <p class="hint">Sub&iacute; el archivo exportado por USB desde el WatchDog 3000 (extensi&oacute;n <code>.WD3</code>). La estaci&oacute;n se detecta autom&aacute;ticamente por el n&uacute;mero de serie del encabezado.</p>
+    <label id="wd3-drop-zone">
+      <input type="file" id="wd3-file-input" accept=".wd3,.WD3" style="display:none">
+      <div class="ic">&#128196;</div>
+      <div class="t1">Clic para seleccionar o arrastr&aacute; el archivo aqu&iacute;</div>
+      <div class="t2">54400111 = CE Suchitep&eacute;quez &middot; 54400110 = Ovejero, Jutiapa</div>
+    </label>
+  </div>
+
+  <div class="panel" id="wd3-preview-panel" style="display:none">
+    <div class="step active" id="wd3-step2"><span class="n">2</span> Revisar antes de subir</div>
+    <h3 id="wd3-prev-title">&#128202; Vista previa</h3>
+    <p class="hint" id="wd3-prev-hint"></p>
+
+    <div class="summary">
+      <div class="sbox"><div class="l">Estaci&oacute;n</div><div class="v" id="wd3-s-station">&mdash;</div></div>
+      <div class="sbox"><div class="l">Registros v&aacute;lidos</div><div class="v" id="wd3-s-rows">&mdash;</div></div>
+      <div class="sbox warn"><div class="l">L&iacute;neas descartadas</div><div class="v" id="wd3-s-skip">&mdash;</div></div>
+      <div class="sbox"><div class="l">Rango de fechas</div><div class="v" id="wd3-s-range" style="font-size:13px">&mdash;</div></div>
+    </div>
+
+    <div id="wd3-resample-note" style="display:none;background:#FFF8E8;border:1px solid #F0D89A;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#7A5A10;margin-bottom:10px;line-height:1.6"></div>
+
+    <div class="tw">
+      <table>
+        <thead><tr>
+          <th>Estaci&oacute;n</th><th>Fecha</th><th>Hora</th><th>Temp &deg;C</th><th>HR %</th>
+          <th>Lluvia mm</th><th>Viento mph</th><th>Dir. &deg;</th><th>R&aacute;faga mph</th><th>Voltaje V</th><th>Bater&iacute;a %</th>
+        </tr></thead>
+        <tbody id="wd3-prev-body"></tbody>
+      </table>
+    </div>
+    <p class="hint" style="margin-top:8px;margin-bottom:0">Mostrando los primeros y &uacute;ltimos 5 registros de <span id="wd3-prev-total">0</span> en total.</p>
+  </div>
+
+  <div class="panel" id="wd3-config-panel" style="display:none">
+    <div class="step active" id="wd3-step3"><span class="n">3</span> Enviar a Google Sheets</div>
+    <h3>&#9729;&#65039; Conexi&oacute;n con la hoja</h3>
+    <p class="hint">Peg&aacute; la URL de tu Web App de Google Apps Script (ver instrucciones en <code>GoogleAppsScript-Code.gs</code>). Solo hace falta configurarla una vez; el navegador la recuerda.</p>
+    <div class="cfg-row">
+      <div class="cfg-field">
+        <label>URL del Web App de Apps Script</label>
+        <input type="text" id="wd3-webapp-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+      </div>
+      <button class="btn sec" id="wd3-btn-save-url">Guardar URL</button>
+    </div>
+    <div class="cfg-row">
+      <button class="btn go" id="wd3-btn-upload" disabled>&#9729;&#65039; Subir registros a Google Sheets</button>
+      <button class="btn sec" id="wd3-btn-download" disabled>&#11015;&#65039; Descargar CSV (respaldo manual)</button>
+      <button class="btn sec" id="wd3-btn-view-dashboard" style="display:none">&#128202; Ver los nuevos datos en el dashboard</button>
+    </div>
+    <div id="wd3-log"></div>
+  </div>
+
+  <footer>Conversor WD3 &middot; Genera filas para la hoja "Datos" &middot; Formato Estacion / Dia / Hora compatible con el dashboard</footer>
+</main>
+</div><!-- /page-uploader -->
 
 <script>
 // ════════════════════════════════════════════════════════════════════
@@ -1126,5 +1273,342 @@ document.addEventListener('DOMContentLoaded',()=>{
   else { document.getElementById('load-msg').textContent='Configurá SHEETS_URL o seleccioná un archivo.'; showPicker(); }
 });
 </script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+// PÁGINA "CARGAR DATOS WD3" — adaptado de conversor-wd3.html
+// (integrado en el mismo archivo para no mantener 2 HTML separados)
+// ════════════════════════════════════════════════════════════════════
+
+// ── Cambio de página ────────────────────────────────────────────────
+function showPage(page){
+  document.getElementById('page-dashboard').style.display = (page==='uploader') ? 'none' : '';
+  document.getElementById('page-uploader').style.display  = (page==='uploader') ? '' : 'none';
+  window.scrollTo({top:0, behavior:'instant'});
+}
+
+const STATION_MAP = { '54400111': 'CE', '54400110': 'Ovejero' };
+// Estaciones que deben remuestrearse a intervalos de 10 min antes de subir
+// (Ovejero registra cada 5 min; CE Suchitepéquez ya registra cada 10 min)
+const RESAMPLE_TO_10MIN = { 'Ovejero': true, 'CE': false };
+// URL del Web App de Apps Script ya implementado (Alessandro, 2026-06-30).
+// Si en el futuro volvés a implementar el script y cambia la URL, actualizala aquí.
+const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyRyzejV5q6i67x4Xg8xpx2w4nAucxPhcXknNZ3ySVjOuhjqAOHpbFDV4Tk8zH15jIoSg/exec';
+let PARSED_ROWS = [];
+let RESAMPLE_INFO = null; // { applied:bool, before:n, after:n }
+
+// ── Conversión de unidades ──────────────────────────────────────────
+const fToC   = f => (f - 32) * 5 / 9;
+const inToMm = inches => inches * 25.4;
+
+// Punto de rocío para las celdas del CSV/Sheets: reutiliza el dewPointC()
+// del dashboard (definido en el script anterior) y solo adapta el valor
+// "no calculable" a '' en vez de NaN, que es lo que espera esta planilla.
+function dewPointCSV(tempC, rh) {
+  const dp = dewPointC(tempC, rh);
+  return isNaN(dp) ? '' : dp;
+}
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+// ── Remuestreo de 5 min → 10 min (solo para estaciones marcadas arriba) ──
+// Agrupa registros por bloques de 10 min (00,10,20...50) dentro de cada día.
+// Temp/Humedad/Voltaje/Batería/Viento: promedio. Lluvia: suma. Dirección de
+// viento: promedio circular (vectorial), no aritmético, porque promediar
+// 350° y 10° aritméticamente da 180° (incorrecto) en vez de 0°.
+function resampleTo10Min(rows) {
+  const buckets = {};
+  const order = [];
+
+  rows.forEach(r => {
+    const [h, m] = r.Hora.split(':').map(Number);
+    const bucketMin = Math.floor(m / 10) * 10;
+    const bucketHora = `${pad(h)}:${pad(bucketMin)}`;
+    const key = `${r.Dia} ${bucketHora}`;
+    if (!buckets[key]) { buckets[key] = { Dia: r.Dia, Hora: bucketHora, items: [] }; order.push(key); }
+    buckets[key].items.push(r);
+  });
+
+  const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN;
+
+  return order.map(key => {
+    const b = buckets[key];
+    const items = b.items;
+    const temps = items.map(i => i['Temperatura (C)']).filter(v => !isNaN(v));
+    const hums  = items.map(i => i['Humedad (%HR)']).filter(v => !isNaN(v));
+    const rainsMm = items.map(i => i['Lluvia (mm/10min)']).filter(v => !isNaN(v));
+    const rainsIn = items.map(i => i['Lluvia (in/10min)']).filter(v => !isNaN(v));
+    const winds = items.map(i => i['Viento (mph)']).filter(v => v !== '' && !isNaN(v));
+    const gusts = items.map(i => i['Rafaga (mph)']).filter(v => v !== '' && !isNaN(v));
+    const volts = items.map(i => i['Voltaje (V)']).filter(v => v !== '' && !isNaN(v));
+    const batts = items.map(i => i['Bateria (%)']).filter(v => v !== '' && !isNaN(v));
+    const dirs  = items.map(i => i['Direccion Viento (deg)']).filter(v => v !== '' && !isNaN(v));
+
+    const tempAvg = +avg(temps).toFixed(1);
+    const humAvg  = +avg(hums).toFixed(1);
+    const tempFAvg = +(tempAvg * 9 / 5 + 32).toFixed(1);
+
+    let dirAvg = '';
+    if (dirs.length) {
+      let sx = 0, sy = 0;
+      dirs.forEach(d => { const rad = d * Math.PI / 180; sx += Math.cos(rad); sy += Math.sin(rad); });
+      let ang = Math.atan2(sy, sx) * 180 / Math.PI;
+      if (ang < 0) ang += 360;
+      dirAvg = Math.round(ang) % 360; // normaliza 360 → 0
+    }
+
+    return {
+      'Estacion': items[0].Estacion,
+      'Fecha Hora': `${b.Dia} ${b.Hora}`,
+      'Fecha': b.Dia,
+      'Dia': b.Dia,
+      'Hora': b.Hora,
+      'Temperatura (C)': tempAvg,
+      'Temperatura (F)': tempFAvg,
+      'Humedad (%HR)': humAvg,
+      'Lluvia (mm/10min)': +rainsMm.reduce((a, c) => a + c, 0).toFixed(2),
+      'Lluvia (in/10min)': +rainsIn.reduce((a, c) => a + c, 0).toFixed(3),
+      'Viento (mph)': winds.length ? +avg(winds).toFixed(1) : '',
+      'Direccion Viento (deg)': dirAvg,
+      'Rafaga (mph)': gusts.length ? +avg(gusts).toFixed(1) : '',
+      'Voltaje (V)': volts.length ? +avg(volts).toFixed(3) : '',
+      'Bateria (%)': batts.length ? Math.round(avg(batts)) : '',
+      'Punto de Rocio (C)': dewPointCSV(tempAvg, humAvg),
+      '_registros_originales': items.length
+    };
+  });
+}
+
+// ── Parseo del archivo WD3 ──────────────────────────────────────────
+function parseWD3(text) {
+  const lines = text.split(/\r?\n/);
+  let serial = null, skipped = 0;
+  const rows = [];
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    if (line.startsWith('%HC;')) {
+      const f = line.split(';');
+      serial = f[1];
+      continue;
+    }
+    if (!line.startsWith('RM;')) { if (line) skipped++; continue; } // MF, %MZ, etc.
+
+    const f = line.split(';');
+    if (f.length < 13) { skipped++; continue; }
+
+    const ts = f[1]; // YYYYMMDDHHmm
+    if (!ts || ts.length < 12) { skipped++; continue; }
+
+    const year  = ts.substring(0,4), month = ts.substring(4,6), day = ts.substring(6,8);
+    const hour  = ts.substring(8,10), min  = ts.substring(10,12);
+
+    const rainIn  = parseFloat(f[5]);
+    const tempF   = parseFloat(f[6]);
+    const hum     = parseFloat(f[7]);
+    const windDir = parseFloat(f[8]);
+    const windMph = parseFloat(f[9]);
+    const gustMph = parseFloat(f[10]);
+    const battPct = parseFloat(f[3]);
+    const volt    = parseFloat(f[12]);
+
+    if (isNaN(tempF) || isNaN(hum)) { skipped++; continue; }
+
+    const tempC = +fToC(tempF).toFixed(1);
+    const diaStr = `${day}/${month}/${year}`;
+    const horaStr = `${hour}:${min}`;
+
+    rows.push({
+      'Estacion': STATION_MAP[serial] || serial || '??',
+      'Fecha Hora': `${diaStr} ${horaStr}`,
+      'Fecha': diaStr,
+      'Dia': diaStr,
+      'Hora': horaStr,
+      'Temperatura (C)': tempC,
+      'Temperatura (F)': +tempF.toFixed(1),
+      'Humedad (%HR)': hum,
+      'Lluvia (mm/10min)': +inToMm(rainIn || 0).toFixed(2),
+      'Lluvia (in/10min)': +(rainIn || 0).toFixed(3),
+      'Viento (mph)': isNaN(windMph) ? '' : windMph,
+      'Direccion Viento (deg)': isNaN(windDir) ? '' : windDir,
+      'Rafaga (mph)': isNaN(gustMph) ? '' : gustMph,
+      'Voltaje (V)': isNaN(volt) ? '' : volt,
+      'Bateria (%)': isNaN(battPct) ? '' : battPct,
+      'Punto de Rocio (C)': dewPointCSV(tempC, hum)
+    });
+  }
+
+  return { rows, serial, skipped };
+}
+
+// ── UI: carga de archivo ────────────────────────────────────────────
+function wd3HandleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    let { rows, serial, skipped } = parseWD3(e.target.result);
+    if (!rows.length) {
+      alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
+      return;
+    }
+
+    const stationCode = STATION_MAP[serial] || serial || '??';
+    RESAMPLE_INFO = null;
+    if (RESAMPLE_TO_10MIN[stationCode]) {
+      const before = rows.length;
+      rows = resampleTo10Min(rows);
+      RESAMPLE_INFO = { applied: true, before: before, after: rows.length };
+    }
+
+    PARSED_ROWS = rows;
+    wd3RenderPreview(rows, serial, skipped, file.name);
+  };
+  reader.onerror = () => alert('No se pudo leer el archivo.');
+  reader.readAsText(file);
+}
+
+function wd3RenderPreview(rows, serial, skipped, filename) {
+  const stationCode = STATION_MAP[serial] || serial || '??';
+  const stationName = stationCode === 'CE' ? 'CE — Centro Experimental, Suchitepéquez'
+                     : stationCode === 'Ovejero' ? 'Ovejero — Jutiapa (corredor seco)'
+                     : `Desconocida (S/N ${serial})`;
+
+  document.getElementById('wd3-prev-hint').textContent = `Archivo: ${filename} · Serie: ${serial}`;
+  document.getElementById('wd3-s-station').innerHTML =
+    `<span class="tag ${stationCode==='CE'?'ce':'ov'}">${stationName}</span>`;
+  document.getElementById('wd3-s-rows').textContent = rows.length.toLocaleString();
+  document.getElementById('wd3-s-skip').textContent  = skipped.toLocaleString();
+  document.getElementById('wd3-s-range').textContent = `${rows[0].Dia} → ${rows[rows.length-1].Dia}`;
+  document.getElementById('wd3-prev-total').textContent = rows.length;
+
+  const resampleNote = document.getElementById('wd3-resample-note');
+  if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
+    resampleNote.style.display = 'block';
+    resampleNote.textContent = `⏱ Remuestreado de 5 min a 10 min: ${RESAMPLE_INFO.before.toLocaleString()} registros originales → ${RESAMPLE_INFO.after.toLocaleString()} registros de 10 min (temperatura/humedad/voltaje/viento promediados, lluvia sumada por bloque, dirección de viento con promedio circular).`;
+  } else {
+    resampleNote.style.display = 'none';
+  }
+
+  const sample = [...rows.slice(0,5), ...(rows.length > 10 ? rows.slice(-5) : [])];
+  const tb = document.getElementById('wd3-prev-body');
+  tb.innerHTML = sample.map(r => `
+    <tr>
+      <td><span class="tag ${r.Estacion==='CE'?'ce':'ov'}">${r.Estacion}</span></td>
+      <td>${r.Dia}</td><td>${r.Hora}</td>
+      <td>${r['Temperatura (C)']}</td><td>${r['Humedad (%HR)']}</td>
+      <td>${r['Lluvia (mm/10min)']}</td><td>${r['Viento (mph)']}</td>
+      <td>${r['Direccion Viento (deg)']}</td><td>${r['Rafaga (mph)']}</td>
+      <td>${r['Voltaje (V)']}</td><td>${r['Bateria (%)']}</td>
+    </tr>`).join('');
+
+  document.getElementById('wd3-step1').classList.add('done');
+  document.getElementById('wd3-step1').classList.remove('active');
+  document.getElementById('wd3-step2').classList.add('active');
+  document.getElementById('wd3-preview-panel').style.display = 'block';
+  document.getElementById('wd3-config-panel').style.display  = 'block';
+  document.getElementById('wd3-btn-upload').disabled   = !document.getElementById('wd3-webapp-url').value.trim();
+  document.getElementById('wd3-btn-download').disabled = false;
+  document.getElementById('wd3-btn-view-dashboard').style.display = 'none';
+  document.getElementById('wd3-preview-panel').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ── Drag & drop / selector ───────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('wd3-drop-zone');
+  const fi = document.getElementById('wd3-file-input');
+  fi.addEventListener('change', () => wd3HandleFile(fi.files[0]));
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('over');
+    wd3HandleFile(e.dataTransfer.files[0]);
+  });
+
+  // ── Config de URL (guardada en memoria del navegador, no en servidor) ─
+  const urlInput = document.getElementById('wd3-webapp-url');
+  try {
+    const saved = window.name && window.name.startsWith('wd3url:') ? window.name.slice(7) : '';
+    urlInput.value = saved || DEFAULT_WEBAPP_URL;
+  } catch(e){ urlInput.value = DEFAULT_WEBAPP_URL; }
+
+  document.getElementById('wd3-btn-save-url').addEventListener('click', () => {
+    const url = urlInput.value.trim();
+    if (!url) { alert('Pegá primero la URL del Web App.'); return; }
+    window.name = 'wd3url:' + url; // persiste mientras la pestaña/ventana esté abierta
+    document.getElementById('wd3-btn-upload').disabled = PARSED_ROWS.length === 0;
+    wd3Log('URL guardada para esta sesión del navegador.', 'ok');
+  });
+  urlInput.addEventListener('input', () => {
+    document.getElementById('wd3-btn-upload').disabled = !(PARSED_ROWS.length && urlInput.value.trim());
+  });
+
+  // ── Subida a Google Sheets vía Apps Script Web App ──────────────────
+  document.getElementById('wd3-btn-upload').addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) { alert('Pegá la URL del Web App primero.'); return; }
+    if (!PARSED_ROWS.length) { alert('Cargá un archivo .WD3 primero.'); return; }
+
+    const btn = document.getElementById('wd3-btn-upload');
+    btn.disabled = true;
+    wd3Log(`Enviando ${PARSED_ROWS.length} registros...`, 'info');
+
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS con Apps Script
+        body: JSON.stringify({ rows: PARSED_ROWS })
+      });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        wd3Log(`Listo. ${data.added} registros nuevos agregados, ${data.skipped} ya existían (duplicados omitidos).`, 'ok');
+        document.getElementById('wd3-step2').classList.add('done');
+        document.getElementById('wd3-step3').classList.add('done');
+        document.getElementById('wd3-btn-view-dashboard').style.display = 'inline-flex';
+      } else {
+        wd3Log(`Error del servidor: ${data.message}`, 'err');
+      }
+    } catch (err) {
+      wd3Log(`No se pudo conectar con el Web App: ${err.message}`, 'err');
+      wd3Log('Verificá que la URL termine en /exec y que el despliegue tenga acceso "Cualquier usuario".', 'err');
+    }
+    btn.disabled = false;
+  });
+
+  // ── Descarga CSV de respaldo (por si la API falla) ───────────────────
+  document.getElementById('wd3-btn-download').addEventListener('click', () => {
+    if (!PARSED_ROWS.length) return;
+    const headers = Object.keys(PARSED_ROWS[0]).filter(h => !h.startsWith('_'));
+    const csv = [headers.join(',')]
+      .concat(PARSED_ROWS.map(r => headers.map(h => r[h]).join(',')))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `wd3_${PARSED_ROWS[0].Estacion}_${PARSED_ROWS[0].Dia.replace(/\//g,'-')}.csv`;
+    a.click();
+  });
+
+  // ── Volver al dashboard y refrescar con los datos recién subidos ────
+  document.getElementById('wd3-btn-view-dashboard').addEventListener('click', () => {
+    showPage('dashboard');
+    document.getElementById('load-msg').textContent = 'Actualizando con los datos recién subidos...';
+    loadFromSheets();
+  });
+});
+
+// ── Log de subida ────────────────────────────────────────────────────
+function wd3Log(msg, cls) {
+  const el = document.getElementById('wd3-log');
+  el.style.display = 'block';
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString('es-GT')}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+</script>
+
 </body>
 </html>
