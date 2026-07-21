@@ -488,7 +488,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div id="wd3-resample-note" style="display:none;background:#FFF8E8;border:1px solid #F0D89A;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#7A5A10;margin-bottom:10px;line-height:1.6"></div>
-    <div id="wd3-baddate-note" style="display:none;background: #FFF0EC;border:1px solid #F0B3A0;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#A8401E;margin-bottom:10px;line-height:1.6"></div>
+    <div id="wd3-baddate-note" style="display:none;background:#EAF4FF;border:1px solid #B8D4F0;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#1D4E7A;margin-bottom:10px;line-height:1.6"></div>
 
     <div class="tw">
       <table>
@@ -560,6 +560,10 @@ function parseDiaParts(diaStr) {
   if(parts.length<3) return null;
   const d=parseInt(parts[0],10), m=parseInt(parts[1],10), y=parseInt(parts[2],10);
   if(isNaN(d)||isNaN(m)||isNaN(y)) return null;
+  // Descarta valores imposibles o truncados (ej. un año mal tipeado como
+  // "226" en vez de "2026"), que si no se filtran aquí, corrompen el
+  // ordenamiento y activan por error el modo "multi-año" en las etiquetas.
+  if(d<1||d>31||m<1||m>12||y<2000||y>2099) return null;
   return {d,m,y};
 }
 
@@ -649,9 +653,11 @@ function aggregateByDay(rows) {
   // Orden cronológico real (no alfabético) — así enero siempre precede a
   // diciembre y un año menor siempre precede a uno mayor.
   const keys = Object.keys(map).sort((a,b)=>parseDiaKey(a)-parseDiaKey(b));
-  const years = new Set(keys.map(k=>k.substring(6,10)));
+  const years = new Set(keys.map(k=>parseDiaParts(k).y));
   const multiYear = years.size > 1;
   return keys.map(k => {
+    const kp = parseDiaParts(k);
+    const dd = String(kp.d).padStart(2,'0'), mm = String(kp.m).padStart(2,'0');
     const recs = map[k];
     const tc = recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
     const hm = recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
@@ -663,9 +669,7 @@ function aggregateByDay(rows) {
       return (!isNaN(t)&&!isNaN(h)) ? heatIndexC(t,h) : NaN;
     }).filter(v=>!isNaN(v));
     return {
-      dia: multiYear
-        ? (k.substring(0,2)+'/'+k.substring(3,5)+'/'+k.substring(8,10))
-        : (k.substring(0,2)+'/'+k.substring(3,5)),
+      dia: multiYear ? `${dd}/${mm}/${String(kp.y).slice(-2)}` : `${dd}/${mm}`,
       tmin: tc.length?+Math.min(...tc).toFixed(1):0,
       tavg: +avg(tc).toFixed(1),
       tmax: tc.length?+Math.max(...tc).toFixed(1):0,
@@ -769,7 +773,7 @@ function setStation(st) {
 
 // ── Renderiza dashboard principal ──────────────────────────────────
 function renderDashboard(rows) {
-  rows = rows.filter(r=>r['Dia']&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
+  rows = rows.filter(r=>r['Dia']&&parseDiaParts(r['Dia'])&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
   document.getElementById('picker').style.display = 'none';
   if(!rows.length){ showNoData(); return; }
   hideNoData();
@@ -1172,7 +1176,7 @@ function buildCompareView() {
 
 // ── Carga y entrada de datos ───────────────────────────────────────
 function buildFromRows(rows, source) {
-  ALL_ROWS = rows.filter(r=>r['Temperatura (C)']);
+  ALL_ROWS = rows.filter(r=>r['Temperatura (C)'] && parseDiaParts(r['Dia']));
   // Orden cronológico real de todos los registros (fecha + hora), evita que
   // el orden de llegada del CSV desordene meses/años en las series y tablas.
   ALL_ROWS.sort((a,b)=>parseDiaHoraTS(a)-parseDiaHoraTS(b));
@@ -1409,8 +1413,8 @@ function parseWD3(text) {
 
     // El reloj interno (RTC) de la estación a veces se desconfigura tras
     // un corte de energía/batería baja y reporta el año corrido por 1000
-    // (ej. "1026" en vez de "2026"). En vez de perder esos registros,
-    // se corrige sumando 1000 — el mismo ajuste que antes se hacía a mano
+    // (ej. "1026" en vez de "2026"). En vez de perder esos registros, se
+    // corrige sumando 1000 — el mismo ajuste que antes se hacía a mano
     // con buscar/reemplazar en el Sheet. Si aun corregido el año sigue
     // siendo imposible, ahí sí se descarta (dato irrecuperable).
     let yearNum = parseInt(year, 10);
@@ -1489,31 +1493,6 @@ function wd3HandleFile(file) {
   reader.readAsText(file);
 }
 
-function wd3HandleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    let { rows, serial, skipped, corrected, discarded } = parseWD3(e.target.result);
-    if (!rows.length) {
-      alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
-      return;
-    }
-
-    const stationCode = STATION_MAP[serial] || serial || '??';
-    RESAMPLE_INFO = null;
-    if (RESAMPLE_TO_10MIN[stationCode]) {
-      const before = rows.length;
-      rows = resampleTo10Min(rows);
-      RESAMPLE_INFO = { applied: true, before: before, after: rows.length };
-    }
-
-    PARSED_ROWS = rows;
-    wd3RenderPreview(rows, serial, skipped, corrected, discarded, file.name);
-  };
-  reader.onerror = () => alert('No se pudo leer el archivo.');
-  reader.readAsText(file);
-}
-
 function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename) {
   const stationCode = STATION_MAP[serial] || serial || '??';
   const stationName = stationCode === 'CE' ? 'CE — Centro Experimental, Suchitepéquez'
@@ -1544,7 +1523,6 @@ function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename)
     baddateNote.style.display = 'none';
   }
 
-  // ... el resto de la función sigue exactamente igual (resample-note, tabla, etc.)
   const resampleNote = document.getElementById('wd3-resample-note');
   if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
     resampleNote.style.display = 'block';
