@@ -221,8 +221,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
 <!-- Tabs de estación -->
 <div class="tabs-bar" id="tabs-bar" style="display:none">
-  <button class="tab active" id="tab-all"  onclick="setStation('all')">&#127760; Todas</button>
-  <button class="tab sj"    id="tab-sj"   onclick="setStation('CE')">&#127807; CE &mdash; Suchitep&eacute;quez</button>
+  <button class="tab sj active" id="tab-sj"   onclick="setStation('CE')">&#127807; CE &mdash; Suchitep&eacute;quez</button>
   <button class="tab ov"    id="tab-ov"   onclick="setStation('Ovejero')">&#127806; Ovejero &mdash; Jutiapa</button>
   <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
 </div>
@@ -371,16 +370,22 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="panel">
         <div class="ph">
           <span class="pt">&#127793; Grados-d&iacute;a de crecimiento (GDU) acumulados</span>
-          <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);flex-wrap:wrap">
             Temp. base
             <input type="number" id="gdd-tbase" value="10" step="0.5" min="0" max="20"
-              style="width:50px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
+              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
+            &deg;C
+            <span style="color:var(--sub)">&middot;</span>
+            Temp. m&aacute;x (tope)
+            <input type="number" id="gdd-ttop" value="30" step="0.5" min="20" max="45"
+              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
             &deg;C
           </span>
         </div>
         <div style="position:relative;height:165px"><canvas id="cGDD"></canvas></div>
-        <p style="font-size:10px;color:var(--sub);margin-top:6px">Base 10&deg;C es un est&aacute;ndar usual para ma&iacute;z y frijol en clima tropical &mdash; ajust&aacute; seg&uacute;n el cultivo que est&eacute;s monitoreando.</p>
+        <p style="font-size:10px;color:var(--sub);margin-top:6px">Base 10&deg;C es un est&aacute;ndar usual para ma&iacute;z y frijol en clima tropical. El tope superior (30&deg;C por defecto) limita la temperatura m&aacute;xima usada en el c&aacute;lculo &mdash; cambialo a 32&deg;C si tu criterio agron&oacute;mico lo requiere; por encima del tope, el cultivo deja de acumular crecimiento adicional.</p>
       </div>
+
     </div>
 
     <div class="panel" style="margin-bottom:16px">
@@ -439,6 +444,29 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </div>
     </div>
 
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#127793; Grados-d&iacute;a de crecimiento (GDU) acumulados &mdash; comparaci&oacute;n</span>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
+            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
+          </div>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+            Temp. base
+            <input type="number" id="cmp-gdd-tbase" value="10" step="0.5" min="0" max="20"
+              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
+            &deg;C &middot; Tope
+            <input type="number" id="cmp-gdd-ttop" value="30" step="0.5" min="20" max="45"
+              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
+            &deg;C
+          </span>
+        </div>
+      </div>
+      <div style="position:relative;height:200px"><canvas id="cCmpGDD"></canvas></div>
+      <p style="font-size:10px;color:var(--sub);margin-top:6px" id="cmp-gdd-period">&nbsp;</p>
+    </div></div>
+
     <!-- Tabla comparativa -->
     <div class="panel" style="margin-bottom:16px">
       <div class="ph" style="margin-bottom:14px">
@@ -457,6 +485,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </table></div>
     </div>
   </div>
+
 
   <footer id="ft">WatchDog 3000 &bull; Suchitep&eacute;quez (54400111) &amp; Ovejero-Jutiapa (54400110) &bull; Guatemala</footer>
 </main>
@@ -643,9 +672,15 @@ function heatIndexC(tempC, rh) {
   return (HI - 32) * 5 / 9;
 }
 
-// Grados-día de crecimiento (GDD/GDU), método de promedio simple
-function gddDay(tmin, tmax, tbase) {
-  return Math.max(0, ((tmin + tmax) / 2) - tbase);
+// Grados-día de crecimiento (GDD/GDU), método "modificado" (capado):
+// si tmin queda por debajo de la base, se sube a la base; si tmax supera
+// el tope superior, se baja al tope — porque por encima de ese umbral el
+// cultivo no acelera más su desarrollo (estrés por calor). tupper es
+// opcional: si no se pasa, se usa tmax sin capar (compatibilidad).
+function gddDay(tmin, tmax, tbase, tupper) {
+  const tn = Math.max(tmin, tbase);
+  const tx = (tupper!=null && !isNaN(tupper)) ? Math.min(tmax, tupper) : tmax;
+  return Math.max(0, ((tn + tx) / 2) - tbase);
 }
 
 // Dirección de viento → rumbo de 16 puntos
@@ -739,7 +774,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpGDD','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -817,11 +852,11 @@ function applyDateFilter(rows) {
 // ── Cambia estación activa ─────────────────────────────────────────
 function setStation(st) {
   CUR_STATION = st;
-  ['all','sj','ov','cmp'].forEach(id => {
+  ['sj','ov','cmp'].forEach(id => {
     document.getElementById('tab-'+id)?.classList.remove('active');
   });
-  const tabMap = {'all':'all','CE':'sj','Ovejero':'ov','compare':'cmp'};
-  document.getElementById('tab-'+(tabMap[st]||'all'))?.classList.add('active');
+  const tabMap = {'CE':'sj','Ovejero':'ov','compare':'cmp'};
+  document.getElementById('tab-'+(tabMap[st]||'sj'))?.classList.add('active');
 
   document.getElementById('banner').style.background = BANNER_BG[st] || BANNER_BG['all'];
   destroyCharts();
@@ -1143,8 +1178,9 @@ function renderDashboard(rows) {
 
 function renderGDD(D){
   const tbase = parseFloat(document.getElementById('gdd-tbase').value) || 10;
+  const ttop  = parseFloat(document.getElementById('gdd-ttop').value) || 30;
   let cum = 0;
-  const daily = D.map(d=>+gddDay(d.tmin,d.tmax,tbase).toFixed(1));
+  const daily = D.map(d=>+gddDay(d.tmin,d.tmax,tbase,ttop).toFixed(1));
   const cumArr = daily.map(g=>{ cum += g; return +cum.toFixed(1); });
   if(chartRefs['cGDD']){ chartRefs['cGDD'].destroy(); delete chartRefs['cGDD']; }
   chartRefs['cGDD'] = new Chart('cGDD', {data:{labels:D.map(d=>d.dia), datasets:[
@@ -1175,6 +1211,12 @@ function buildCompareView() {
   const DSJ = aggregateByDay(sj);
   const DOV = aggregateByDay(ov);
 
+  // Temp. base / tope superior para el cálculo de GDU en esta vista
+  // (independientes de los que se usan en la pestaña de cada estación,
+  // para poder comparar con distintos criterios agronómicos si se quiere)
+  const tbaseCmp = parseFloat(document.getElementById('cmp-gdd-tbase')?.value) || 10;
+  const ttopCmp  = parseFloat(document.getElementById('cmp-gdd-ttop')?.value)  || 30;
+
   // Stats por estación
   function stStats(D,rows) {
     return {
@@ -1185,6 +1227,7 @@ function buildCompareView() {
       diasRain:D.filter(d=>d.rain>0).length,
       wmax:Math.max(...D.map(d=>d.wmax)).toFixed(1),
       havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
+      gdu:D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp),0).toFixed(1),
       n: rows.length,
       dias: D.length
     };
@@ -1201,6 +1244,7 @@ function buildCompareView() {
       ['Lluvia total', s.rain+' mm'],
       ['Días con lluvia', s.diasRain+' de '+s.dias],
       ['Viento máximo', s.wmax+' km/h'],
+      ['GDU acumulados', s.gdu],
       ['Registros', s.n.toLocaleString()],
     ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
   }
@@ -1219,6 +1263,8 @@ function buildCompareView() {
   document.getElementById('cmp-period').textContent = common.length
     ? `Período común: ${common[0]} – ${common[common.length-1]}`
     : `Sin fechas en común (CE: ${DSJ[0].dia}–${DSJ[DSJ.length-1].dia} · Ovejero: ${DOV[0].dia}–${DOV[DOV.length-1].dia})`;
+  const cmpGddPeriod = document.getElementById('cmp-gdd-period');
+  if(cmpGddPeriod) cmpGddPeriod.textContent = `GDU calculados sobre el período común (${common.length} día(s)) · base ${tbaseCmp}°C · tope ${ttopCmp}°C`;
 
   // Chart temperatura comparativa
   chartRefs['cCmpT']=new Chart('cCmpT',{type:'line',data:{labels:cL,datasets:[
@@ -1245,6 +1291,24 @@ function buildCompareView() {
       tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} mm`}}},
     scales:{x:{grid:{color:GC},ticks:XT},
       y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
+  }});
+
+  // Chart GDU acumulados comparativa (sobre el período común, para que
+  // ambas curvas arranquen desde el mismo día y sean comparables)
+  let cumSJ=0, cumOV=0;
+  const gduSJ = cSJ.map(d=>{ cumSJ += gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp); return +cumSJ.toFixed(1); });
+  const gduOV = cOV.map(d=>{ cumOV += gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp); return +cumOV.toFixed(1); });
+  chartRefs['cCmpGDD']=new Chart('cCmpGDD',{type:'line',data:{labels:cL,datasets:[
+    {label:'CE – Suchitepéquez',data:gduSJ,borderColor:'#E05A2B',borderWidth:2.5,
+     pointRadius:3,pointBackgroundColor:'#E05A2B',tension:0.1},
+    {label:'Ovejero',data:gduOV,borderColor:'#1A9E72',borderWidth:2.5,
+     pointRadius:3,pointBackgroundColor:'#1A9E72',tension:0.1}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} GDU`}}},
+    scales:{x:{grid:{color:GC},ticks:XT},
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9}}}}
   }});
 
   // Tabla comparativa
@@ -1281,9 +1345,10 @@ function buildFromRows(rows, source) {
   document.getElementById('nav-src').innerHTML =
     `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
 
-  // Mostrar por defecto primera estación o todas
+  // Mostrar por defecto la primera estación disponible (ya no existe la
+  // vista combinada "Todas" — con la pestaña de cada estación alcanza).
   if(stations.length===1) setStation(stations[0]);
-  else setStation('all');
+  else setStation(stations.includes('CE') ? 'CE' : stations[0]);
 
   document.getElementById('loading').style.display  ='none';
   document.getElementById('picker').style.display   ='none';
@@ -1347,6 +1412,15 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   document.getElementById('gdd-tbase').addEventListener('change', () => {
     if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
+  });
+  document.getElementById('gdd-ttop').addEventListener('change', () => {
+    if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
+  });
+  document.getElementById('cmp-gdd-tbase')?.addEventListener('change', () => {
+    if(CUR_STATION==='compare') buildCompareView();
+  });
+  document.getElementById('cmp-gdd-ttop')?.addEventListener('change', () => {
+    if(CUR_STATION==='compare') buildCompareView();
   });
 
   document.getElementById('filter-from').addEventListener('change', e=>{
