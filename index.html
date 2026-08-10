@@ -227,11 +227,13 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
 </div>
 
-<!-- Filtro de fecha (mes / año) -->
+<!-- Filtro de fecha (rango de meses) -->
 <div class="filter-bar" id="filter-bar" style="display:none">
-  <span class="fl">&#128197; Filtrar por fecha:</span>
-  <select id="filter-month"><option value="all">Todos los meses</option></select>
-  <select id="filter-year"><option value="all">Todos los años</option></select>
+  <span class="fl">&#128197; Filtrar por rango:</span>
+  <span class="fl">Desde</span>
+  <select id="filter-from"><option value="all">Inicio</option></select>
+  <span class="fl">Hasta</span>
+  <select id="filter-to"><option value="all">Fin</option></select>
   <button class="filter-clear" id="filter-clear">Quitar filtro</button>
 </div>
 
@@ -293,7 +295,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <div class="panel" id="no-data-panel" style="display:none;margin-bottom:16px;text-align:center;padding:32px 20px">
     <div style="font-size:28px;margin-bottom:8px">&#128203;</div>
     <p style="color:var(--muted);font-size:13px;margin-bottom:4px">No hay registros para esta combinaci&oacute;n de estaci&oacute;n y filtro de fecha.</p>
-    <p style="color:var(--sub);font-size:11px">Prob&aacute; con otro mes/a&ntilde;o o quit&aacute; el filtro con el bot&oacute;n "Quitar filtro".</p>
+    <p style="color:var(--sub);font-size:11px">Prob&aacute; con otro rango o quit&aacute; el filtro con el bot&oacute;n "Quitar filtro".</p>
   </div>
 
   <!-- Vista individual (serie temporal + gráficas diarias) -->
@@ -655,8 +657,8 @@ function dirToCompass(deg) {
 
 let ALL_ROWS = [];
 let CUR_STATION = 'all';
-let CUR_MONTH = 'all';
-let CUR_YEAR  = 'all';
+let CUR_FROM = 'all';
+let CUR_TO   = 'all';
 let LAST_RENDER_ROWS = null;
 let refreshTimer = null;
 const chartRefs = {};
@@ -756,43 +758,64 @@ function setupTabs(rows) {
   }
 }
 
-// ── Filtro de fecha (mes / año) ────────────────────────────────────
+// ── Filtro de fecha (rango de meses "Desde" / "Hasta") ─────────────
+// Construye la lista de meses disponibles ("YYYY-MM") a partir de TODOS
+// los registros (no solo los de la estación activa) para que el rango
+// disponible no cambie al alternar entre pestañas de estación.
 function setupDateFilter(rows) {
-  const years = new Set();
+  const monthSet = new Set();
   rows.forEach(r=>{
     const p = parseDiaParts(r['Dia']);
-    if(p && p.y) years.add(p.y);
+    if(p) monthSet.add(`${p.y}-${String(p.m).padStart(2,'0')}`);
   });
-  const yearSel  = document.getElementById('filter-year');
-  const monthSel = document.getElementById('filter-month');
-  const sortedYears = [...years].sort((a,b)=>a-b);
+  // "YYYY-MM" ordena correctamente como texto porque el mes va con cero a la izquierda
+  const sortedMonths = [...monthSet].sort();
+
+  const fromSel = document.getElementById('filter-from');
+  const toSel   = document.getElementById('filter-to');
 
   // Conserva la selección previa si sigue siendo válida (p.ej. tras un auto-refresh)
-  const prevYear = yearSel.value, prevMonth = monthSel.value;
+  const prevFrom = fromSel.value, prevTo = toSel.value;
 
-  yearSel.innerHTML = '<option value="all">Todos los años</option>' +
-    sortedYears.map(y=>`<option value="${y}">${y}</option>`).join('');
-  monthSel.innerHTML = '<option value="all">Todos los meses</option>' +
-    MONTH_NAMES.map((nm,i)=>`<option value="${i+1}">${nm}</option>`).join('');
+  const opts = sortedMonths.map(key=>{
+    const [y,m] = key.split('-');
+    return `<option value="${key}">${MONTH_NAMES[parseInt(m,10)-1]} ${y}</option>`;
+  }).join('');
 
-  if([...yearSel.options].some(o=>o.value===prevYear))   yearSel.value  = prevYear;
-  if([...monthSel.options].some(o=>o.value===prevMonth)) monthSel.value = prevMonth;
-  CUR_YEAR  = yearSel.value;
-  CUR_MONTH = monthSel.value;
+  fromSel.innerHTML = '<option value="all">Inicio</option>' + opts;
+  toSel.innerHTML   = '<option value="all">Fin</option>' + opts;
 
-  document.getElementById('filter-bar').style.display = sortedYears.length ? 'flex' : 'none';
+  if([...fromSel.options].some(o=>o.value===prevFrom)) fromSel.value = prevFrom;
+  if([...toSel.options].some(o=>o.value===prevTo))     toSel.value   = prevTo;
+  CUR_FROM = fromSel.value;
+  CUR_TO   = toSel.value;
+
+  document.getElementById('filter-bar').style.display = sortedMonths.length ? 'flex' : 'none';
   document.getElementById('filter-clear').style.display =
-    (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+    (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
+}
+
+// Convierte una clave "YYYY-MM" a un número comparable (año*12 + mes-0based)
+function monthKeyToNum(key) {
+  if(key==='all') return null;
+  const [y,m] = key.split('-').map(Number);
+  return y*12 + (m-1);
 }
 
 function applyDateFilter(rows) {
-  if(CUR_MONTH==='all' && CUR_YEAR==='all') return rows;
+  if(CUR_FROM==='all' && CUR_TO==='all') return rows;
+  let fromNum = monthKeyToNum(CUR_FROM);
+  let toNum   = monthKeyToNum(CUR_TO);
+  if(fromNum===null) fromNum = -Infinity;
+  if(toNum===null)   toNum   = Infinity;
+  // Si el usuario elige "Hasta" anterior a "Desde", se interpreta igual
+  // como el rango entre ambos, en vez de devolver una lista vacía.
+  if(fromNum > toNum){ const t=fromNum; fromNum=toNum; toNum=t; }
   return rows.filter(r=>{
     const p = parseDiaParts(r['Dia']);
     if(!p) return false;
-    if(CUR_YEAR!=='all'  && String(p.y)!==CUR_YEAR) return false;
-    if(CUR_MONTH!=='all' && p.m!==parseInt(CUR_MONTH,10)) return false;
-    return true;
+    const num = p.y*12 + (p.m-1);
+    return num>=fromNum && num<=toNum;
   });
 }
 
@@ -1331,22 +1354,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
   });
 
-  document.getElementById('filter-month').addEventListener('change', e=>{
-    CUR_MONTH = e.target.value;
+  document.getElementById('filter-from').addEventListener('change', e=>{
+    CUR_FROM = e.target.value;
     document.getElementById('filter-clear').style.display =
-      (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+      (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
     setStation(CUR_STATION);
   });
-  document.getElementById('filter-year').addEventListener('change', e=>{
-    CUR_YEAR = e.target.value;
+  document.getElementById('filter-to').addEventListener('change', e=>{
+    CUR_TO = e.target.value;
     document.getElementById('filter-clear').style.display =
-      (CUR_MONTH!=='all'||CUR_YEAR!=='all') ? 'inline' : 'none';
+      (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
     setStation(CUR_STATION);
   });
   document.getElementById('filter-clear').addEventListener('click', ()=>{
-    CUR_MONTH='all'; CUR_YEAR='all';
-    document.getElementById('filter-month').value='all';
-    document.getElementById('filter-year').value='all';
+    CUR_FROM='all'; CUR_TO='all';
+    document.getElementById('filter-from').value='all';
+    document.getElementById('filter-to').value='all';
     document.getElementById('filter-clear').style.display='none';
     setStation(CUR_STATION);
   });
