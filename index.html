@@ -43,9 +43,9 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
   padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
   position:sticky;top:92px;z-index:98}
 .filter-bar .fl{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
-.filter-bar select{padding:5px 10px;border:1px solid var(--brd);border-radius:6px;
+.filter-bar select,.filter-bar input[type="date"]{padding:5px 10px;border:1px solid var(--brd);border-radius:6px;
   font-size:12px;background:#fff;color:var(--txt);cursor:pointer;font-family:inherit}
-.filter-bar select:hover{border-color:var(--navy)}
+.filter-bar select:hover,.filter-bar input[type="date"]:hover{border-color:var(--navy)}
 .filter-clear{font-size:11px;color:var(--blue);cursor:pointer;background:none;border:none;
   text-decoration:underline;font-family:inherit;display:none}
 
@@ -227,13 +227,13 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
 </div>
 
-<!-- Filtro de fecha (rango de meses) -->
+<!-- Filtro de fecha (rango de días exactos) -->
 <div class="filter-bar" id="filter-bar" style="display:none">
-  <span class="fl">&#128197; Filtrar por rango:</span>
+  <span class="fl">&#128197; Filtrar por rango de fechas:</span>
   <span class="fl">Desde</span>
-  <select id="filter-from"><option value="all">Inicio</option></select>
+  <input type="date" id="filter-from">
   <span class="fl">Hasta</span>
-  <select id="filter-to"><option value="all">Fin</option></select>
+  <input type="date" id="filter-to">
   <button class="filter-clear" id="filter-clear">Quitar filtro</button>
 </div>
 
@@ -657,8 +657,8 @@ function dirToCompass(deg) {
 
 let ALL_ROWS = [];
 let CUR_STATION = 'all';
-let CUR_FROM = 'all';
-let CUR_TO   = 'all';
+let CUR_FROM = ''; // fecha ISO "YYYY-MM-DD" o '' si no hay filtro
+let CUR_TO   = '';
 let LAST_RENDER_ROWS = null;
 let refreshTimer = null;
 const chartRefs = {};
@@ -758,64 +758,59 @@ function setupTabs(rows) {
   }
 }
 
-// ── Filtro de fecha (rango de meses "Desde" / "Hasta") ─────────────
-// Construye la lista de meses disponibles ("YYYY-MM") a partir de TODOS
-// los registros (no solo los de la estación activa) para que el rango
-// disponible no cambie al alternar entre pestañas de estación.
+// ── Filtro de fecha (rango de días exactos "Desde" / "Hasta") ──────
+// Los <input type="date"> nativos guardan y devuelven fechas en formato
+// ISO "YYYY-MM-DD" sin importar el idioma del navegador. Solo se ajustan
+// aquí los límites (min/max) según los datos disponibles; el valor que
+// el usuario ya haya elegido NUNCA se pisa (así un auto-refresh de
+// Google Sheets no borra el rango que la persona seleccionó).
+function isoDate(p){ return `${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`; }
+
 function setupDateFilter(rows) {
-  const monthSet = new Set();
+  let minP = null, maxP = null, minTS = Infinity, maxTS = -Infinity;
   rows.forEach(r=>{
     const p = parseDiaParts(r['Dia']);
-    if(p) monthSet.add(`${p.y}-${String(p.m).padStart(2,'0')}`);
+    if(!p) return;
+    const ts = new Date(p.y, p.m-1, p.d).getTime();
+    if(ts < minTS){ minTS = ts; minP = p; }
+    if(ts > maxTS){ maxTS = ts; maxP = p; }
   });
-  // "YYYY-MM" ordena correctamente como texto porque el mes va con cero a la izquierda
-  const sortedMonths = [...monthSet].sort();
 
-  const fromSel = document.getElementById('filter-from');
-  const toSel   = document.getElementById('filter-to');
+  const fromInput = document.getElementById('filter-from');
+  const toInput   = document.getElementById('filter-to');
 
-  // Conserva la selección previa si sigue siendo válida (p.ej. tras un auto-refresh)
-  const prevFrom = fromSel.value, prevTo = toSel.value;
+  if(minP && maxP){
+    fromInput.min = toInput.min = isoDate(minP);
+    fromInput.max = toInput.max = isoDate(maxP);
+  }
 
-  const opts = sortedMonths.map(key=>{
-    const [y,m] = key.split('-');
-    return `<option value="${key}">${MONTH_NAMES[parseInt(m,10)-1]} ${y}</option>`;
-  }).join('');
-
-  fromSel.innerHTML = '<option value="all">Inicio</option>' + opts;
-  toSel.innerHTML   = '<option value="all">Fin</option>' + opts;
-
-  if([...fromSel.options].some(o=>o.value===prevFrom)) fromSel.value = prevFrom;
-  if([...toSel.options].some(o=>o.value===prevTo))     toSel.value   = prevTo;
-  CUR_FROM = fromSel.value;
-  CUR_TO   = toSel.value;
-
-  document.getElementById('filter-bar').style.display = sortedMonths.length ? 'flex' : 'none';
+  document.getElementById('filter-bar').style.display = minP ? 'flex' : 'none';
   document.getElementById('filter-clear').style.display =
-    (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
+    (CUR_FROM || CUR_TO) ? 'inline' : 'none';
 }
 
-// Convierte una clave "YYYY-MM" a un número comparable (año*12 + mes-0based)
-function monthKeyToNum(key) {
-  if(key==='all') return null;
-  const [y,m] = key.split('-').map(Number);
-  return y*12 + (m-1);
+// Convierte un valor ISO "YYYY-MM-DD" de <input type="date"> a timestamp
+// (medianoche local), comparable con las fechas "DD/MM/YYYY" de los registros.
+function isoToTS(iso) {
+  if(!iso) return null;
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d).getTime();
 }
 
 function applyDateFilter(rows) {
-  if(CUR_FROM==='all' && CUR_TO==='all') return rows;
-  let fromNum = monthKeyToNum(CUR_FROM);
-  let toNum   = monthKeyToNum(CUR_TO);
-  if(fromNum===null) fromNum = -Infinity;
-  if(toNum===null)   toNum   = Infinity;
+  if(!CUR_FROM && !CUR_TO) return rows;
+  let fromTS = isoToTS(CUR_FROM);
+  let toTS   = isoToTS(CUR_TO);
+  if(fromTS===null) fromTS = -Infinity;
+  if(toTS===null)   toTS   = Infinity;
   // Si el usuario elige "Hasta" anterior a "Desde", se interpreta igual
   // como el rango entre ambos, en vez de devolver una lista vacía.
-  if(fromNum > toNum){ const t=fromNum; fromNum=toNum; toNum=t; }
+  if(fromTS > toTS){ const t=fromTS; fromTS=toTS; toTS=t; }
   return rows.filter(r=>{
     const p = parseDiaParts(r['Dia']);
     if(!p) return false;
-    const num = p.y*12 + (p.m-1);
-    return num>=fromNum && num<=toNum;
+    const ts = new Date(p.y, p.m-1, p.d).getTime();
+    return ts>=fromTS && ts<=toTS;
   });
 }
 
@@ -1355,21 +1350,21 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   document.getElementById('filter-from').addEventListener('change', e=>{
-    CUR_FROM = e.target.value;
+    CUR_FROM = e.target.value; // "" si el usuario borra el campo
     document.getElementById('filter-clear').style.display =
-      (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
+      (CUR_FROM||CUR_TO) ? 'inline' : 'none';
     setStation(CUR_STATION);
   });
   document.getElementById('filter-to').addEventListener('change', e=>{
     CUR_TO = e.target.value;
     document.getElementById('filter-clear').style.display =
-      (CUR_FROM!=='all'||CUR_TO!=='all') ? 'inline' : 'none';
+      (CUR_FROM||CUR_TO) ? 'inline' : 'none';
     setStation(CUR_STATION);
   });
   document.getElementById('filter-clear').addEventListener('click', ()=>{
-    CUR_FROM='all'; CUR_TO='all';
-    document.getElementById('filter-from').value='all';
-    document.getElementById('filter-to').value='all';
+    CUR_FROM=''; CUR_TO='';
+    document.getElementById('filter-from').value='';
+    document.getElementById('filter-to').value='';
     document.getElementById('filter-clear').style.display='none';
     setStation(CUR_STATION);
   });
