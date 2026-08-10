@@ -2,1822 +2,1772 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WatchDog 3000 · Estaciones Climáticas · Guatemala</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control de Calidad - Armado de Viveros y Ensayos (conectado a BMS)</title>
 <style>
-:root{--bg:#F0EEEA;--surf:#fff;--surf2:#F7F5F1;--brd:rgba(0,0,0,0.08);
-  --shd:0 1px 4px rgba(0,0,0,0.08);--navy:#1D3461;--blue:#1F7FDF;
-  --coral:#E05A2B;--teal:#1A9E72;--steel:#2E86AB;--amber:#E8A838;
-  --txt:#18181A;--muted:#6E6D68;--sub:#9A9891;--r:12px;--r2:8px}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+  :root { --bg:#f4f6f8; --card:#fff; --accent:#1f6f43; --line:#dfe3e8;
+          --ok:#137333; --okbg:#e6f4ea; --bad:#b00020; --badbg:#fce8e6; --amber:#9a6700;
+          --amberbg:#fff4e0; --gray:#5f6368; --graybg:#eef0f2; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; color:#1a1a1a; }
+  .container { max-width:1100px; margin:0 auto; padding:18px; }
+  h1 { color:var(--accent); margin:.2em 0; font-size:1.5rem; }
+  h2 { margin:1.1em 0 .4em; font-size:1.05rem; border-bottom:2px solid var(--line); padding-bottom:4px; }
 
-nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
-  justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
-  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.nav-t{font-size:15px;font-weight:700}.nav-s{font-size:10px;color:#A8B8CC;margin-top:2px}
-.nav-r{font-size:11px;color:#A8B8CC;display:flex;gap:14px;flex-wrap:wrap}
-.dot{width:7px;height:7px;border-radius:50%;background:#4ADE80;display:inline-block;animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .conn-card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .conn-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:8px; }
+  .conn-grid label { font-size:.78rem; font-weight:600; color:#444; display:block; margin-bottom:3px; }
+  .conn-grid input { width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:6px; font-size:.85rem; }
+  .conn-status { font-size:.85rem; font-family:ui-monospace,Consolas,monospace; }
+  .conn-status.ok { color:var(--ok); }
+  .conn-status.bad { color:var(--bad); }
 
-/* TABS */
-.tabs-bar{background:var(--surf);border-bottom:1px solid var(--brd);
-  padding:0 20px;display:flex;gap:0;position:sticky;top:52px;z-index:99;
-  box-shadow:0 1px 4px rgba(0,0,0,.06)}
-.tab{padding:12px 18px;font-size:13px;font-weight:500;color:var(--muted);
-  border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;
-  transition:all .15s;white-space:nowrap}
-.tab:hover{color:var(--navy)}
-.tab.active{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
-.tab.sj.active{border-bottom-color:#E05A2B;color:#E05A2B}
-.tab.ov.active{border-bottom-color:#1A9E72;color:#1A9E72}
-.tab.cmp.active{border-bottom-color:var(--navy);color:var(--navy)}
+  .loaders { display:flex; gap:18px; flex-wrap:wrap; margin:10px 0 6px; }
+  .loaders > div { flex:1; min-width:320px; background:var(--card); border:1px solid var(--line);
+                   border-radius:8px; padding:12px; }
+  .loaders label { font-weight:600; display:block; margin-bottom:6px; font-size:.9rem; }
+  .loaders .sub-field { margin-bottom:8px; }
+  .loaders .sub-field input { width:100%; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:.85rem; }
+  .file-status { font-size:.82rem; margin-top:6px; min-height:1em; }
+  .btn-load { background:var(--accent); color:#fff; border:none; border-radius:6px; padding:7px 14px;
+              font-size:.85rem; cursor:pointer; margin-right:6px; }
+  .btn-load:hover { background:#175a37; }
+  .btn-load:disabled { background:#9db8ab; cursor:not-allowed; }
+  .btn-secondary { background:none; border:1px solid var(--line); border-radius:6px; padding:7px 14px;
+                   font-size:.85rem; cursor:pointer; }
+  .btn-secondary:hover { background:#eef1f3; }
 
-/* FILTRO DE FECHA */
-.filter-bar{background:var(--surf2);border-bottom:1px solid var(--brd);
-  padding:8px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
-  position:sticky;top:92px;z-index:98}
-.filter-bar .fl{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
-.filter-bar select,.filter-bar input[type="date"]{padding:5px 10px;border:1px solid var(--brd);border-radius:6px;
-  font-size:12px;background:#fff;color:var(--txt);cursor:pointer;font-family:inherit}
-.filter-bar select:hover,.filter-bar input[type="date"]:hover{border-color:var(--navy)}
-.filter-clear{font-size:11px;color:var(--blue);cursor:pointer;background:none;border:none;
-  text-decoration:underline;font-family:inherit;display:none}
+  .scan-row { display:flex; gap:18px; flex-wrap:wrap; margin-top:8px; }
+  .scan-box { flex:1; min-width:280px; background:var(--card); border:2px solid var(--accent);
+              border-radius:10px; padding:14px; }
+  .scan-box label { font-weight:700; color:var(--accent); display:block; margin-bottom:6px; }
+  .scan-box input { width:100%; padding:13px 14px; font-size:1.25rem; border:1px solid var(--line);
+                    border-radius:8px; outline:none; font-family:ui-monospace,Consolas,monospace; }
+  .scan-box .sub { font-size:.8rem; color:#555; margin-top:6px; min-height:1em; }
+  .scan-box.locked { border-color:#137333; background:#f3fbf6; }
+  .lock-tag { background:#137333; color:#fff; font-size:.7rem; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:middle; }
+  .scan-box input:disabled { background:#eee; color:#999; }
+  .verdict { margin:16px 0; border-radius:12px; padding:20px; text-align:center;
+             font-size:1.6rem; font-weight:800; letter-spacing:.5px; border:3px solid var(--line);
+             background:#fff; color:#888; }
+  .verdict.true  { background:var(--okbg);  border-color:var(--ok);  color:var(--ok); }
+  .verdict.false { background:var(--badbg); border-color:var(--bad); color:var(--bad); }
+  .verdict small { display:block; font-size:.85rem; font-weight:600; margin-top:6px; letter-spacing:0; }
+  .panel { display:flex; gap:18px; flex-wrap:wrap; }
+  .panel > div { flex:1; min-width:280px; background:var(--card); border:1px solid var(--line);
+                 border-radius:8px; padding:12px; }
+  .panel h3 { margin:0 0 8px; font-size:.95rem; color:var(--accent); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:.95rem; }
+  .kv b { color:#444; font-weight:600; }
+  .mono { font-family:ui-monospace,Consolas,monospace; }
+  .hl-ok { color:var(--ok); font-weight:700; }
+  .hl-bad { color:var(--bad); font-weight:700; }
+  table { width:100%; border-collapse:collapse; background:var(--card);
+          box-shadow:0 1px 3px rgba(0,0,0,.08); border-radius:8px; overflow:hidden; }
+  th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); font-size:.88rem; }
+  th { background:var(--accent); color:#fff; }
+  tbody tr:nth-child(even){ background:#fafbfc; }
+  .badge-true  { background:var(--okbg);  color:var(--ok);  padding:2px 8px; border-radius:10px; font-weight:700; }
+  .badge-false { background:var(--badbg); color:var(--bad); padding:2px 8px; border-radius:10px; font-weight:700; }
+  .toolbar { display:flex; gap:10px; align-items:center; margin:.4em 0; flex-wrap:wrap; }
+  button.act { font-size:.82rem; background:none; border:1px solid var(--line); border-radius:6px;
+               padding:5px 12px; cursor:pointer; }
+  button.act:hover { background:#eef1f3; }
+  .counts { font-size:.85rem; color:#444; }
 
-/* LOADING / PICKER */
-#loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px}
-.spinner{width:42px;height:42px;border:4px solid var(--brd);border-top-color:var(--navy);
-  border-radius:50%;animation:spin .8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#loading p{color:var(--muted);font-size:13px}
-#picker{display:none;max-width:420px;margin:60px auto;padding:28px;background:var(--surf);
-  border-radius:var(--r);border:.5px solid var(--brd);box-shadow:var(--shd);text-align:center}
-#picker h3{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:8px}
-#picker p{font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:16px}
-#picker code{background:#F0F4FA;padding:2px 6px;border-radius:4px;font-size:11px;color:var(--navy)}
-#drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:24px;cursor:pointer;transition:all .2s}
-#drop-zone:hover,#drop-zone.over{border-color:var(--navy);background:#F0F4FA}
+  /* Debug / diagnostics */
+  .debug-toggle { font-size:.78rem; color:#555; cursor:pointer; user-select:none; margin-top:6px; }
+  .debug-box { display:none; background:#1a1a17; border-radius:8px; padding:10px 12px; margin-top:8px;
+               font-family:ui-monospace,Consolas,monospace; font-size:11px; color:#74c69d;
+               max-height:220px; overflow-y:auto; white-space:pre-wrap; line-height:1.6; }
+  .spinner-inline { display:inline-block; width:12px; height:12px; border:2px solid #dfe3e8;
+                    border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite;
+                    vertical-align:middle; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 
-/* MAIN LAYOUT */
-#dashboard{display:none}
-main{max-width:1600px;margin:0 auto;padding:20px 28px 40px}
-.banner{border-radius:var(--r);padding:20px 24px;margin-bottom:20px;
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.banner h2{font-size:17px;font-weight:700;margin-bottom:4px;color:#fff}
-.banner p{font-size:11px;color:rgba(255,255,255,.7)}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;
-  font-size:11px;font-weight:500;color:rgba(255,255,255,.9)}
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
-.kpi{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
-  padding:14px 16px;box-shadow:var(--shd)}
-.kl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
-  color:var(--muted);margin-bottom:6px}
-.kv{font-size:24px;font-weight:700;line-height:1;margin-bottom:4px}
-.ks{font-size:11px;color:var(--sub)}
-.panels{display:grid;gap:16px;margin-bottom:16px}
-.r1{grid-template-columns:1fr}.r2{grid-template-columns:1fr 1fr}
-.r3{grid-template-columns:2fr 1fr 1fr}
-.panel{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
-  box-shadow:var(--shd);padding:16px 18px}
-.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
-  flex-wrap:wrap;gap:8px}
-.pt{font-size:12px;font-weight:600}
-.leg{display:flex;gap:12px;flex-wrap:wrap}
-.li{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
-.ll{width:14px;height:2px;border-radius:1px;flex-shrink:0}
-.ld{width:14px;height:0;border-top:2px dashed;flex-shrink:0}
+  .prog-tags { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0; }
+  .prog-tag { font-size:.75rem; padding:3px 9px; border-radius:12px; border:1px solid var(--line);
+              cursor:pointer; user-select:none; background:#fff; color:#444; }
+  .prog-tag.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .prog-tag.unknown { opacity:.55; }
 
-/* COMPARE */
-.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.cmp-card{border-radius:var(--r);padding:16px 18px;border:.5px solid var(--brd);box-shadow:var(--shd)}
-.cmp-card.sj{background:linear-gradient(135deg,#FFF5F2,#fff)}
-.cmp-card.ov{background:linear-gradient(135deg,#F0FAF4,#fff)}
-.cmp-hdr{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.cmp-dot{width:10px;height:10px;border-radius:50%}
-.cmp-stat{display:flex;justify-content:space-between;padding:5px 0;
-  border-bottom:.5px solid var(--brd);font-size:12px}
-.cmp-stat:last-child{border-bottom:none}
-.cmp-stat .lbl{color:var(--muted)}
-.cmp-stat .val{font-weight:600}
+  /* ===== Pestañas (Escaneo / Validación de listado) ===== */
+  .tab-bar { display:flex; gap:8px; margin:16px 0 10px; border-bottom:2px solid var(--line); }
+  .tab-btn { background:none; border:none; border-bottom:3px solid transparent; padding:9px 16px;
+             font-size:.92rem; font-weight:700; color:#666; cursor:pointer; margin-bottom:-2px; }
+  .tab-btn:hover { color:var(--accent); }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
 
-/* TABLE */
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:12px}
-thead th{background:var(--navy);color:#fff;padding:8px 12px;text-align:right;
-  font-weight:600;font-size:11px}
-thead th:first-child{text-align:left;border-radius:var(--r2) 0 0 0}
-thead th:last-child{border-radius:0 var(--r2) 0 0}
-tbody tr{border-bottom:.5px solid var(--brd)}
-tbody tr:nth-child(even){background:var(--surf2)}
-tbody tr.rn{background:#EBF4FC}
-tbody td{padding:8px 12px;text-align:right}
-tbody td:first-child{text-align:left;font-weight:600;color:var(--navy)}
-tfoot td{background:var(--surf2);padding:8px 12px;text-align:right;
-  font-weight:600;color:var(--navy);border-top:1.5px solid var(--navy)}
-tfoot td:first-child{text-align:left}
-.rb{background:#2E86AB;color:#fff;border-radius:20px;padding:1px 7px;
-  font-size:10px;font-weight:600}
-footer{text-align:center;font-size:11px;color:var(--sub);
-  padding:24px 0 8px;border-top:.5px solid var(--brd);margin-top:8px}
+  /* ===== Validación de listado crudo ===== */
+  .upload-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .map-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:12px; }
+  .map-grid label { font-size:.78rem; font-weight:600; color:#444; display:block; margin-bottom:3px; }
+  .map-grid select { width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:6px; font-size:.85rem; background:#fff; }
 
-@media(max-width:900px){
-  .kpi-grid{grid-template-columns:repeat(3,1fr)}
-  .r2,.r3,.cmp-grid{grid-template-columns:1fr}
-  .nav-r,.tabs-bar{display:none}}
-@media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-/* Botón de cambio de página en la barra superior */
-.nav-tab-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);
-  padding:7px 14px;border-radius:20px;font-size:11.5px;font-weight:600;cursor:pointer;
-  font-family:inherit;transition:background .15s;white-space:nowrap}
-.nav-tab-btn:hover{background:rgba(255,255,255,.22)}
-.nav-tab-btn.back{background:rgba(255,255,255,.9);color:var(--navy)}
+  .summary { display:flex; gap:12px; flex-wrap:wrap; margin:10px 0; }
+  .summary .box { flex:1; min-width:120px; border-radius:8px; padding:10px 12px; text-align:center; }
+  .summary .box .n { font-size:1.4rem; font-weight:700; display:block; }
+  .summary .box .label { font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; }
+  .summary .box.total { background:#e8eaed; color:#3c4043; }
+  .summary .box.ok { background:var(--okbg); color:var(--ok); }
+  .summary .box.warn { background:var(--amberbg); color:var(--amber); }
+  .summary .box.bad { background:var(--badbg); color:var(--bad); }
 
-/* ── Página "Cargar datos WD3" (antes conversor-wd3.html), con estilos
-      propios escopados bajo #page-uploader para no chocar con el dashboard ── */
-#page-uploader main{max-width:980px;margin:0 auto;padding:24px 20px 50px}
-#page-uploader .panel{padding:20px 22px;margin-bottom:18px}
-#page-uploader .panel h3{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--navy)}
-#page-uploader .panel .hint{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.6}
-
-#wd3-drop-zone{border:2px dashed #CBD5E1;border-radius:var(--r);padding:30px;cursor:pointer;
-  transition:all .2s;text-align:center;display:block}
-#wd3-drop-zone:hover,#wd3-drop-zone.over{border-color:var(--navy);background:#F0F4FA}
-#wd3-drop-zone .ic{font-size:30px;margin-bottom:8px}
-#wd3-drop-zone .t1{font-weight:600;color:var(--navy);margin-bottom:4px}
-#wd3-drop-zone .t2{font-size:11px;color:var(--sub)}
-
-#page-uploader .cfg-row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
-#page-uploader .cfg-field{flex:1;min-width:200px}
-#page-uploader .cfg-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px}
-#page-uploader .cfg-field input,#page-uploader .cfg-field select{width:100%;padding:8px 10px;border:1px solid var(--brd);
-  border-radius:var(--r2);font-size:12px;font-family:inherit;background:var(--surf2)}
-
-#page-uploader .btn{display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;
-  border:none;padding:10px 18px;border-radius:var(--r2);font-size:12px;font-weight:600;
-  cursor:pointer;transition:opacity .15s}
-#page-uploader .btn:hover{opacity:.88}
-#page-uploader .btn:disabled{opacity:.4;cursor:not-allowed}
-#page-uploader .btn.sec{background:var(--surf2);color:var(--navy);border:1px solid var(--brd)}
-#page-uploader .btn.go{background:var(--teal)}
-
-#page-uploader .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
-#page-uploader .sbox{background:var(--surf2);border-radius:var(--r2);padding:10px 12px}
-#page-uploader .sbox .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
-#page-uploader .sbox .v{font-size:18px;font-weight:700;color:var(--navy)}
-#page-uploader .sbox.warn .v{color:var(--coral)}
-
-#page-uploader .tw{overflow-x:auto;margin-top:10px;border:.5px solid var(--brd);border-radius:var(--r2)}
-#page-uploader table{width:100%;border-collapse:collapse;font-size:11px}
-#page-uploader thead th{background:var(--navy);color:#fff;padding:6px 10px;text-align:right;font-weight:600;white-space:nowrap}
-#page-uploader thead th:first-child,#page-uploader thead th:nth-child(2),#page-uploader thead th:nth-child(3){text-align:left}
-#page-uploader tbody tr:nth-child(even){background:var(--surf2)}
-#page-uploader tbody td{padding:6px 10px;text-align:right;white-space:nowrap}
-#page-uploader tbody td:first-child,#page-uploader tbody td:nth-child(2),#page-uploader tbody td:nth-child(3){text-align:left;font-weight:600;color:var(--navy)}
-
-#page-uploader .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600}
-#page-uploader .tag.ce{background:#FFF0E8;color:var(--coral)}
-#page-uploader .tag.ov{background:#E8F8F0;color:var(--teal)}
-
-#wd3-log{font-family:'SF Mono',Consolas,monospace;font-size:11px;background:#0F1B2E;color:#9CD8B5;
-  border-radius:var(--r2);padding:12px 14px;max-height:200px;overflow-y:auto;line-height:1.7;display:none}
-#wd3-log .err{color:#FF8A7A}
-#wd3-log .ok{color:#9CD8B5}
-#wd3-log .info{color:#A8C8E8}
-
-#page-uploader .step{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--sub);margin-bottom:14px}
-#page-uploader .step .n{width:18px;height:18px;border-radius:50%;background:var(--brd);color:var(--muted);
-  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
-#page-uploader .step.active .n{background:var(--navy);color:#fff}
-#page-uploader .step.done .n{background:var(--teal);color:#fff}
-#page-uploader .step.active{color:var(--txt);font-weight:600}
-
-#page-uploader footer{text-align:center;font-size:11px;color:var(--sub);padding:20px 0 8px}
-@media(max-width:700px){#page-uploader .summary{grid-template-columns:repeat(2,1fr)}}
+  .table-wrap { max-height:520px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  tr.row-ok td { background:var(--okbg); }
+  tr.row-warn td { background:var(--amberbg); }
+  tr.row-bad td { background:var(--badbg); }
+  tr.row-gray td { background:var(--graybg); color:#666; }
+  .tag { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 7px; border-radius:10px; color:#fff; }
+  .tag.ok { background:var(--ok); }
+  .tag.warn { background:var(--amber); }
+  .tag.bad { background:var(--bad); }
+  .tag.gray { background:var(--gray); }
 </style>
 </head>
 <body>
+<div class="container">
+  <h1>Control de Calidad &mdash; Armado de Viveros y Ensayos</h1>
+  <div style="font-size:.85rem;color:#666;margin-bottom:10px">Conectado directamente a BMS &mdash; sin archivos Excel</div>
 
-<nav>
-  <div>
-    <div class="nav-t">&#127782; WatchDog 3000 &mdash; Estaciones Clim&aacute;ticas</div>
-    <div class="nav-s">Suchitep&eacute;quez &amp; Ovejero, Jutiapa &bull; Guatemala</div>
+  <!-- CONEXION BMS -->
+  <div class="conn-card">
+    <label style="font-weight:700;color:var(--accent);display:block;margin-bottom:8px">Conexión a BMS</label>
+    <div class="conn-grid">
+      <div><label>URL de BMS</label><input type="text" id="bmsUrl" value="https://semillanueva.bmspro.io"></div>
+      <div><label>Crop</label><input type="text" id="bmsCrop" value="maize"></div>
+      <div><label>Usuario</label><input type="text" id="bmsUser"></div>
+      <div><label>Contraseña</label><input type="password" id="bmsPass"></div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-load" id="btnConectar">Conectar a BMS</button>
+      <span class="conn-status" id="connStatus">Sin conexión</span>
+    </div>
   </div>
-  <div class="nav-r">
-    <span>&#128205; UTC-6</span>
-    <span id="nav-src"></span>
-    <span id="nav-ts"></span>
-    <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
-  </div>
-</nav>
 
-<!-- ═══════════════════ PÁGINA: DASHBOARD ═══════════════════ -->
-<div id="page-dashboard">
-
-<!-- Tabs de estación -->
-<div class="tabs-bar" id="tabs-bar" style="display:none">
-  <button class="tab sj active" id="tab-sj"   onclick="setStation('CE')">&#127807; CE &mdash; Suchitep&eacute;quez</button>
-  <button class="tab ov"    id="tab-ov"   onclick="setStation('Ovejero')">&#127806; Ovejero &mdash; Jutiapa</button>
-  <button class="tab cmp"   id="tab-cmp"  onclick="setStation('compare')">&#128202; Comparar</button>
-</div>
-
-<!-- Filtro de fecha (rango de días exactos) -->
-<div class="filter-bar" id="filter-bar" style="display:none">
-  <span class="fl">&#128197; Filtrar por rango de fechas:</span>
-  <span class="fl">Desde</span>
-  <input type="date" id="filter-from">
-  <span class="fl">Hasta</span>
-  <input type="date" id="filter-to">
-  <button class="filter-clear" id="filter-clear">Quitar filtro</button>
-</div>
-
-<!-- Loading / Picker -->
-<div id="loading">
-  <div class="spinner"></div>
-  <p id="load-msg">Conectando con Google Sheets...</p>
-</div>
-<div id="picker">
-  <div style="font-size:36px;margin-bottom:10px">&#128196;</div>
-  <h3>Seleccion&aacute; el archivo de datos</h3>
-  <p>Configur&aacute; la URL del Google Sheet en <code>SHEETS_URL</code>,<br>
-     o seleccion&aacute; el CSV/Excel manualmente:</p>
-  <label id="drop-zone">
-    <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none">
-    <div style="font-size:28px;margin-bottom:8px">&#128194;</div>
-    <div style="font-weight:600;color:var(--navy);margin-bottom:4px">Clic para seleccionar</div>
-    <div style="font-size:11px;color:var(--sub)">datos.xlsx o CSV &bull; tambi&eacute;n pod&eacute;s arrastrar</div>
-  </label>
-</div>
-
-<!-- Dashboard -->
-<div id="dashboard">
-<main>
-
-  <!-- Banner (cambia color según estación) -->
-  <div class="banner" id="banner" style="background:linear-gradient(135deg,#1D3461,#2C5282)">
+  <div class="loaders">
     <div>
-      <h2 id="banner-title">Dashboard de Monitoreo Clim&aacute;tico</h2>
-      <p id="banner-sub">WatchDog 3000 Wireless &bull; ID: 54400111 &amp; 54400110 &bull; Firmware 00.01.75</p>
-    </div>
-    <div class="chips" id="banner-chips">
-      <span class="chip">&#127303; Temporada de lluvias</span>
-      <span class="chip" id="chip-dias"></span>
-      <span class="chip" id="chip-altsource" style="display:none;background:rgba(31,127,223,.35)"></span>
+      <label>Catálogo de LOTES (Origen) &mdash; desde BMS</label>
+      <div class="toolbar">
+        <button class="btn-load" id="btnCargarLotes" onclick="cargarLotesBMS()" disabled>Cargar lotes desde BMS</button>
+      </div>
+      <div class="file-status" id="statusLotes">Conéctate a BMS primero.</div>
     </div>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpi-grid">
-    <div class="kpi"><div class="kl">Lluvia total</div>
-      <div class="kv" id="kv1" style="color:var(--steel)">—</div>
-      <div class="ks" id="ks1">—</div></div>
-    <div class="kpi"><div class="kl">Temp. m&aacute;xima</div>
-      <div class="kv" id="kv2" style="color:var(--coral)">—</div>
-      <div class="ks">pico del per&iacute;odo</div></div>
-    <div class="kpi"><div class="kl">Temp. m&iacute;nima</div>
-      <div class="kv" id="kv3" style="color:var(--blue)">—</div>
-      <div class="ks">m&iacute;nimo nocturno</div></div>
-    <div class="kpi"><div class="kl">Viento m&aacute;ximo</div>
-      <div class="kv" id="kv4" style="color:var(--teal)">—</div>
-      <div class="ks">km/h &bull; r&aacute;faga m&aacute;xima</div></div>
-    <div class="kpi"><div class="kl">Registros</div>
-      <div class="kv" id="kv5" style="color:var(--navy)">—</div>
-      <div class="ks" id="ks5">—</div></div>
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabBtnEscaneo" onclick="showTab('escaneo')">Escaneo Lote &harr; Vivero</button>
+    <button class="tab-btn" id="tabBtnValidacion" onclick="showTab('validacion')">Validar Listado Crudo</button>
+    <button class="tab-btn" id="tabBtnGenbank" onclick="showTab('genbank')">Genbank &mdash; Verificación</button>
+    <button class="tab-btn" id="tabBtnReporte" onclick="showTab('reporte')">Reporte EK &harr; Genbank</button>
   </div>
 
-  <!-- Sin datos para el filtro/estación actual -->
-  <div class="panel" id="no-data-panel" style="display:none;margin-bottom:16px;text-align:center;padding:32px 20px">
-    <div style="font-size:28px;margin-bottom:8px">&#128203;</div>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:4px">No hay registros para esta combinaci&oacute;n de estaci&oacute;n y filtro de fecha.</p>
-    <p style="color:var(--sub);font-size:11px">Prob&aacute; con otro rango o quit&aacute; el filtro con el bot&oacute;n "Quitar filtro".</p>
-  </div>
-
-  <!-- Vista individual (serie temporal + gráficas diarias) -->
-  <div id="single-view">
-    <div class="panels r1"><div class="panel">
-      <div class="ph">
-        <span class="pt" id="serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
-        <div class="leg" id="serie-leg">
-          <span class="li"><span class="ll" id="leg-t-line" style="background:#E05A2B"></span>Temperatura (°C)</span>
-          <span class="li"><span class="ld" id="leg-h-line" style="border-color:#1F7FDF"></span>Humedad %HR</span>
-        </div>
-      </div>
-      <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
-    </div></div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
-      <div style="position:relative;height:200px"><canvas id="cT"></canvas></div>
-      <p id="tdaily-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p>
-    </div></div>
-
-    <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
-        <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
-      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
-        <div style="position:relative;height:220px"><canvas id="cW"></canvas></div></div>
-    </div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph">
-        <span class="pt">&#127783; Lluvia total por mes &mdash; comparaci&oacute;n</span>
-        <span class="ks" id="rmonth-total" style="font-size:11px;color:var(--sub)"></span>
-      </div>
-      <div style="position:relative;height:200px"><canvas id="cRMonth"></canvas></div>
-    </div></div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
-      <div style="position:relative;height:200px"><canvas id="cH"></canvas></div>
-    </div></div>
-
-    <div class="panels r2">
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#129517; Rosa de los vientos</span>
-          <span class="ks" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
-        </div>
-        <div style="position:relative;height:190px" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
-        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7">
-          No hay datos de dirección de viento en este período.<br>Agregá la columna
-          <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
-          a tu hoja "Datos" para activar este panel.
-        </p>
-      </div>
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#128167; Punto de roc&iacute;o &amp; riesgo de hongos</span>
-          <div class="leg" id="dew-leg">
-            <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
-            <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
-          </div>
-        </div>
-        <div style="position:relative;height:140px"><canvas id="cDew"></canvas></div>
-        <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
-      </div>
-    </div>
-
-    <div class="panels r2">
-      <div class="panel">
-        <div class="ph"><span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span></div>
-        <div style="position:relative;height:165px"><canvas id="cHeat"></canvas></div>
-      </div>
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#127793; Grados-d&iacute;a de crecimiento (GDU) acumulados</span>
-          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);flex-wrap:wrap">
-            Temp. base
-            <input type="number" id="gdd-tbase" value="10" step="0.5" min="0" max="20"
-              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
-            &deg;C
-            <span style="color:var(--sub)">&middot;</span>
-            Temp. m&aacute;x (tope)
-            <input type="number" id="gdd-ttop" value="30" step="0.5" min="20" max="45"
-              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
-            &deg;C
-          </span>
-        </div>
-        <div style="position:relative;height:165px"><canvas id="cGDD"></canvas></div>
-        <p style="font-size:10px;color:var(--sub);margin-top:6px">Base 10&deg;C es un est&aacute;ndar usual para ma&iacute;z y frijol en clima tropical. El tope superior (30&deg;C por defecto) limita la temperatura m&aacute;xima usada en el c&aacute;lculo &mdash; cambialo a 32&deg;C si tu criterio agron&oacute;mico lo requiere; por encima del tope, el cultivo deja de acumular crecimiento adicional.</p>
-      </div>
-
-    </div>
-
-    <div class="panel" style="margin-bottom:16px">
-      <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario</span></div>
-      <div class="tw"><table>
-        <thead><tr>
-          <th>Fecha</th><th>T M&iacute;n</th><th>T Prom</th><th>T M&aacute;x</th>
-          <th>HR M&iacute;n</th><th>HR Prom</th><th>HR M&aacute;x</th>
-          <th>Lluvia (mm)</th><th>Viento M&aacute;x (km/h)</th>
-        </tr></thead>
-        <tbody id="tb"></tbody>
-        <tfoot><tr id="tf"></tr></tfoot>
-      </table></div>
-    </div>
-  </div>
-
-  <!-- Vista comparación -->
-  <div id="compare-view" style="display:none">
-    <div class="cmp-grid">
-      <div class="cmp-card sj">
-        <div class="cmp-hdr">
-          <span class="cmp-dot" style="background:#E05A2B"></span>
-          CE &mdash; Centro Experimental, Suchitep&eacute;quez
-        </div>
-        <div id="cmp-sj-stats"></div>
-      </div>
-      <div class="cmp-card ov">
-        <div class="cmp-hdr">
-          <span class="cmp-dot" style="background:#1A9E72"></span>
-          Ovejero &mdash; Jutiapa (Corredor Seco)
-        </div>
-        <div id="cmp-ov-stats"></div>
-      </div>
-    </div>
-
-    <div class="panels r2">
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#127777; Temperatura diaria &mdash; comparaci&oacute;n</span>
-          <div class="leg">
-            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
-            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
-          </div>
-        </div>
-        <div style="position:relative;height:220px"><canvas id="cCmpT"></canvas></div>
-      </div>
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#127783; Lluvia diaria &mdash; comparaci&oacute;n</span>
-          <div class="leg">
-            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
-            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
-          </div>
-        </div>
-        <div style="position:relative;height:220px"><canvas id="cCmpR"></canvas></div>
-      </div>
-    </div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph">
-        <span class="pt">&#127793; Grados-d&iacute;a de crecimiento (GDU) acumulados &mdash; comparaci&oacute;n</span>
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-          <div class="leg">
-            <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
-            <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
-          </div>
-          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
-            Temp. base
-            <input type="number" id="cmp-gdd-tbase" value="10" step="0.5" min="0" max="20"
-              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
-            &deg;C &middot; Tope
-            <input type="number" id="cmp-gdd-ttop" value="30" step="0.5" min="20" max="45"
-              style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
-            &deg;C
-          </span>
-        </div>
-      </div>
-      <div style="position:relative;height:200px"><canvas id="cCmpGDD"></canvas></div>
-      <p style="font-size:10px;color:var(--sub);margin-top:6px" id="cmp-gdd-period">&nbsp;</p>
-    </div></div>
-
-    <!-- Tabla comparativa -->
-    <div class="panel" style="margin-bottom:16px">
-      <div class="ph" style="margin-bottom:14px">
-        <span class="pt">&#128203; Resumen comparativo por d&iacute;a</span>
-        <span style="font-size:10px;color:var(--sub)" id="cmp-period">Per&iacute;odo com&uacute;n: —</span>
-      </div>
-      <div class="tw"><table>
-        <thead><tr>
-          <th>Fecha</th>
-          <th>T M&aacute;x SJ</th><th>T M&aacute;x OV</th>
-          <th>T M&iacute;n SJ</th><th>T M&iacute;n OV</th>
-          <th>Lluvia SJ</th><th>Lluvia OV</th>
-          <th>HR Prom SJ</th><th>HR Prom OV</th>
-        </tr></thead>
-        <tbody id="cmp-tb"></tbody>
-      </table></div>
-    </div>
-  </div>
-
-
-  <footer id="ft">WatchDog 3000 &bull; Suchitep&eacute;quez (54400111) &amp; Ovejero-Jutiapa (54400110) &bull; Guatemala</footer>
-</main>
-</div>
-</div><!-- /page-dashboard -->
-
-<!-- ═══════════════════ PÁGINA: CARGAR DATOS WD3 ═══════════════════ -->
-<div id="page-uploader" style="display:none">
-<main>
-
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px">
+  <div id="tabEscaneo">
+  <div class="loaders">
     <div>
-      <h2 style="font-size:16px;font-weight:700;color:var(--navy)">&#128260; Conversor WD3 &rarr; Google Sheets</h2>
-      <p style="font-size:11px;color:var(--muted)">WatchDog 3000 &middot; Suchitep&eacute;quez &amp; Ovejero, Jutiapa</p>
+      <label>Vivero (Study) &mdash; OBS_UNIT_ID desde BMS</label>
+      <div class="sub-field">
+        <input type="text" id="studyQuery" placeholder="Nombre del vivero (ej. 01 SLFAFCIM_2026B) o studyDbId numérico" disabled>
+      </div>
+      <div style="font-size:.78rem;color:#444;margin-bottom:4px">Buscar en programa(s):</div>
+      <div class="prog-tags" id="progTags">
+        <span class="prog-tag unknown" id="progTagStatus">(conéctate a BMS para detectar programas)</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn-load" id="btnBuscarVivero" onclick="buscarVivero()" disabled>Buscar vivero</button>
+        <button class="btn-load" id="btnCargarVivero" onclick="cargarViveroBMS()" disabled>Cargar OBS UNIT del vivero</button>
+      </div>
+      <div class="file-status" id="statusVivero">Conéctate a BMS primero.</div>
     </div>
-    <button class="nav-tab-btn back" onclick="showPage('dashboard')">&larr; Volver al dashboard</button>
   </div>
-  <div style="height:14px"></div>
+
+  <h2>Escaneo</h2>
+  <div class="scan-row">
+    <div class="scan-box" id="boxOrigen">
+      <label>LOT UID &mdash; Material de ORIGEN <span id="lockTag" class="lock-tag" style="display:none">FIJADO</span></label>
+      <input type="text" id="scanOrigen" placeholder="Cargue el catálogo de lotes primero" autocomplete="off" autofocus disabled>
+      <div class="sub" id="subOrigen"></div>
+      <button class="act" id="btnLiberar" style="display:none; margin-top:8px;">Liberar origen / escanear otro</button>
+    </div>
+    <div class="scan-box">
+      <label>OBS UNIT ID &mdash; NUEVO VIVERO</label>
+      <input type="text" id="scanVivero" placeholder="Primero fije un origen" autocomplete="off" disabled>
+      <div class="sub" id="subVivero"></div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">Escanee el LOT UID de origen para comenzar</div>
 
   <div class="panel">
-    <div class="step active" id="wd3-step1"><span class="n">1</span> Cargar archivo .WD3</div>
-    <h3>&#128193; Archivo de la estaci&oacute;n</h3>
-    <p class="hint">Sub&iacute; el archivo exportado por USB desde el WatchDog 3000 (extensi&oacute;n <code>.WD3</code>). La estaci&oacute;n se detecta autom&aacute;ticamente por el n&uacute;mero de serie del encabezado.</p>
-    <label id="wd3-drop-zone">
-      <input type="file" id="wd3-file-input" accept=".wd3,.WD3" style="display:none">
-      <div class="ic">&#128196;</div>
-      <div class="t1">Clic para seleccionar o arrastr&aacute; el archivo aqu&iacute;</div>
-      <div class="t2">54400111 = CE Suchitep&eacute;quez &middot; 54400110 = Ovejero, Jutiapa</div>
-    </label>
+    <div>
+      <h3>Material de Origen</h3>
+      <div class="kv" id="kvOrigen"><b>LOT UID</b><span>&mdash;</span><b>GID</b><span>&mdash;</span><b>DESIGNATION</b><span>&mdash;</span></div>
+    </div>
+    <div>
+      <h3>Nuevo Vivero</h3>
+      <div class="kv" id="kvVivero"><b>OBS UNIT ID</b><span>&mdash;</span><b>GID</b><span>&mdash;</span><b>DESIGNATION</b><span>&mdash;</span><b>ENTRY</b><span>&mdash;</span><b>PLOT_CODE</b><span>&mdash;</span></div>
+    </div>
   </div>
 
-  <div class="panel" id="wd3-preview-panel" style="display:none">
-    <div class="step active" id="wd3-step2"><span class="n">2</span> Revisar antes de subir</div>
-    <h3 id="wd3-prev-title">&#128202; Vista previa</h3>
-    <p class="hint" id="wd3-prev-hint"></p>
+  <h2>Historial de verificaciones</h2>
+  <div class="toolbar">
+    <span class="counts" id="counts">OK: 0 &nbsp;|&nbsp; Fallos: 0 &nbsp;|&nbsp; Total: 0</span>
+    <button class="act" id="btnExport">Exportar historial (CSV)</button>
+    <button class="act" id="btnClear">Limpiar historial</button>
+  </div>
+  <table id="histTable">
+    <thead><tr>
+      <th>Hora</th><th>LOT UID origen</th><th>OBS UNIT ID</th>
+      <th>GID origen</th><th>GID vivero</th>
+      <th>DESIG origen</th><th>DESIG vivero</th>
+      <th>ENTRY</th><th>PLOT_CODE</th><th>Resultado</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  </div> <!-- /tabEscaneo -->
 
-    <div class="summary">
-      <div class="sbox"><div class="l">Estaci&oacute;n</div><div class="v" id="wd3-s-station">&mdash;</div></div>
-      <div class="sbox"><div class="l">Registros v&aacute;lidos</div><div class="v" id="wd3-s-rows">&mdash;</div></div>
-      <div class="sbox warn"><div class="l">L&iacute;neas descartadas</div><div class="v" id="wd3-s-skip">&mdash;</div></div>
-      <div class="sbox"><div class="l">Rango de fechas</div><div class="v" id="wd3-s-range" style="font-size:13px">&mdash;</div></div>
+  <div id="tabValidacion" style="display:none">
+    <p style="font-size:.85rem;color:#666;margin:0 0 10px">Sube el listado crudo (con GID y/o Preferred Name) y valida contra el catálogo de lotes ya cargado arriba &mdash; no vuelve a consultar BMS, usa el mismo catálogo en memoria.</p>
+
+    <div class="conn-card">
+      <div class="upload-row">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" disabled>
+        <span class="file-status" id="fileStatus">Carga el catálogo de lotes primero.</span>
+      </div>
+      <div id="sheetPickerWrap" style="display:none; margin-top:10px;">
+        <label style="font-size:.78rem; font-weight:600;">Hoja:</label>
+        <select id="sheetPicker" style="padding:6px; border-radius:6px; border:1px solid var(--line);"></select>
+      </div>
+      <div class="map-grid" id="mapGrid" style="display:none;">
+        <div><label>Columna GID</label><select id="colGid"></select></div>
+        <div><label>Columna Nombre / Preferred Name</label><select id="colName"></select></div>
+        <div><label>Columna Orden (opcional)</label><select id="colOrden"></select></div>
+        <div><label>Columna Hembra/Macho (opcional)</label><select id="colRol"></select></div>
+        <div><label>Columna Peso (opcional)</label><select id="colPeso"></select></div>
+      </div>
+      <div class="toolbar">
+        <button class="btn-load" id="btnProcesar" disabled>Validar contra BMS</button>
+        <span class="file-status" id="procesarStatus"></span>
+      </div>
     </div>
 
-    <div id="wd3-resample-note" style="display:none;background:#FFF8E8;border:1px solid #F0D89A;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#7A5A10;margin-bottom:10px;line-height:1.6"></div>
-    <div id="wd3-baddate-note" style="display:none;background:#EAF4FF;border:1px solid #B8D4F0;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#1D4E7A;margin-bottom:10px;line-height:1.6"></div>
-
-    <div class="tw">
-      <table>
-        <thead><tr>
-          <th>Estaci&oacute;n</th><th>Fecha</th><th>Hora</th><th>Temp &deg;C</th><th>HR %</th>
-          <th>Lluvia mm</th><th>Viento mph</th><th>Dir. &deg;</th><th>R&aacute;faga mph</th><th>Voltaje V</th><th>Bater&iacute;a %</th>
-        </tr></thead>
-        <tbody id="wd3-prev-body"></tbody>
+    <h2>Resultado de la validación</h2>
+    <div class="summary" id="summary" style="display:none;">
+      <div class="box total"><span class="n" id="sTotal">0</span><span class="label">Filas</span></div>
+      <div class="box ok"><span class="n" id="sOk">0</span><span class="label">OK</span></div>
+      <div class="box warn"><span class="n" id="sWarn">0</span><span class="label">Advertencias</span></div>
+      <div class="box bad"><span class="n" id="sBad">0</span><span class="label">No encontrados</span></div>
+    </div>
+    <div class="toolbar">
+      <button class="act" id="btnExportValidacion" disabled>Exportar resultado (CSV)</button>
+    </div>
+    <div class="table-wrap">
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>Orden</th><th>Rol</th><th>GID (archivo)</th><th>Nombre (archivo)</th>
+            <th>GID en BMS</th><th>Designation en BMS</th><th>Disponible</th><th>Estado</th><th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
-    <p class="hint" style="margin-top:8px;margin-bottom:0">Mostrando los primeros y &uacute;ltimos 5 registros de <span id="wd3-prev-total">0</span> en total.</p>
+  </div> <!-- /tabValidacion -->
+
+  <div id="tabGenbank" style="display:none">
+  <p style="font-size:.85rem;color:#666;margin:0 0 10px">
+    Primero carga el catálogo de lotes ("Cargar lotos desde BMS, arriba Aquí escaneas el sticker del sobre y se verifica
+    contra el INVENTARIO de BMS (no contra los estudios), tomas la foto de evidencia")
+  </p>
+
+  <div class="scan-row">
+    <div class="scan-box" style="max-width:420px">
+      <label>Escanear sticker (OBS_UNIT_ID)</label>
+      <input type="text" id="scanGenbank" placeholder="Carga el cátalogo de lotes primero" autocomplete="off" disabled>
+      <div class="sub" id="subGenbank"></div>
+    </div>
   </div>
 
-  <div class="panel" id="wd3-config-panel" style="display:none">
-    <div class="step active" id="wd3-step3"><span class="n">3</span> Enviar a Google Sheets</div>
-    <h3>&#9729;&#65039; Conexi&oacute;n con la hoja</h3>
-    <p class="hint">Peg&aacute; la URL de tu Web App de Google Apps Script (ver instrucciones en <code>GoogleAppsScript-Code.gs</code>). Solo hace falta configurarla una vez; el navegador la recuerda.</p>
-    <div class="cfg-row">
-      <div class="cfg-field">
-        <label>URL del Web App de Apps Script</label>
-        <input type="text" id="wd3-webapp-url" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+  <div class="toolbar">
+    <button class="btn-load" id="btnIniciarCamaraGenbank" onclick="iniciarEscaneoGenbank()">Escanear con cámara</button>
+    <button class="btn-secondary" id="btnDetenerCamaraGenbank" onclick="detenerEscaneoGenbank(true)" style="display:none">Detener cámara</button>
+  </div>
+  <div id="readerGenbank" style="max-width:340px;margin-top:6px;"></div>
+
+  <div class="panel">
+    <div>
+      <h3>Material escaneado</h3>
+      <div class="kv" id="kvGenbank">
+        <b>OBS UNIT ID</b><span>&mdash;</span>
+        <b>GID</b><span>&mdash;</span>
+        <b>DESIGNATION</b><span>&mdash;</span>
+        <b>PLOT_IN_TRIAL</b><span>&mdash;</span>
       </div>
-      <button class="btn sec" id="wd3-btn-save-url">Guardar URL</button>
     </div>
-    <div class="cfg-row">
-      <button class="btn go" id="wd3-btn-upload" disabled>&#9729;&#65039; Subir registros a Google Sheets</button>
-      <button class="btn sec" id="wd3-btn-download" disabled>&#11015;&#65039; Descargar CSV (respaldo manual)</button>
-      <button class="btn sec" id="wd3-btn-view-dashboard" style="display:none">&#128202; Ver los nuevos datos en el dashboard</button>
-    </div>
-    <div id="wd3-log"></div>
   </div>
 
-  <footer>Conversor WD3 &middot; Genera filas para la hoja "Datos" &middot; Formato Estacion / Dia / Hora compatible con el dashboard</footer>
-</main>
-</div><!-- /page-uploader -->
+  <div id="fotoGenbankWrap" style="display:none; margin-top:10px;">
+    <button class="btn-load" onclick="tomarFotoGenbank()">Tomar foto de evidencia</button>
+    <div id="videoFotoGenbankWrap" style="display:none; margin-top:8px;">
+      <video id="videoFotoGenbank" autoplay playsinline style="max-width:320px;border-radius:8px;display:block;"></video>
+      <button class="btn-load" onclick="capturarFotoGenbank()" style="margin-top:8px;">Capturar</button>
+    </div>
+    <canvas id="canvasFotoGenbank" style="display:none;"></canvas>
+  </div>
 
+  <h2>Registro (solo esta sesión)</h2>
+  <div class="toolbar">
+    <button class="act" onclick="limpiarHistorialGenbank()">Limpiar</button>
+  </div>
+  <table id="histGenbankTable">
+    <thead><tr>
+      <th>Hora</th><th>OBS_UNIT_ID</th><th>GID</th><th>DESIGNATION</th><th>Disponible</th><th>Foto</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</div> <!-- /tabGenbank -->
+<div id ="tabReporte" style="display: none;">
+  <p style="font-size:.85rem;color:#666;margin:0 0 10px">
+    Cruza lo que EK solicitó (ya validado contra BMS) contra lo que AR ya escaneó y confirmó en Genbank &mdash; Verificación".
+    Ambas se comparan contra BMS por separado &mdash; este reporte solo junta los dos resultados para ver de un vistado que falta.
+  </p>
+  <div class="toolbar">
+    <button class="btn-load" onclick="generarReporteEKGenbank()">Generar Reporte</button>
+    <span class="file-status" id="statusReporte"></span>
+  </div>
+  <div class="summary" id="summaryReporte" style="display:none;">
+    <div class="box total"><span class="n" id="sTotalReporte">0</span><span class="label">Solicitado por EK</span></div>
+    <div class="box ok"><span class="n" id="sEscaneadoReporte">0</span><span class="label">Escaneado en Genbank</span></div>
+    <div class="box bad"><span class="n" id="sPendienteReporte">0</span><span class="label">Pendiente</span></div>
+  </div>
+  <div class="toolbar">
+    <button class="act" id="btnExportReporte" onclick="exportarReporte()" disabled>Exportar reporte (CSV)</button>
+  </div>
+  <div class="table-wrap">
+    <table id="reporteTable">
+      <thead><tr>
+        <th>Orden</th><th>GID</th><th>Nombre BMS</th><th>Disponible</th><th>Peso (archivo EK)</th><th>Estado Validación EK</th><th>Escaneado en Genbank</th><th>Última hora</th><th>Foto</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div> <!--/tabReporte-->
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-// ════════════════════════════════════════════════════════════════════
-// CONFIGURACIÓN
-const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
-const AUTO_REFRESH_MIN = 10;
-// ════════════════════════════════════════════════════════════════════
-
-const GC='rgba(0,0,0,0.06)',TC='#999';
-const XT={color:TC,font:{size:10},maxRotation:0,autoSkip:true};
-Chart.defaults.font.family="'Inter',system-ui,sans-serif";
-
-// Colores por estación
-const CLR = {
-  'CE': {main:'#E05A2B', light:'rgba(224,90,43,.18)', border:'rgba(224,90,43,.4)', hum:'#1F7FDF'},
-  'Ovejero':       {main:'#1A9E72', light:'rgba(26,158,114,.18)', border:'rgba(26,158,114,.4)', hum:'#185FA5'},
-  'all':           {main:'#1D3461', light:'rgba(29,52,97,.15)',   border:'rgba(29,52,97,.3)',  hum:'#1F7FDF'}
-};
-const BANNER_BG = {
-  'CE': 'linear-gradient(135deg,#7B2D1A,#C4512A)',
-  'Ovejero':       'linear-gradient(135deg,#0D4A30,#1A9E72)',
-  'all':           'linear-gradient(135deg,#1D3461,#2C5282)',
-  'compare':       'linear-gradient(135deg,#1D3461,#2C5282)'
-};
-
-// ── Funciones de fecha ─────────────────────────────────────────────
-// Nombres de mes en español para el selector de filtro
-const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio',
-  'Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
-// Extrae {d,m,y} de un campo "Dia" con formato DD/MM/YYYY
-function parseDiaParts(diaStr) {
-  const parts = (diaStr||'').substring(0,10).split('/');
-  if(parts.length<3) return null;
-  const d=parseInt(parts[0],10), m=parseInt(parts[1],10);
-  let y=parseInt(parts[2],10);
-  if(isNaN(d)||isNaN(m)||isNaN(y)) return null;
-  if(d<1||d>31||m<1||m>12) return null;
-  // El reloj interno (RTC) de alguna estación a veces reporta el año
-  // corrido por 1000 (ej. "1026" en vez de "2026") tras un corte de
-  // energía o batería baja. En vez de descartar esas filas (lo cual las
-  // hacía desaparecer del dashboard aunque tuvieran datos válidos), se
-  // corrigen al vuelo sumando 1000 — mismo ajuste que aplica el conversor
-  // WD3 al subir datos nuevos. Solo se descarta si sigue siendo imposible.
-  if(y<2000||y>2099){
-    const fixed = y+1000;
-    if(fixed>=2000 && fixed<=2099) y = fixed;
-    else return null;
-  }
-  return {d,m,y};
-}
-
-// Timestamp para ordenar cronológicamente una clave "DD/MM/YYYY"
-function parseDiaKey(str) {
-  const p = parseDiaParts(str);
-  return p ? new Date(p.y, p.m-1, p.d).getTime() : 0;
-}
-
-// Timestamp completo (fecha + hora) para ordenar registros individuales
-function parseDiaHoraTS(r) {
-  const p = parseDiaParts(r['Dia']);
-  if(!p) return 0;
-  const hp = (r['Hora']||'00:00').substring(0,5).split(':');
-  const hh = parseInt(hp[0],10)||0, mm = parseInt(hp[1],10)||0;
-  return new Date(p.y, p.m-1, p.d, hh, mm).getTime();
-}
-
-// Clave de día normalizada y con ceros a la izquierda ("DD/MM/YYYY").
-// Es clave que esto sea SIEMPRE de ancho fijo: si una estación exporta
-// fechas sin cero inicial (ej. "23/6/2026") y otra sí ("15/06/2026"),
-// agrupar por el string crudo generaría claves distintas para el mismo
-// día real, rompiendo el conteo de días y la comparación entre estaciones.
-function normalizeDayKey(diaStr) {
-  const p = parseDiaParts(diaStr);
-  if(!p) return null;
-  return String(p.d).padStart(2,'0')+'/'+String(p.m).padStart(2,'0')+'/'+p.y;
-}
-
-// Etiqueta corta "DD/MM" normalizada, para usar en ejes de gráficas y banners
-function formatDiaShort(diaStr) {
-  const p = parseDiaParts(diaStr);
-  if(!p) return (diaStr||'').substring(0,5);
-  return String(p.d).padStart(2,'0')+'/'+String(p.m).padStart(2,'0');
-}
-
-// ── Funciones agroclimáticas ──────────────────────────────────────
-// Punto de rocío (fórmula de Magnus-Tetens)
-function dewPointC(tempC, rh) {
-  if (isNaN(tempC) || isNaN(rh) || rh <= 0) return NaN;
-  const a = 17.27, b = 237.7;
-  const alpha = (a * tempC) / (b + tempC) + Math.log(rh / 100);
-  return (b * alpha) / (a - alpha);
-}
-
-// Índice de calor (regresión de Rothfusz, NWS). Solo aplica con T≥26.7°C
-// (80°F) y HR≥40%; por debajo de eso se usa la temperatura real.
-function heatIndexC(tempC, rh) {
-  if (isNaN(tempC) || isNaN(rh)) return tempC;
-  const T = tempC * 9 / 5 + 32;
-  if (T < 80 || rh < 40) return tempC;
-  const HI = -42.379 + 2.04901523*T + 10.14333127*rh - 0.22475541*T*rh
-    - 0.00683783*T*T - 0.05481717*rh*rh + 0.00122874*T*T*rh
-    + 0.00085282*T*rh*rh - 0.00000199*T*T*rh*rh;
-  return (HI - 32) * 5 / 9;
-}
-
-// Grados-día de crecimiento (GDD/GDU), método "modificado" (capado):
-// si tmin queda por debajo de la base, se sube a la base; si tmax supera
-// el tope superior, se baja al tope — porque por encima de ese umbral el
-// cultivo no acelera más su desarrollo (estrés por calor). tupper es
-// opcional: si no se pasa, se usa tmax sin capar (compatibilidad).
-function gddDay(tmin, tmax, tbase, tupper) {
-  const tn = Math.max(tmin, tbase);
-  const tx = (tupper!=null && !isNaN(tupper)) ? Math.min(tmax, tupper) : tmax;
-  return Math.max(0, ((tn + tx) / 2) - tbase);
-}
-
-// Dirección de viento → rumbo de 16 puntos
-const COMPASS_16 = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-function dirToCompass(deg) {
-  if (isNaN(deg)) return null;
-  return COMPASS_16[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16];
-}
-
-let ALL_ROWS = [];
-let CUR_STATION = 'all';
-let CUR_FROM = ''; // fecha ISO "YYYY-MM-DD" o '' si no hay filtro
-let CUR_TO   = '';
-let LAST_RENDER_ROWS = null;
-let refreshTimer = null;
-const chartRefs = {};
-
-// ── Agrupación diaria ──────────────────────────────────────────────
-function aggregateByDay(rows) {
-  const map = {};
-  rows.forEach(r => {
-    const day = normalizeDayKey(r['Dia']);
-    if(!day) return;
-    if(!map[day]) map[day] = [];
-    map[day].push(r);
-  });
-  // Orden cronológico real (no alfabético) — así enero siempre precede a
-  // diciembre y un año menor siempre precede a uno mayor.
-  const keys = Object.keys(map).sort((a,b)=>parseDiaKey(a)-parseDiaKey(b));
-  const years = new Set(keys.map(k=>parseDiaParts(k).y));
-  const multiYear = years.size > 1;
-  return keys.map(k => {
-    const kp = parseDiaParts(k);
-    const dd = String(kp.d).padStart(2,'0'), mm = String(kp.m).padStart(2,'0');
-    const recs = map[k];
-    const tc = recs.map(r=>parseFloat(r['Temperatura (C)'])||0).filter(v=>v>0);
-    const hm = recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
-    const rn = recs.map(r=>parseFloat(r['Lluvia (mm/10min)'])||0);
-    const wd = recs.map(r=>parseFloat(r['Viento (mph)'])||0);
-    const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
-    const heatVals = recs.map(r=>{
-      const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
-      return (!isNaN(t)&&!isNaN(h)) ? heatIndexC(t,h) : NaN;
-    }).filter(v=>!isNaN(v));
-    // 'Fuente' es una columna opcional en la hoja "Datos": si algún registro
-    // del día trae un valor (ej. "SpecConnect (respaldo horario)" cuando se
-    // rellenó un hueco a mano), se marca el día para poder señalarlo en el
-    // dashboard. Si la columna no existe o está vacía, no cambia nada.
-    const fuentes = [...new Set(recs.map(r=>(r['Fuente']||'').trim()).filter(Boolean))];
-    return {
-      dia: multiYear ? `${dd}/${mm}/${String(kp.y).slice(-2)}` : `${dd}/${mm}`,
-      y: kp.y, m: kp.m,
-      tmin: tc.length?+Math.min(...tc).toFixed(1):0,
-      tavg: +avg(tc).toFixed(1),
-      tmax: tc.length?+Math.max(...tc).toFixed(1):0,
-      hmin: hm.length?+Math.min(...hm).toFixed(1):0,
-      havg: +avg(hm).toFixed(1),
-      hmax: hm.length?+Math.max(...hm).toFixed(1):0,
-      rain: +rn.reduce((x,y)=>x+y,0).toFixed(1),
-      wmax: +(Math.max(...wd,0)*1.60934).toFixed(1),
-      heatMax: heatVals.length?+Math.max(...heatVals).toFixed(1):0,
-      altSource: fuentes.length>0,
-      fuente: fuentes.join(', ')
-    };
-  });
-}
-
-const MONTH_ABBR = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-// ── Agrupación mensual (a partir del array ya agregado por día) ────
-function aggregateByMonth(D) {
-  const map = {};
-  const order = [];
-  D.forEach(d => {
-    const key = `${d.y}-${String(d.m).padStart(2,'0')}`;
-    if(!map[key]){ map[key] = { y:d.y, m:d.m, rain:0, diasConLluvia:0, dias:0 }; order.push(key); }
-    map[key].rain += d.rain;
-    map[key].dias += 1;
-    if(d.rain > 0) map[key].diasConLluvia += 1;
-  });
-  return order.sort().map(key => {
-    const b = map[key];
-    return {
-      mes: `${MONTH_ABBR[b.m-1]} ${b.y}`,
-      rain: +b.rain.toFixed(1),
-      diasConLluvia: b.diasConLluvia,
-      dias: b.dias
-    };
-  });
-}
-
-// ── Destruye charts ────────────────────────────────────────────────
-function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpGDD','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
-    if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
-  });
-}
-
-// ── Muestra u oculta tabs según estaciones disponibles ────────────
-function setupTabs(rows) {
-  const stations = [...new Set(rows.map(r=>r['Estacion']).filter(Boolean))];
-  const bar = document.getElementById('tabs-bar');
-  if(stations.length > 1) {
-    bar.style.display = 'flex';
-    document.getElementById('tab-sj').style.display  = stations.includes('CE') ? '' : 'none';
-    document.getElementById('tab-ov').style.display  = stations.includes('Ovejero')       ? '' : 'none';
-    document.getElementById('tab-cmp').style.display = stations.length >= 2 ? '' : 'none';
-  } else {
-    bar.style.display = 'none';
-  }
-}
-
-// ── Filtro de fecha (rango de días exactos "Desde" / "Hasta") ──────
-// Los <input type="date"> nativos guardan y devuelven fechas en formato
-// ISO "YYYY-MM-DD" sin importar el idioma del navegador. Solo se ajustan
-// aquí los límites (min/max) según los datos disponibles; el valor que
-// el usuario ya haya elegido NUNCA se pisa (así un auto-refresh de
-// Google Sheets no borra el rango que la persona seleccionó).
-function isoDate(p){ return `${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`; }
-
-function setupDateFilter(rows) {
-  let minP = null, maxP = null, minTS = Infinity, maxTS = -Infinity;
-  rows.forEach(r=>{
-    const p = parseDiaParts(r['Dia']);
-    if(!p) return;
-    const ts = new Date(p.y, p.m-1, p.d).getTime();
-    if(ts < minTS){ minTS = ts; minP = p; }
-    if(ts > maxTS){ maxTS = ts; maxP = p; }
-  });
-
-  const fromInput = document.getElementById('filter-from');
-  const toInput   = document.getElementById('filter-to');
-
-  if(minP && maxP){
-    fromInput.min = toInput.min = isoDate(minP);
-    fromInput.max = toInput.max = isoDate(maxP);
-  }
-
-  document.getElementById('filter-bar').style.display = minP ? 'flex' : 'none';
-  document.getElementById('filter-clear').style.display =
-    (CUR_FROM || CUR_TO) ? 'inline' : 'none';
-}
-
-// Convierte un valor ISO "YYYY-MM-DD" de <input type="date"> a timestamp
-// (medianoche local), comparable con las fechas "DD/MM/YYYY" de los registros.
-function isoToTS(iso) {
-  if(!iso) return null;
-  const [y,m,d] = iso.split('-').map(Number);
-  return new Date(y, m-1, d).getTime();
-}
-
-function applyDateFilter(rows) {
-  if(!CUR_FROM && !CUR_TO) return rows;
-  let fromTS = isoToTS(CUR_FROM);
-  let toTS   = isoToTS(CUR_TO);
-  if(fromTS===null) fromTS = -Infinity;
-  if(toTS===null)   toTS   = Infinity;
-  // Si el usuario elige "Hasta" anterior a "Desde", se interpreta igual
-  // como el rango entre ambos, en vez de devolver una lista vacía.
-  if(fromTS > toTS){ const t=fromTS; fromTS=toTS; toTS=t; }
-  return rows.filter(r=>{
-    const p = parseDiaParts(r['Dia']);
-    if(!p) return false;
-    const ts = new Date(p.y, p.m-1, p.d).getTime();
-    return ts>=fromTS && ts<=toTS;
-  });
-}
-
-// ── Cambia estación activa ─────────────────────────────────────────
-function setStation(st) {
-  CUR_STATION = st;
-  ['sj','ov','cmp'].forEach(id => {
-    document.getElementById('tab-'+id)?.classList.remove('active');
-  });
-  const tabMap = {'CE':'sj','Ovejero':'ov','compare':'cmp'};
-  document.getElementById('tab-'+(tabMap[st]||'sj'))?.classList.add('active');
-
-  document.getElementById('banner').style.background = BANNER_BG[st] || BANNER_BG['all'];
-  destroyCharts();
-
-  if(st === 'compare') {
-    document.getElementById('single-view').style.display  = 'none';
-    document.getElementById('no-data-panel').style.display = 'none';
-    document.getElementById('compare-view').style.display = 'block';
-    buildCompareView();
-  } else {
-    document.getElementById('single-view').style.display  = 'block';
-    document.getElementById('compare-view').style.display = 'none';
-    const stationFiltered = (st === 'all' || !st)
-      ? ALL_ROWS
-      : ALL_ROWS.filter(r => r['Estacion'] === st || !r['Estacion']);
-    renderDashboard(applyDateFilter(stationFiltered));
-  }
-}
-
-// ── Renderiza dashboard principal ──────────────────────────────────
-function renderDashboard(rows) {
-  rows = rows.filter(r=>r['Dia']&&parseDiaParts(r['Dia'])&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
-  document.getElementById('picker').style.display = 'none';
-  if(!rows.length){ showNoData(); return; }
-  hideNoData();
-
-  const st  = CUR_STATION;
-  const clr = CLR[st] || CLR['all'];
-
-  const tsL=[],tsT=[],tsH=[],tsR=[],tsW=[];
-  rows.forEach(r=>{
-    tsL.push(`${formatDiaShort(r['Dia'])} ${(r['Hora']||'').substring(0,5)}`);
-    tsT.push(parseFloat(r['Temperatura (C)'])||0);
-    tsH.push(parseFloat(r['Humedad (%HR)'])||0);
-    tsR.push(parseFloat(r['Lluvia (mm/10min)'])||0);
-    tsW.push(+((parseFloat(r['Viento (mph)'])||0)*1.60934).toFixed(1));
-  });
-
-  const D    = aggregateByDay(rows);
-  const dL   = D.map(d=>d.dia);
-  const totR = D.reduce((a,d)=>a+d.rain,0).toFixed(1);
-  const tMax = Math.max(...tsT).toFixed(1);
-  const tMin = Math.min(...tsT).toFixed(1);
-  const wMax = Math.max(...tsW).toFixed(1);
-  const dias = D.filter(d=>d.rain>0).length;
-  const fi   = formatDiaShort(rows[0]?.['Dia']);
-  const ff   = formatDiaShort(rows[rows.length-1]?.['Dia']);
-  const now  = new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  const stNm = st==='all'?'Todas las estaciones': st==='CE'?'CE — Suchitepéquez':st==='Ovejero'?'Ovejero – Jutiapa':st;
-
-  document.getElementById('banner-title').textContent = stNm+' — Dashboard Climático';
-  document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
-  document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
-  const altDays = D.filter(d=>d.altSource).length;
-  const chipAlt = document.getElementById('chip-altsource');
-  if(altDays>0){ chipAlt.style.display='inline-block'; chipAlt.textContent = `📡 ${altDays} día(s) de fuente alterna`; }
-  else { chipAlt.style.display='none'; }
-  document.getElementById('nav-ts').textContent       = `🔄 ${now}`;
-  document.getElementById('kv1').innerHTML  = `${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
-  document.getElementById('ks1').textContent= `${dias} día(s) con lluvia`;
-  document.getElementById('kv2').innerHTML  = `${tMax}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv3').innerHTML  = `${tMin}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv4').innerHTML  = `${wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
-  document.getElementById('kv5').textContent= rows.length;
-  document.getElementById('ks5').textContent= `${D.length} días • 10 min/reg.`;
-
-  // Leyenda de la serie temporal (una línea por estación en la vista "Todas")
-
-  // Gráficas
-  const isAllStations = (st === 'all');
-  const ceMask = rows.map(r=>r['Estacion']==='CE');
-  const ovMask = rows.map(r=>r['Estacion']==='Ovejero');
-  const serieLeg = document.getElementById('serie-leg');
-  let sDatasets;
-  if(isAllStations){
-    const ceTemp = tsT.map((v,i)=>ceMask[i]?v:null);
-    const ovTemp = tsT.map((v,i)=>ovMask[i]?v:null);
-    const ceHum  = tsH.map((v,i)=>ceMask[i]?v:null);
-    const ovHum  = tsH.map((v,i)=>ovMask[i]?v:null);
-    sDatasets = [
-      {label:'CE Temp',data:ceTemp,yAxisID:'yT',borderColor:CLR.CE.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'Ovejero Temp',data:ovTemp,yAxisID:'yT',borderColor:CLR.Ovejero.main,borderWidth:1.4,pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'CE Humedad',data:ceHum,yAxisID:'yH',borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'Ovejero Humedad',data:ovHum,yAxisID:'yH',borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true}
-    ];
-    serieLeg.innerHTML = `
-      <span class="li"><span class="ll" style="background:${CLR.CE.main}"></span>CE Temp</span>
-      <span class="li"><span class="ll" style="background:${CLR.Ovejero.main}"></span>Ovejero Temp</span>
-      <span class="li"><span class="ld" style="border-color:${CLR.CE.hum}"></span>CE Humedad</span>
-      <span class="li"><span class="ld" style="border-color:${CLR.Ovejero.hum}"></span>Ovejero Humedad</span>`;
-  } else {
-    sDatasets = [
-      {label:'T',data:tsT,yAxisID:'yT',borderColor:clr.main,borderWidth:1.2,pointRadius:0,tension:0.1},
-      {label:'H',data:tsH,yAxisID:'yH',borderColor:clr.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1}
-    ];
-    serieLeg.innerHTML = `
-      <span class="li"><span class="ll" style="background:${clr.main}"></span>Temperatura (°C)</span>
-      <span class="li"><span class="ld" style="border-color:${clr.hum}"></span>Humedad %HR</span>`;
-  }
-  chartRefs['cS']=new Chart('cS',{type:'line',data:{labels:tsL,datasets:sDatasets},
-    options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
-      tooltip:{callbacks:{label:c=>{
-        const isHum = /Humedad|^H$/.test(c.dataset.label);
-        return ` ${c.dataset.label}: ${c.parsed.y}${isHum?'% HR':'°C'}`;
-      }}}},
-    scales:{x:{grid:{color:GC},ticks:{...XT,maxTicksLimit:8}},
-      yT:{position:'left',grid:{color:GC},ticks:{color:isAllStations?TC:clr.main,font:{size:9},callback:v=>v+'°C'},min:15,max:40},
-      yH:{position:'right',grid:{display:false},ticks:{color:isAllStations?TC:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
-  }});
-
-  chartRefs['cT']=new Chart('cT',{data:{labels:dL,datasets:[
-    {type:'bar',data:D.map(d=>[d.tmin,d.tmax]),backgroundColor:clr.light,
-     borderColor:clr.border,borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:D.map(d=>d.tavg),borderColor:clr.main,borderWidth:2.5,
-     pointRadius:D.map(d=>d.altSource?6:5),
-     pointBackgroundColor:D.map(d=>d.altSource?'#fff':clr.main),
-     pointBorderColor:clr.main, pointBorderWidth:D.map(d=>d.altSource?2.5:0),
-     tension:0,order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-    tooltip:{callbacks:{label:c=>{
-      if(c.datasetIndex===0) return ` Rango ${c.raw[0]}–${c.raw[1]}°C`;
-      const d = D[c.dataIndex];
-      return d.altSource ? ` Prom ${c.parsed.y}°C · ⚠ fuente alterna (${d.fuente})` : ` Prom ${c.parsed.y}°C`;
-    }}}},
-    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
-      ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
-  }});
-  document.getElementById('tdaily-note').textContent = D.some(d=>d.altSource)
-    ? '○ punto hueco = día completado con datos de una fuente alterna (ver columna "Fuente" en la tabla de abajo)'
-    : '';
-
-  chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.rain),
-    backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
-    borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
-      scales:{x:{grid:{display:false},ticks:XT},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
-
-  const MR = aggregateByMonth(D);
-  document.getElementById('rmonth-total').textContent =
-    MR.length ? `${MR.reduce((a,b)=>a+b.rain,0).toFixed(1)} mm acumulados en ${MR.length} mes(es)` : '';
-  chartRefs['cRMonth']=new Chart('cRMonth',{type:'bar',data:{labels:MR.map(b=>b.mes),datasets:[{
-    data:MR.map(b=>b.rain),
-    backgroundColor:'rgba(46,134,171,.75)', borderRadius:6, borderWidth:0,
-    maxBarThickness:70
-  }]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>{
-        const b = MR[c.dataIndex];
-        return [` ${c.parsed.y} mm total`, ` ${b.diasConLluvia} de ${b.dias} día(s) con lluvia`];
-      }}}},
-    scales:{x:{grid:{display:false},ticks:{color:TC,font:{size:10}}},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
-  }});
-
-  chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.wmax),
-    backgroundColor:st==='Ovejero'?'rgba(26,158,114,.7)':'rgba(26,158,114,.7)',
-    borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y} km/h`}}},
-      scales:{x:{grid:{display:false},ticks:XT},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
-
-  chartRefs['cH']=new Chart('cH',{data:{labels:dL,datasets:[
-    {type:'bar',data:D.map(d=>[d.hmin,d.hmax]),backgroundColor:'rgba(31,127,223,.12)',
-     borderColor:'rgba(31,127,223,.35)',borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:D.map(d=>d.havg),borderColor:clr.hum,borderWidth:2.5,
-     pointRadius:5,pointBackgroundColor:clr.hum,tension:0,order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-    tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}%`:` Prom ${c.parsed.y}%`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
-      ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
-  }});
-
-  LAST_RENDER_ROWS = rows;
-
-  // ── Rosa de los vientos ──────────────────────────────────────────
-  const dirCounts = {}; COMPASS_16.forEach(c=>dirCounts[c]=0);
-  let dirTotal = 0;
-  rows.forEach(r=>{
-    const d = parseFloat(r['Direccion Viento (deg)']);
-    if(!isNaN(d)){ const c = dirToCompass(d); dirCounts[c]++; dirTotal++; }
-  });
-  const wrWrap = document.getElementById('wr-wrap'), wrEmpty = document.getElementById('wr-empty');
-  if(dirTotal === 0){
-    wrWrap.style.display = 'none'; wrEmpty.style.display = 'block';
-    document.getElementById('wr-dominant').textContent = '';
-  } else {
-    wrWrap.style.display = 'block'; wrEmpty.style.display = 'none';
-    const dominant = COMPASS_16.reduce((a,b)=>dirCounts[a]>=dirCounts[b]?a:b);
-    document.getElementById('wr-dominant').textContent =
-      `Predominante: ${dominant} (${Math.round(dirCounts[dominant]/dirTotal*100)}%)`;
-    chartRefs['cWindRose'] = new Chart('cWindRose', {type:'polarArea',
-      data:{labels:COMPASS_16, datasets:[{
-        data: COMPASS_16.map(c=>dirCounts[c]),
-        backgroundColor: COMPASS_16.map((c,i)=>`hsla(${i*22.5},65%,55%,.75)`),
-        borderWidth:1, borderColor:'#fff'
-      }]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},
-          tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw} lecturas (${Math.round(c.raw/dirTotal*100)}%)`}}},
-        scales:{r:{ticks:{display:false},grid:{color:GC},angleLines:{color:GC}}}}
-    });
-  }
-
-  // ── Punto de rocío + riesgo de hongos ────────────────────────────
-  const tsDew = tsT.map((t,i)=>{ const dp=dewPointC(t, tsH[i]); return isNaN(dp)?null:+dp.toFixed(1); });
-  const dewLeg = document.getElementById('dew-leg');
-  let dewDatasets;
-  if(isAllStations){
-    const ceTemp = tsT.map((v,i)=>ceMask[i]?v:null);
-    const ovTemp = tsT.map((v,i)=>ovMask[i]?v:null);
-    const ceDew  = tsDew.map((v,i)=>ceMask[i]?v:null);
-    const ovDew  = tsDew.map((v,i)=>ovMask[i]?v:null);
-    dewDatasets = [
-      {label:'CE Temp',data:ceTemp,borderColor:CLR.CE.main,borderWidth:1.2,pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'Ovejero Temp',data:ovTemp,borderColor:CLR.Ovejero.main,borderWidth:1.2,pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'CE Rocío',data:ceDew,borderColor:CLR.CE.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true},
-      {label:'Ovejero Rocío',data:ovDew,borderColor:CLR.Ovejero.hum,borderWidth:1,borderDash:[4,3],pointRadius:0,tension:0.1,spanGaps:true}
-    ];
-    dewLeg.innerHTML = `
-      <span class="li"><span class="ll" style="background:${CLR.CE.main}"></span>CE Temp</span>
-      <span class="li"><span class="ll" style="background:${CLR.Ovejero.main}"></span>Ovejero Temp</span>
-      <span class="li"><span class="ld" style="border-color:${CLR.CE.hum}"></span>CE Rocío</span>
-      <span class="li"><span class="ld" style="border-color:${CLR.Ovejero.hum}"></span>Ovejero Rocío</span>`;
-  } else {
-    dewDatasets = [
-      {label:'Temperatura',data:tsT, borderColor:clr.main, borderWidth:1.2, pointRadius:0, tension:0.1},
-      {label:'Rocío',data:tsDew, borderColor:'#1F7FDF', borderWidth:1, borderDash:[4,3], pointRadius:0, tension:0.1}
-    ];
-    dewLeg.innerHTML = `
-      <span class="li"><span class="ll" style="background:${clr.main}"></span>Temperatura</span>
-      <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de rocío</span>`;
-  }
-  chartRefs['cDew'] = new Chart('cDew', {type:'line', data:{labels:tsL, datasets:dewDatasets},
-    options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
-      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}},
-    scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:10,max:40}}
-  }});
-
-  // El riesgo de hongos se calcula solo con los registros de la estación
-  // activa (o de la última que reportó, si estamos en "Todas") para que
-  // el % no mezcle dos microclimas distintos en un solo dato engañoso.
-  const riskScope = isAllStations
-    ? rows.filter(r=>r['Estacion']===rows[rows.length-1]['Estacion'])
-    : rows;
-  const riskRecords = riskScope.filter(r=>{
-    const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
-    if(isNaN(t)||isNaN(h)) return false;
-    const dp = dewPointC(t,h);
-    return h>=90 && (t-dp)<=2.5;
-  });
-  const riskPct = riskScope.length ? Math.round(riskRecords.length/riskScope.length*100) : 0;
-  const lastT = tsT[tsT.length-1], lastH = tsH[tsH.length-1];
-  const lastDp = dewPointC(lastT, lastH);
-  const riskNow = lastH>=90 && (lastT-lastDp)<=2.5;
-  const riskStNm = isAllStations ? (rows[rows.length-1]['Estacion']||'') : '';
-  const fb = document.getElementById('fungus-banner');
-  if(riskNow){
-    fb.style.background='#FFF0EC'; fb.style.color='#A8401E';
-    fb.innerHTML = `⚠️ Riesgo alto de hongos en la última lectura${riskStNm?` (${riskStNm})`:''} (HR ${lastH.toFixed(0)}%, diferencia con el rocío de ${(lastT-lastDp).toFixed(1)}°C). ${riskPct}% de los registros${riskStNm?` de ${riskStNm}`:' del período'} estuvieron en este rango.`;
-  } else {
-    fb.style.background='#EAF7EF'; fb.style.color='#176B45';
-    fb.innerHTML = `✅ Sin riesgo elevado en la última lectura${riskStNm?` (${riskStNm})`:''}. ${riskPct}% de los registros${riskStNm?` de ${riskStNm}`:' del período'} estuvieron en rango de riesgo (HR≥90% y diferencia con el rocío ≤2.5°C).`;
-  }
-
-
-  // ── Índice de calor diario ────────────────────────────────────────
-  const heatObsMax = Math.max(45, ...D.map(d=>d.heatMax), ...D.map(d=>d.tmax));
-  const heatAxisMax = Math.ceil((heatObsMax + 3)/5)*5;
-  chartRefs['cHeat'] = new Chart('cHeat', {data:{labels:dL, datasets:[
-    {type:'bar', data:D.map(d=>d.tmax), backgroundColor:'rgba(232,168,56,.25)',
-     borderColor:'rgba(232,168,56,.5)', borderWidth:1, borderRadius:4, order:2},
-    {type:'line', data:D.map(d=>d.heatMax), borderColor:'#C4421A', borderWidth:2.5,
-     pointRadius:4, pointBackgroundColor:'#C4421A', tension:0, order:1}
-  ]}, options:{responsive:true,maintainAspectRatio:false,
-    layout:{padding:{top:14}},
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Temp. máx ${c.parsed.y}°C`:` Sensación ${c.parsed.y}°C`}}},
-    scales:{x:{grid:{display:false},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:heatAxisMax}}
-  }});
-
-  // ── GDU / Grados-día de crecimiento ──────────────────────────────
-  renderGDD(D);
-
-  // Tabla
-  const tb=document.getElementById('tb'); tb.innerHTML='';
-  D.forEach(d=>{
-    const tr=document.createElement('tr');
-    if(d.rain>0) tr.className='rn';
-    const diaLabel = d.altSource
-      ? `${d.dia} <span title="Completado con: ${d.fuente}" style="cursor:help;color:var(--blue);font-size:10px">&#128225;</span>`
-      : d.dia;
-    tr.innerHTML=`
-      <td>${diaLabel}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
-      <td>${d.hmin}%</td><td>${d.havg}%</td><td>${d.hmax}%</td>
-      <td>${d.rain>0?`<span class="rb">${d.rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
-      <td>${d.wmax} km/h</td>`;
-    tb.appendChild(tr);
-  });
-  const aT=(D.reduce((a,d)=>a+d.tavg,0)/D.length).toFixed(1);
-  const aH=(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1);
-  document.getElementById('tf').innerHTML=`
-    <td>Total / Prom</td>
-    <td>${Math.min(...D.map(d=>d.tmin)).toFixed(1)}°C</td><td>${aT}°C</td>
-    <td>${Math.max(...D.map(d=>d.tmax)).toFixed(1)}°C</td>
-    <td>${Math.min(...D.map(d=>d.hmin)).toFixed(1)}%</td><td>${aH}%</td>
-    <td>${Math.max(...D.map(d=>d.hmax)).toFixed(1)}%</td>
-    <td><strong>${totR} mm</strong></td>
-    <td>${Math.max(...D.map(d=>d.wmax)).toFixed(1)} km/h</td>`;
-}
-
-function renderGDD(D){
-  const tbase = parseFloat(document.getElementById('gdd-tbase').value) || 10;
-  const ttop  = parseFloat(document.getElementById('gdd-ttop').value) || 30;
-  let cum = 0;
-  const daily = D.map(d=>+gddDay(d.tmin,d.tmax,tbase,ttop).toFixed(1));
-  const cumArr = daily.map(g=>{ cum += g; return +cum.toFixed(1); });
-  if(chartRefs['cGDD']){ chartRefs['cGDD'].destroy(); delete chartRefs['cGDD']; }
-  chartRefs['cGDD'] = new Chart('cGDD', {data:{labels:D.map(d=>d.dia), datasets:[
-    {type:'bar', yAxisID:'yD', data:daily, backgroundColor:'rgba(26,158,114,.5)', borderRadius:4, order:2},
-    {type:'line', yAxisID:'yC', data:cumArr, borderColor:'#1D3461', borderWidth:2.5,
-     pointRadius:3, pointBackgroundColor:'#1D3461', tension:0.1, order:1}
-  ]}, options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>c.datasetIndex===0?` GDU del día: ${c.parsed.y}`:` Acumulado: ${c.parsed.y}`}}},
-    scales:{x:{grid:{display:false},ticks:XT},
-      yD:{position:'left',grid:{color:GC},ticks:{color:'#1A9E72',font:{size:9}}},
-      yC:{position:'right',grid:{display:false},ticks:{color:'#1D3461',font:{size:9}}}}
-  }});
-}
-
-// ── Vista comparativa ──────────────────────────────────────────────
-function buildCompareView() {
-  const dateFiltered = applyDateFilter(ALL_ROWS);
-  const sj = dateFiltered.filter(r=>r['Estacion']==='CE'||(!r['Estacion']&&dateFiltered.every(x=>!x['Estacion'])));
-  const ov = dateFiltered.filter(r=>r['Estacion']==='Ovejero');
-  if(!sj.length||!ov.length){
-    const diag = `CE: ${sj.length} registros · Ovejero: ${ov.length} registros · Total con filtro actual: ${dateFiltered.length} de ${ALL_ROWS.length}`;
-    document.getElementById('compare-view').innerHTML=`<div class="panel"><p style="color:var(--muted);padding:20px 20px 4px">No hay datos de ambas estaciones para comparar en el período seleccionado. Asegurate de tener la columna "Estacion" en tu Google Sheet, o quitá el filtro de fecha.</p><p style="color:var(--sub);font-size:11px;padding:0 20px 20px">${diag}</p></div>`;
-    return;
-  }
-
-  const DSJ = aggregateByDay(sj);
-  const DOV = aggregateByDay(ov);
-
-  // Temp. base / tope superior para el cálculo de GDU en esta vista
-  // (independientes de los que se usan en la pestaña de cada estación,
-  // para poder comparar con distintos criterios agronómicos si se quiere)
-  const tbaseCmp = parseFloat(document.getElementById('cmp-gdd-tbase')?.value) || 10;
-  const ttopCmp  = parseFloat(document.getElementById('cmp-gdd-ttop')?.value)  || 30;
-
-  // Stats por estación
-  function stStats(D,rows) {
-    return {
-      tmax:Math.max(...D.map(d=>d.tmax)).toFixed(1),
-      tmin:Math.min(...D.map(d=>d.tmin)).toFixed(1),
-      tavg:(D.reduce((a,d)=>a+d.tavg,0)/D.length).toFixed(1),
-      rain:D.reduce((a,d)=>a+d.rain,0).toFixed(1),
-      diasRain:D.filter(d=>d.rain>0).length,
-      wmax:Math.max(...D.map(d=>d.wmax)).toFixed(1),
-      havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
-      gdu:D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp),0).toFixed(1),
-      n: rows.length,
-      dias: D.length
-    };
-  }
-
-  const sS=stStats(DSJ,sj), sO=stStats(DOV,ov);
-
-  function renderStats(containerId, s) {
-    document.getElementById(containerId).innerHTML=[
-      ['Temp. máxima', s.tmax+'°C'],
-      ['Temp. promedio', s.tavg+'°C'],
-      ['Temp. mínima', s.tmin+'°C'],
-      ['Humedad promedio', s.havg+'%'],
-      ['Lluvia total', s.rain+' mm'],
-      ['Días con lluvia', s.diasRain+' de '+s.dias],
-      ['Viento máximo', s.wmax+' km/h'],
-      ['GDU acumulados', s.gdu],
-      ['Registros', s.n.toLocaleString()],
-    ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
-  }
-  renderStats('cmp-sj-stats', sS);
-  renderStats('cmp-ov-stats', sO);
-
-  // Período común (días que existen en ambas) — se conserva el orden
-  // cronológico que ya trae DSJ (aggregateByDay ordena por fecha real).
-  const ovDias = new Set(DOV.map(d=>d.dia));
-  const common = DSJ.map(d=>d.dia).filter(d=>ovDias.has(d));
-
-  const cSJ = DSJ.filter(d=>common.includes(d.dia));
-  const cOV = DOV.filter(d=>common.includes(d.dia));
-  const cL  = common;
-
-  document.getElementById('cmp-period').textContent = common.length
-    ? `Período común: ${common[0]} – ${common[common.length-1]}`
-    : `Sin fechas en común (CE: ${DSJ[0].dia}–${DSJ[DSJ.length-1].dia} · Ovejero: ${DOV[0].dia}–${DOV[DOV.length-1].dia})`;
-  const cmpGddPeriod = document.getElementById('cmp-gdd-period');
-  if(cmpGddPeriod) cmpGddPeriod.textContent = `GDU calculados sobre el período común (${common.length} día(s)) · base ${tbaseCmp}°C · tope ${ttopCmp}°C`;
-
-  // Chart temperatura comparativa
-  chartRefs['cCmpT']=new Chart('cCmpT',{type:'line',data:{labels:cL,datasets:[
-    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.tavg),borderColor:'#E05A2B',borderWidth:2,
-     pointRadius:4,pointBackgroundColor:'#E05A2B',tension:0,
-     backgroundColor:'rgba(224,90,43,.08)',fill:true},
-    {label:'Ovejero',data:cOV.map(d=>d.tavg),borderColor:'#1A9E72',borderWidth:2,
-     pointRadius:4,pointBackgroundColor:'#1A9E72',tension:0,
-     backgroundColor:'rgba(26,158,114,.08)',fill:true}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}°C`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
-  }});
-
-  // Chart lluvia comparativa
-  chartRefs['cCmpR']=new Chart('cCmpR',{type:'bar',data:{labels:cL,datasets:[
-    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.rain),backgroundColor:'rgba(224,90,43,.75)',borderRadius:4},
-    {label:'Ovejero',data:cOV.map(d=>d.rain),backgroundColor:'rgba(26,158,114,.75)',borderRadius:4}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} mm`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
-  }});
-
-  // Chart GDU acumulados comparativa (sobre el período común, para que
-  // ambas curvas arranquen desde el mismo día y sean comparables)
-  let cumSJ=0, cumOV=0;
-  const gduSJ = cSJ.map(d=>{ cumSJ += gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp); return +cumSJ.toFixed(1); });
-  const gduOV = cOV.map(d=>{ cumOV += gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp); return +cumOV.toFixed(1); });
-  chartRefs['cCmpGDD']=new Chart('cCmpGDD',{type:'line',data:{labels:cL,datasets:[
-    {label:'CE – Suchitepéquez',data:gduSJ,borderColor:'#E05A2B',borderWidth:2.5,
-     pointRadius:3,pointBackgroundColor:'#E05A2B',tension:0.1},
-    {label:'Ovejero',data:gduOV,borderColor:'#1A9E72',borderWidth:2.5,
-     pointRadius:3,pointBackgroundColor:'#1A9E72',tension:0.1}
-  ]},options:{responsive:true,maintainAspectRatio:false,
-    interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} GDU`}}},
-    scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9}}}}
-  }});
-
-  // Tabla comparativa
-  const cmpTb=document.getElementById('cmp-tb'); cmpTb.innerHTML='';
-  common.forEach(dia=>{
-    const s=DSJ.find(d=>d.dia===dia)||{};
-    const o=DOV.find(d=>d.dia===dia)||{};
-    const tr=document.createElement('tr');
-    const hasRain=(s.rain||0)>0||(o.rain||0)>0;
-    if(hasRain) tr.className='rn';
-    const rf=v=>v>0?`<span class="rb">${v}</span>`:'<span style="color:#ccc">—</span>';
-    tr.innerHTML=`
-      <td>${dia}</td>
-      <td>${s.tmax||'—'}°C</td><td>${o.tmax||'—'}°C</td>
-      <td>${s.tmin||'—'}°C</td><td>${o.tmin||'—'}°C</td>
-      <td>${rf(s.rain||0)}</td><td>${rf(o.rain||0)}</td>
-      <td>${s.havg||'—'}%</td><td>${o.havg||'—'}%</td>`;
-    cmpTb.appendChild(tr);
-  });
-
-  document.getElementById('nav-ts').textContent =
-    `🔄 ${new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
-}
-
-// ── Carga y entrada de datos ───────────────────────────────────────
-function buildFromRows(rows, source) {
-  ALL_ROWS = rows.filter(r=>r['Temperatura (C)'] && parseDiaParts(r['Dia']));
-  // Orden cronológico real de todos los registros (fecha + hora), evita que
-  // el orden de llegada del CSV desordene meses/años en las series y tablas.
-  ALL_ROWS.sort((a,b)=>parseDiaHoraTS(a)-parseDiaHoraTS(b));
-  setupTabs(ALL_ROWS);
-  setupDateFilter(ALL_ROWS);
-  const stations = [...new Set(ALL_ROWS.map(r=>r['Estacion']).filter(Boolean))];
-  document.getElementById('nav-src').innerHTML =
-    `<span class="dot"></span>&nbsp;${source==='sheets'?'Google Sheets live':'Archivo local'}`;
-
-  // Mostrar por defecto la primera estación disponible (ya no existe la
-  // vista combinada "Todas" — con la pestaña de cada estación alcanza).
-  if(stations.length===1) setStation(stations[0]);
-  else setStation(stations.includes('CE') ? 'CE' : stations[0]);
-
-  document.getElementById('loading').style.display  ='none';
-  document.getElementById('picker').style.display   ='none';
-  document.getElementById('dashboard').style.display='block';
-
-  if(source==='sheets'&&AUTO_REFRESH_MIN>0){
-    clearTimeout(refreshTimer);
-    refreshTimer=setTimeout(()=>{
-      document.getElementById('load-msg').textContent='Actualizando...';
-      loadFromSheets();
-    }, AUTO_REFRESH_MIN*60*1000);
-  }
-}
-
-function showPicker(){
-  document.getElementById('loading').style.display='none';
-  document.getElementById('picker').style.display='block';
-}
-
-function showNoData(){
-  document.getElementById('single-view').style.display='none';
-  document.getElementById('no-data-panel').style.display='block';
-}
-function hideNoData(){
-  document.getElementById('no-data-panel').style.display='none';
-  document.getElementById('single-view').style.display='block';
-}
-
-function loadFromSheets(){
-  Papa.parse(SHEETS_URL,{download:true,header:true,skipEmptyLines:true,
-    complete:r=>buildFromRows(r.data,'sheets'),error:()=>showPicker()});
-}
-
-function loadFromFile(file){
-  if(!file) return;
-  document.getElementById('picker').style.display='none';
-  document.getElementById('loading').style.display='flex';
-  document.getElementById('load-msg').textContent='Leyendo archivo...';
-  if(file.name.endsWith('.csv')){
-    Papa.parse(file,{header:true,skipEmptyLines:true,
-      complete:r=>buildFromRows(r.data,'local'),error:()=>showPicker()});
-    return;
-  }
-  const fr=new FileReader();
-  fr.onload=e=>{
-    const wb=XLSX.read(e.target.result,{type:'array',cellDates:false});
-    const ws=wb.Sheets['Datos'];
-    if(!ws){alert('No se encontró la hoja "Datos"');showPicker();return;}
-    buildFromRows(XLSX.utils.sheet_to_json(ws,{raw:false,defval:''}),'local');
+/* =========================================================================
+   CONEXION A BMS
+   =========================================================================
+   PUNTO IMPORTANTE / SIN CONFIRMAR TODAVIA:
+   Se sabe (por pruebas previas contra este mismo BMS) que el endpoint de
+   login /bmsapi/brapi/v2/token SI funciona desde el navegador (CORS
+   habilitado) y entrega un Bearer token.
+   Lo que NO está confirmado es si ese mismo Bearer token sirve para los
+   endpoints nativos que usamos aquí (/crops/{crop}/lots/search,
+   /crops/{crop}/germplasm/search, etc.) o si BMS exige un token distinto
+   ("x-auth-token" de Workbench, obtenido de /authenticate o
+   /ibpworkbench/controller/auth/login). Por eso cada llamada a un endpoint
+   nativo se intenta primero con Bearer y, si falla con 401/403, se reintenta
+   con el token de Workbench. Todo queda registrado en los paneles de
+   diagnóstico para poder ajustar rápido si hace falta.
+   ========================================================================= */
+
+let bearerToken = '';
+let workbenchToken = '';
+let workbenchTried = false;
+
+function cfg() {
+  return {
+    url: document.getElementById('bmsUrl').value.trim().replace(/\/$/,''),
+    crop: document.getElementById('bmsCrop').value.trim(),
+    user: document.getElementById('bmsUser').value.trim(),
+    pass: document.getElementById('bmsPass').value
   };
-  fr.readAsArrayBuffer(file);
 }
 
-document.addEventListener('DOMContentLoaded',()=>{
-  const z=document.getElementById('drop-zone');
-  const fi=document.getElementById('file-input');
-  fi.addEventListener('change',()=>loadFromFile(fi.files[0]));
-  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over')});
-  z.addEventListener('dragleave',()=>z.classList.remove('over'));
-  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');loadFromFile(e.dataTransfer.files[0])});
-
-  document.getElementById('gdd-tbase').addEventListener('change', () => {
-    if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
-  });
-  document.getElementById('gdd-ttop').addEventListener('change', () => {
-    if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
-  });
-  document.getElementById('cmp-gdd-tbase')?.addEventListener('change', () => {
-    if(CUR_STATION==='compare') buildCompareView();
-  });
-  document.getElementById('cmp-gdd-ttop')?.addEventListener('change', () => {
-    if(CUR_STATION==='compare') buildCompareView();
-  });
-
-  document.getElementById('filter-from').addEventListener('change', e=>{
-    CUR_FROM = e.target.value; // "" si el usuario borra el campo
-    document.getElementById('filter-clear').style.display =
-      (CUR_FROM||CUR_TO) ? 'inline' : 'none';
-    setStation(CUR_STATION);
-  });
-  document.getElementById('filter-to').addEventListener('change', e=>{
-    CUR_TO = e.target.value;
-    document.getElementById('filter-clear').style.display =
-      (CUR_FROM||CUR_TO) ? 'inline' : 'none';
-    setStation(CUR_STATION);
-  });
-  document.getElementById('filter-clear').addEventListener('click', ()=>{
-    CUR_FROM=''; CUR_TO='';
-    document.getElementById('filter-from').value='';
-    document.getElementById('filter-to').value='';
-    document.getElementById('filter-clear').style.display='none';
-    setStation(CUR_STATION);
-  });
-
-  if(SHEETS_URL) loadFromSheets();
-  else { document.getElementById('load-msg').textContent='Configurá SHEETS_URL o seleccioná un archivo.'; showPicker(); }
-});
-</script>
-
-<script>
-// ════════════════════════════════════════════════════════════════════
-// PÁGINA "CARGAR DATOS WD3" — adaptado de conversor-wd3.html
-// (integrado en el mismo archivo para no mantener 2 HTML separados)
-// ════════════════════════════════════════════════════════════════════
-
-// ── Cambio de página ────────────────────────────────────────────────
-function showPage(page){
-  document.getElementById('page-dashboard').style.display = (page==='uploader') ? 'none' : '';
-  document.getElementById('page-uploader').style.display  = (page==='uploader') ? '' : 'none';
-  window.scrollTo({top:0, behavior:'instant'});
+function dbg(boxId, msg) {
+  const el = document.getElementById(boxId);
+  if (!el) return;
+  el.style.display = 'block';
+  const t = new Date().toLocaleTimeString();
+  el.textContent += '[' + t + '] ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
 }
 
-const STATION_MAP = { '54400111': 'CE', '54400110': 'Ovejero' };
-// Estaciones que deben remuestrearse a intervalos de 10 min antes de subir
-// (Ovejero registra cada 5 min; CE Suchitepéquez ya registra cada 10 min)
-const RESAMPLE_TO_10MIN = { 'Ovejero': true, 'CE': false };
-// URL del Web App de Apps Script ya implementado (Alessandro, 2026-06-30).
-// Si en el futuro volvés a implementar el script y cambia la URL, actualizala aquí.
-const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyRyzejV5q6i67x4Xg8xpx2w4nAucxPhcXknNZ3ySVjOuhjqAOHpbFDV4Tk8zH15jIoSg/exec';
-let PARSED_ROWS = [];
-let RESAMPLE_INFO = null; // { applied:bool, before:n, after:n }
-
-// ── Conversión de unidades ──────────────────────────────────────────
-const fToC   = f => (f - 32) * 5 / 9;
-const inToMm = inches => inches * 25.4;
-
-// Punto de rocío para las celdas del CSV/Sheets: reutiliza el dewPointC()
-// del dashboard (definido en el script anterior) y solo adapta el valor
-// "no calculable" a '' en vez de NaN, que es lo que espera esta planilla.
-function dewPointCSV(tempC, rh) {
-  const dp = dewPointC(tempC, rh);
-  return isNaN(dp) ? '' : dp;
+function toggleDebug(id) {
+  const el = document.getElementById(id);
+  el.style.display = (el.style.display === 'block') ? 'none' : 'block';
 }
 
-function pad(n){ return String(n).padStart(2,'0'); }
-
-// ── Remuestreo de 5 min → 10 min (solo para estaciones marcadas arriba) ──
-// Agrupa registros por bloques de 10 min (00,10,20...50) dentro de cada día.
-// Temp/Humedad/Voltaje/Batería/Viento: promedio. Lluvia: suma. Dirección de
-// viento: promedio circular (vectorial), no aritmético, porque promediar
-// 350° y 10° aritméticamente da 180° (incorrecto) en vez de 0°.
-function resampleTo10Min(rows) {
-  const buckets = {};
-  const order = [];
-
-  rows.forEach(r => {
-    const [h, m] = r.Hora.split(':').map(Number);
-    const bucketMin = Math.floor(m / 10) * 10;
-    const bucketHora = `${pad(h)}:${pad(bucketMin)}`;
-    const key = `${r.Dia} ${bucketHora}`;
-    if (!buckets[key]) { buckets[key] = { Dia: r.Dia, Hora: bucketHora, items: [] }; order.push(key); }
-    buckets[key].items.push(r);
+async function getBearerToken() {
+  const { url, user, pass } = cfg();
+  const r = await fetch(url + '/bmsapi/brapi/v2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({ username: user, password: pass, grant_type: 'password' })
   });
-
-  const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : NaN;
-
-  return order.map(key => {
-    const b = buckets[key];
-    const items = b.items;
-    const temps = items.map(i => i['Temperatura (C)']).filter(v => !isNaN(v));
-    const hums  = items.map(i => i['Humedad (%HR)']).filter(v => !isNaN(v));
-    const rainsMm = items.map(i => i['Lluvia (mm/10min)']).filter(v => !isNaN(v));
-    const rainsIn = items.map(i => i['Lluvia (in/10min)']).filter(v => !isNaN(v));
-    const winds = items.map(i => i['Viento (mph)']).filter(v => v !== '' && !isNaN(v));
-    const gusts = items.map(i => i['Rafaga (mph)']).filter(v => v !== '' && !isNaN(v));
-    const volts = items.map(i => i['Voltaje (V)']).filter(v => v !== '' && !isNaN(v));
-    const batts = items.map(i => i['Bateria (%)']).filter(v => v !== '' && !isNaN(v));
-    const dirs  = items.map(i => i['Direccion Viento (deg)']).filter(v => v !== '' && !isNaN(v));
-
-    const tempAvg = +avg(temps).toFixed(1);
-    const humAvg  = +avg(hums).toFixed(1);
-    const tempFAvg = +(tempAvg * 9 / 5 + 32).toFixed(1);
-
-    let dirAvg = '';
-    if (dirs.length) {
-      let sx = 0, sy = 0;
-      dirs.forEach(d => { const rad = d * Math.PI / 180; sx += Math.cos(rad); sy += Math.sin(rad); });
-      let ang = Math.atan2(sy, sx) * 180 / Math.PI;
-      if (ang < 0) ang += 360;
-      dirAvg = Math.round(ang) % 360; // normaliza 360 → 0
-    }
-
-    return {
-      'Estacion': items[0].Estacion,
-      'Fecha Hora': `${b.Dia} ${b.Hora}`,
-      'Fecha': b.Dia,
-      'Dia': b.Dia,
-      'Hora': b.Hora,
-      'Temperatura (C)': tempAvg,
-      'Temperatura (F)': tempFAvg,
-      'Humedad (%HR)': humAvg,
-      'Lluvia (mm/10min)': +rainsMm.reduce((a, c) => a + c, 0).toFixed(2),
-      'Lluvia (in/10min)': +rainsIn.reduce((a, c) => a + c, 0).toFixed(3),
-      'Viento (mph)': winds.length ? +avg(winds).toFixed(1) : '',
-      'Direccion Viento (deg)': dirAvg,
-      'Rafaga (mph)': gusts.length ? +avg(gusts).toFixed(1) : '',
-      'Voltaje (V)': volts.length ? +avg(volts).toFixed(3) : '',
-      'Bateria (%)': batts.length ? Math.round(avg(batts)) : '',
-      'Punto de Rocio (C)': dewPointCSV(tempAvg, humAvg),
-      '_registros_originales': items.length
-    };
-  });
+  dbg('debugConn', 'POST /bmsapi/brapi/v2/token -> HTTP ' + r.status);
+  if (!r.ok) throw new Error('Login falló: HTTP ' + r.status);
+  const d = await r.json();
+  const t = d.access_token || d.token || d.accessToken;
+  if (!t) throw new Error('La respuesta de login no trajo token');
+  return t;
 }
 
-// ── Parseo del archivo WD3 ──────────────────────────────────────────
-function parseWD3(text) {
-  const lines = text.split(/\r?\n/);
-  let serial = null, skipped = 0, corrected = 0, discarded = 0;
-  const rows = [];
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
-
-    if (line.startsWith('%HC;')) {
-      const f = line.split(';');
-      serial = f[1];
-      continue;
-    }
-    if (!line.startsWith('RM;')) { if (line) skipped++; continue; } // MF, %MZ, etc.
-
-    const f = line.split(';');
-    if (f.length < 13) { skipped++; continue; }
-
-    const ts = f[1]; // YYYYMMDDHHmm
-    if (!ts || ts.length < 12) { skipped++; continue; }
-
-    let year  = ts.substring(0,4);
-    const month = ts.substring(4,6), day = ts.substring(6,8);
-    const hour  = ts.substring(8,10), min  = ts.substring(10,12);
-
-    // El reloj interno (RTC) de la estación a veces se desconfigura tras
-    // un corte de energía/batería baja y reporta el año corrido por 1000
-    // (ej. "1026" en vez de "2026"). En vez de perder esos registros, se
-    // corrige sumando 1000 — el mismo ajuste que antes se hacía a mano
-    // con buscar/reemplazar en el Sheet. Si aun corregido el año sigue
-    // siendo imposible, ahí sí se descarta (dato irrecuperable).
-    let yearNum = parseInt(year, 10);
-    if (yearNum < 2015 || yearNum > 2035) {
-      const fixedYear = yearNum + 1000;
-      if (fixedYear >= 2015 && fixedYear <= 2035) {
-        year = String(fixedYear);
-        corrected++;
-      } else {
-        discarded++;
-        continue;
+// Intenta varios endpoints de login "workbench" para obtener el x-auth-token
+// nativo, solo si el Bearer normal falla en un endpoint /crops/... .
+async function getWorkbenchToken() {
+  if (workbenchToken) return workbenchToken;
+  if (workbenchTried) return '';
+  workbenchTried = true;
+  const { url, user, pass } = cfg();
+  const candidatos = [
+    ['/authenticate', 'POST'],
+    ['/ibpworkbench/controller/auth/login', 'POST'],
+    ['/ibpworkbench/controller/auth/validateLogin', 'POST']
+  ];
+  for (const [path, method] of candidatos) {
+    try {
+      const r = await fetch(url + path, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass })
+      });
+      dbg('debugConn', method + ' ' + path + ' -> HTTP ' + r.status);
+      if (!r.ok) continue;
+      let val = null;
+      try {
+        const d = await r.json();
+        val = d.token || d.access_token || d.authToken || d.accessToken || null;
+        if (!val && typeof d === 'string') val = d;
+      } catch (e) {
+        const txt = await r.text();
+        if (txt && txt.length < 200) val = txt.trim().replace(/^"|"$/g, '');
       }
+      if (val) {
+        workbenchToken = val;
+        dbg('debugConn', 'Token de Workbench obtenido vía ' + path);
+        return workbenchToken;
+      }
+    } catch (e) {
+      dbg('debugConn', method + ' ' + path + ' -> error de red: ' + e.message);
     }
+  }
+  dbg('debugConn', 'No se pudo obtener token de Workbench por ningún candidato.');
+  return '';
+}
 
-    const rainIn  = parseFloat(f[5]);
-    const tempF   = parseFloat(f[6]);
-    const hum     = parseFloat(f[7]);
-    const windDir = parseFloat(f[8]);
-    const windMph = parseFloat(f[9]);
-    const gustMph = parseFloat(f[10]);
-    const battPct = parseFloat(f[3]);
-    const volt    = parseFloat(f[12]);
+// Llama a un endpoint NATIVO (/crops/{crop}/...) probando primero Bearer y,
+// si da 401/403, reintentando con x-auth-token de Workbench.
+async function nativeFetch(path, options, debugId) {
+  const { url } = cfg();
+  const full = url + path;
+  options = options || {};
+  const baseHeaders = Object.assign({}, options.headers || {});
 
-    if (isNaN(tempF) || isNaN(hum)) { skipped++; continue; }
+  // Intento 1: Bearer
+  let r = await fetch(full + (options.qs || ''), {
+    method: options.method || 'GET',
+    headers: Object.assign({}, baseHeaders, { 'Authorization': 'Bearer ' + bearerToken }),
+    body: options.body
+  });
+  if (debugId) dbg(debugId, (options.method || 'GET') + ' ' + path + ' [Bearer] -> HTTP ' + r.status);
 
-    const tempC = +fToC(tempF).toFixed(1);
-    const diaStr = `${day}/${month}/${year}`;
-    const horaStr = `${hour}:${min}`;
+  // v2: algunos endpoints nativos (ej. lots/search) responden 500 en vez de
+  // 401/403 cuando el token no es el correcto para ESE endpoint puntual.
+  // Por eso reintentamos con el otro token también en 500/400, no solo
+  // en 401/403.
+  if ([401, 403, 500, 400].includes(r.status)) {
+    const wbt = await getWorkbenchToken();
+    if (wbt) {
+      r = await fetch(full + (options.qs || ''), {
+        method: options.method || 'GET',
+        headers: Object.assign({}, baseHeaders, { 'x-auth-token': wbt }),
+        body: options.body
+      });
+      if (debugId) dbg(debugId, (options.method || 'GET') + ' ' + path + ' [x-auth-token] -> HTTP ' + r.status);
+    } else if (debugId) {
+      dbg(debugId, '(sin token de Workbench disponible para reintentar)');
+    }
+  }
+  return r;
+}
 
-    rows.push({
-      'Estacion': STATION_MAP[serial] || serial || '??',
-      'Fecha Hora': `${diaStr} ${horaStr}`,
-      'Fecha': diaStr,
-      'Dia': diaStr,
-      'Hora': horaStr,
-      'Temperatura (C)': tempC,
-      'Temperatura (F)': +tempF.toFixed(1),
-      'Humedad (%HR)': hum,
-      'Lluvia (mm/10min)': +inToMm(rainIn || 0).toFixed(2),
-      'Lluvia (in/10min)': +(rainIn || 0).toFixed(3),
-      'Viento (mph)': isNaN(windMph) ? '' : windMph,
-      'Direccion Viento (deg)': isNaN(windDir) ? '' : windDir,
-      'Rafaga (mph)': isNaN(gustMph) ? '' : gustMph,
-      'Voltaje (V)': isNaN(volt) ? '' : volt,
-      'Bateria (%)': isNaN(battPct) ? '' : battPct,
-      'Punto de Rocio (C)': dewPointCSV(tempC, hum)
-    });
+document.getElementById('btnConectar').addEventListener('click', async () => {
+  const statusEl = document.getElementById('connStatus');
+  statusEl.textContent = 'Conectando...';
+  statusEl.className = 'conn-status';
+  try {
+    bearerToken = await getBearerToken();
+    statusEl.textContent = '✓ Conectado como ' + cfg().user;
+    statusEl.className = 'conn-status ok';
+    document.getElementById('btnCargarLotes').disabled = false;
+    document.getElementById('studyQuery').disabled = false;
+    document.getElementById('btnBuscarVivero').disabled = false;
+    document.getElementById('statusLotes').textContent = 'Listo para cargar.';
+    document.getElementById('statusVivero').textContent = 'Busca un vivero por nombre o studyDbId.';
+    // Detectar los programas disponibles (ej. "Mejoramiento", "Evaluación")
+    // para poder buscar el vivero en todos ellos, no solo en el activo por
+    // defecto.
+    cargarProgramasBMS();
+  } catch (e) {
+    statusEl.textContent = '✗ ' + e.message;
+    statusEl.className = 'conn-status bad';
+  }
+});
+
+/* =========================================================================
+   0) PROGRAMAS DE BMS (ej. "Mejoramiento", "Evaluación")
+   =========================================================================
+   PUNTO IMPORTANTE / SIN CONFIRMAR TODAVIA:
+   Este BMS tiene más de un "Program" dentro del mismo crop (al menos
+   "Mejoramiento" y "Evaluación"). La búsqueda de estudios/viveros
+   (/brapi/v2/studies) por defecto solo trae resultados del programa que
+   esté activo en el token/sesión actual (normalmente "Mejoramiento"), así
+   que un vivero creado dentro de "Evaluación" no aparece si no filtramos
+   explícitamente por su programDbId/programUUID.
+
+   No sabemos todavía el endpoint exacto que expone este BMS para listar
+   programas, así que probamos varios candidatos conocidos (nativo tipo
+   Workbench y BrAPI v2 estándar) y usamos el primero que traiga datos.
+   Todo queda registrado en el diagnóstico de conexión.
+   ========================================================================= */
+
+let programasDisponibles = []; // [{programDbId, programUUID, programName, activo:true/false}]
+
+function extractProgramList(d) {
+  if (Array.isArray(d)) return d;
+  if (d && d.result && Array.isArray(d.result.data)) return d.result.data;
+  if (d && Array.isArray(d.data)) return d.data;
+  if (d && Array.isArray(d.content)) return d.content;
+  return [];
+}
+
+async function cargarProgramasBMS() {
+  const { crop } = cfg();
+  const candidatos = [
+    { path: '/bmsapi/crops/' + crop + '/programs', label: 'nativo /crops/{crop}/programs' },
+    { path: '/bmsapi/' + crop + '/brapi/v2/programs', label: 'BrAPI v2 /programs' },
+    { path: '/bmsapi/crops/' + crop + '/program-summaries', label: 'nativo /program-summaries' }
+  ];
+
+  programasDisponibles = [];
+  for (const c of candidatos) {
+    try {
+      const r = await nativeFetch(c.path, { qs: '?page=0&pageSize=100' }, 'debugConn');
+      if (!r.ok) continue;
+      const d = await r.json();
+      const lista = extractProgramList(d);
+      if (!lista.length) continue;
+      dbg('debugConn', 'Estructura cruda del primer programa (' + c.label + '): ' + JSON.stringify(lista[0]).slice(0,500));
+      programasDisponibles = lista.map(p => ({
+        programDbId: p.programUUID || p.uniqueID || p.uniqueId || p.programDbId || p.id || '',
+        programUUID: p.programUUID || p.uniqueID || p.uniqueId || p.id || '',
+        programName: p.name || p.programName || p.crop_name || '(sin nombre)'
+      })).filter(p => p.programDbId || p.programUUID);
+      if (programasDisponibles.length) {
+        dbg('debugConn', 'Programas detectados vía ' + c.label + ': ' +
+            programasDisponibles.map(p => p.programName + ' (id ' + p.programDbId + ')').join(' | '));
+        break;
+      }
+    } catch (e) {
+      dbg('debugConn', c.label + ' -> error: ' + e.message);
+    }
   }
 
-  return { rows, serial, skipped, corrected, discarded };
+  if (!programasDisponibles.length) {
+    dbg('debugConn', 'No se pudo obtener la lista de programas por ningún endpoint candidato. La búsqueda de vivero usará solo el programa activo por defecto (probablemente "Mejoramiento").');
+  }
+  renderProgTags();
 }
 
-// ── UI: carga de archivo ────────────────────────────────────────────
-function wd3HandleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    let { rows, serial, skipped, corrected, discarded } = parseWD3(e.target.result);
-    if (!rows.length) {
-      alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
+function renderProgTags() {
+  const cont = document.getElementById('progTags');
+  cont.innerHTML = '';
+  if (!programasDisponibles.length) {
+    cont.innerHTML = '<span class="prog-tag unknown">(no se detectaron programas; se usará el activo por defecto)</span>';
+    return;
+  }
+  programasDisponibles.forEach((p, idx) => {
+    if (p.selected === undefined) p.selected = true; // por defecto, buscar en todos
+    const tag = document.createElement('span');
+    tag.className = 'prog-tag' + (p.selected ? ' on' : '');
+    tag.textContent = p.programName;
+    tag.title = 'ID: ' + p.programDbId;
+    tag.onclick = () => { p.selected = !p.selected; renderProgTags(); };
+    cont.appendChild(tag);
+  });
+}
+
+/* =========================================================================
+   1) CATALOGO DE LOTES (LOT UID -> GID, DESIGNATION)
+   Endpoint confirmado contra este BMS (ver bms_sync.py / audit_report.txt):
+     POST /crops/{crop}/lots/search   (body {} para todos los lotes)
+       -> devuelve un searchResultDbId (o similar) o datos inline
+     GET  /crops/{crop}/lots/search?searchResultDbId=X&page=N&size=5000
+       -> páginas de lotes, cada uno con lotUUID / gid / designation
+   ========================================================================= */
+
+let lotIndex = new Map(); // LOT UID (upper) -> {lotUID, gid, desig}
+let gidIndex = new Map(); // GID (string) -> {gid, desigOriginal, desigTight, lotCount} -- usado por la pestaña "Validar Listado Crudo"
+let uniqueGermplasmList = []; // [{gid, desigOriginal, desigTight}] deduplicado por GID, para búsqueda por nombre
+
+function stripAccents(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+function normLoose(s) { return stripAccents(s).toUpperCase().replace(/\s+/g, ' ').trim(); }
+function normTight(s) { return normLoose(s).replace(/[^A-Z0-9]/g, ''); }
+
+function extractList(d) {
+  if (Array.isArray(d)) return d;
+  if (d && Array.isArray(d.data)) return d.data;
+  if (d && d.result && Array.isArray(d.result.data)) return d.result.data;
+  if (d && Array.isArray(d.result)) return d.result;
+  if (d && Array.isArray(d.content)) return d.content;
+  for (const k of ['records','rows','germplasm','results']) {
+    if (d && Array.isArray(d[k])) return d[k];
+  }
+  return [];
+}
+
+function pickSearchId(d) {
+  if (!d || typeof d !== 'object') return null;
+  for (const f of ['searchResultDbId','searchRequestId','searchResultsDbId','id','resultsId','requestId','queryId']) {
+    if (d[f] != null && d[f] !== '') return d[f];
+  }
+  return null;
+}
+
+async function cargarLotesBMS() {
+  const { crop } = cfg();
+  const btn = document.getElementById('btnCargarLotes');
+  const statusEl = document.getElementById('statusLotes');
+  btn.disabled = true;
+  statusEl.innerHTML = '<span class="spinner-inline"></span> Consultando lotes en BMS...';
+  lotIndex = new Map();
+  gidIndex = new Map();
+
+  try {
+    // Paso 1: crear la búsqueda (POST con body vacío = todos los lotes)
+    const r1 = await nativeFetch('/bmsapi/crops/' + crop + '/lots/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({})
+    }, 'debugLotes');
+
+    if (!r1.ok) throw new Error('POST lots/search falló: HTTP ' + r1.status);
+    const d1 = await r1.json();
+
+    // Algunas instancias devuelven los datos directo en el POST
+    let inline = extractList(d1);
+    if (inline.length) {
+      inline.forEach(indexarLote);
+    } else {
+      const searchId = pickSearchId(d1);
+      if (!searchId) throw new Error('La respuesta de lots/search no trajo datos ni un id de búsqueda. Cuerpo: ' + JSON.stringify(d1).slice(0,300));
+
+      // Paso 2: paginar resultados. Distintas versiones de BMS usan un
+      // nombre de parámetro distinto para el id de búsqueda; probamos los
+      // dos conocidos y nos quedamos con el que sí traiga datos.
+      const idParams = ['searchResultDbId', 'searchRequestId'];
+      let idParamGanador = null;
+      const size = 5000;
+
+      for (const idParam of idParams) {
+        let page = 0;
+        let totalEsteParam = 0;
+        while (true) {
+          const qs = '?' + idParam + '=' + encodeURIComponent(searchId) + '&isBrowseAllResults=true&page=' + page + '&size=' + size;
+          const r2 = await nativeFetch('/bmsapi/crops/' + crop + '/lots/search', { qs }, 'debugLotes');
+          if (!r2.ok) { dbg('debugLotes', 'idParam=' + idParam + ' página ' + page + ' falló HTTP ' + r2.status); break; }
+          const d2 = await r2.json();
+          const recs = extractList(d2);
+          if (!recs.length) break;
+          recs.forEach(indexarLote);
+          totalEsteParam += recs.length;
+          statusEl.innerHTML = '<span class="spinner-inline"></span> Cargando lotes... ' + lotIndex.size + ' hasta ahora';
+          if (recs.length < size) break;
+          page++;
+          if (page > 60) break; // límite de seguridad
+        }
+        if (totalEsteParam > 0) { idParamGanador = idParam; break; }
+      }
+      if (idParamGanador) dbg('debugLotes', 'Parámetro de búsqueda que funcionó: ' + idParamGanador);
+    }
+
+    if (lotIndex.size === 0) {
+      statusEl.innerHTML = '<span class="hl-bad">No se cargó ningún lote. Revisa el diagnóstico.</span>';
+    } else {
+      uniqueGermplasmList = Array.from(gidIndex.values());
+      statusEl.innerHTML = '<span class="hl-ok">Lotes cargados:</span> ' + lotIndex.size +
+        ' &nbsp;|&nbsp; <span class="hl-ok">GID únicos:</span> ' + gidIndex.size;
+      document.getElementById('scanOrigen').disabled = false;
+      document.getElementById('scanOrigen').placeholder = 'Escanee el LOT UID del origen';
+      document.getElementById('scanGenbank').disabled = false;
+      document.getElementById('fileInput').disabled = false;
+      document.getElementById('fileStatus').textContent = 'Listo. Sube el archivo Excel del listado crudo.';
+      document.getElementById('btnProcesar').disabled = (sheetRows.length === 0);
+    }
+  } catch (e) {
+    statusEl.innerHTML = '<span class="hl-bad">Error: ' + e.message + '</span>';
+    dbg('debugLotes', 'Error: ' + e.message);
+  }
+  btn.disabled = false;
+}
+
+function indexarLote(rec) {
+  const lotUID = rec.lotUUID || rec.lotUID || rec.stockId || rec.lotId || '';
+  const gid = String(rec.gid || rec.GID || '').trim();
+  const desig = rec.designation || rec.germplasmName || '';
+  if (lotUID) lotIndex.set(String(lotUID).toUpperCase(), { lotUID: String(lotUID), gid, desig });
+  if (gid) {
+    let e = gidIndex.get(gid);
+    if (!e) {
+      e = { gid, desigOriginal: desig, desigTight: normTight(desig), lotCount: 0,
+            totalAvailable: 0, anyOpen: false };
+      gidIndex.set(gid, e);
+    }
+    e.lotCount++;
+    // Disponibilidad: sumamos el saldo disponible de todos los lotes de este
+    // GID y marcamos si al menos uno está abierto (status !== CLOSED).
+    const avail = Number(rec.availableBalance);
+    if (!isNaN(avail)) e.totalAvailable += avail;
+    if (rec.status && String(rec.status).toUpperCase() !== 'CLOSED') e.anyOpen = true;
+  }
+}
+
+/* =========================================================================
+   2) VIVERO (Study) -> OBS_UNIT_ID -> GID, DESIGNATION, ENTRY, PLOT
+   Endpoint BrAPI estándar (usado igual en bms_sync.py):
+     GET /{crop}/brapi/v2/observationunits?studyDbId=X&page=N&pageSize=Y
+   Para resolver el studyDbId a partir de un nombre, se pagina
+     GET /{crop}/brapi/v2/studies?page=N&pageSize=200
+   y se filtra en el navegador (el filtro studyName del servidor no es
+   confiable, según lo confirmado en pruebas previas).
+
+   AHORA: esta búsqueda se repite una vez POR CADA PROGRAMA seleccionado
+   (ver sección 0, "Mejoramiento" / "Evaluación" / los que detecte BMS),
+   pasando programDbId como filtro, para no perder viveros creados en un
+   programa distinto al que esté activo por defecto en la sesión.
+   ========================================================================= */
+
+let viveroIndex = new Map(); // OBS_UNIT_ID (upper) -> {obs, gid, desig, entry, plot, env}
+let estudiosSeleccionados = []; // [{studyDbId, studyName, programName}, ...] -- puede ser más de un ambiente/programa
+let pendingGidResolution = []; // [{obj, uuid}] -- OBS cuyo GID vino vacío y hay que resolver vía germplasmDbId
+
+// Busca estudios que coincidan con `q` dentro de un programa concreto
+// (o sin filtro de programa si programDbId es null, para no romper
+// instancias donde el parámetro no aplique).
+async function buscarEstudiosEnPrograma(crop, q, programDbId, programName) {
+  const pageSize = 200;
+  let encontrados = [];
+  for (let page = 0; page < 15; page++) {
+    let qs = '?page=' + page + '&pageSize=' + pageSize;
+    if (programDbId) qs += '&programDbId=' + encodeURIComponent(programDbId);
+    const r = await nativeFetch('/bmsapi/' + crop + '/brapi/v2/studies', { qs }, 'debugVivero');
+    if (!r.ok) { dbg('debugVivero', '[' + (programName||'default') + '] página ' + page + ' de studies falló HTTP ' + r.status); break; }
+    const d = await r.json();
+    const lista = (d.result && d.result.data) || [];
+    dbg('debugVivero', '[' + (programName || 'default') + '] programDbId enviado=' + programDbId + ' -> ' + lista.length + ' estudios(s) recibidos en esta página');
+    if (!lista.length) break;
+    encontrados = encontrados.concat(lista.filter(s => (s.studyName||'').toLowerCase().indexOf(q.toLowerCase()) !== -1));
+    if (lista.length < pageSize) break;
+    if (encontrados.length) break; // ya encontramos algo, no seguimos paginando de más
+  }
+  return encontrados.map(s => ({ studyDbId: s.studyDbId, studyName: s.studyName, programName: programName || s.programName || '' }));
+}
+
+async function buscarVivero() {
+  const { crop } = cfg();
+  const q = document.getElementById('studyQuery').value.trim();
+  const statusEl = document.getElementById('statusVivero');
+  if (!q) { statusEl.innerHTML = '<span class="hl-bad">Escribe un nombre o studyDbId.</span>'; return; }
+
+  // Si es puramente numérico, lo tomamos directo como studyDbId sin buscar
+  // (un solo ambiente, el que el usuario indicó).
+  if (/^\d+$/.test(q)) {
+    estudiosSeleccionados = [{ studyDbId: q, studyName: '(studyDbId ' + q + ')', programName: '' }];
+    statusEl.innerHTML = '<span class="hl-ok">Vivero fijado por ID:</span> ' + q + ' &mdash; presiona "Cargar OBS UNIT del vivero".';
+    document.getElementById('btnCargarVivero').disabled = false;
+    return;
+  }
+
+  statusEl.innerHTML = '<span class="spinner-inline"></span> Buscando estudio "' + q + '"...';
+  estudiosSeleccionados = [];
+  document.getElementById('btnCargarVivero').disabled = true;
+
+  try {
+    const programasABuscar = programasDisponibles.filter(p => p.selected);
+    let encontrados = [];
+
+    if (programasABuscar.length) {
+      // Buscar el mismo nombre de vivero en cada programa seleccionado
+      // (ej. "Mejoramiento" y "Evaluación") y juntar los resultados,
+      // evitando duplicados por studyDbId.
+      const vistos = new Set();
+      for (const prog of programasABuscar) {
+        const enEstePrograma = await buscarEstudiosEnPrograma(crop, q, prog.programDbId, prog.programName);
+        dbg('debugVivero', 'Programa "' + prog.programName + '": ' + enEstePrograma.length + ' coincidencia(s)');
+        for (const est of enEstePrograma) {
+          if (vistos.has(est.studyDbId)) continue;
+          vistos.add(est.studyDbId);
+          encontrados.push(est);
+        }
+      }
+    } else {
+      // Sin lista de programas (no se pudo detectar) -> comportamiento
+      // anterior, busca en el programa activo por defecto únicamente.
+      encontrados = await buscarEstudiosEnPrograma(crop, q, null, '');
+    }
+
+    if (!encontrados.length) {
+      const dondeSeBuscó = programasABuscar.length
+        ? programasABuscar.map(p => p.programName).join(', ')
+        : '(programa por defecto)';
+      statusEl.innerHTML = '<span class="hl-bad">No se encontró ningún vivero que contenga "' + q + '" en: ' + esc(dondeSeBuscó) + '.</span>';
       return;
     }
 
-    const stationCode = STATION_MAP[serial] || serial || '??';
-    RESAMPLE_INFO = null;
-    if (RESAMPLE_TO_10MIN[stationCode]) {
-      const before = rows.length;
-      rows = resampleTo10Min(rows);
-      RESAMPLE_INFO = { applied: true, before: before, after: rows.length };
-    }
+    // IMPORTANTE: un mismo vivero puede tener varios "Environment Number"
+    // (varios ambientes/ubicaciones), cada uno con su propio studyDbId, y
+    // además puede existir en más de un programa (Mejoramiento/Evaluación).
+    // Cargamos TODOS los que coincidan con el nombre para no perder
+    // ningún OBS_UNIT_ID físico durante el escaneo.
+    estudiosSeleccionados = encontrados;
+    dbg('debugVivero', 'Coincidencias encontradas: ' + estudiosSeleccionados.map(s => s.studyName + (s.programName ? ' [' + s.programName + ']' : '') + ' (id ' + s.studyDbId + ')').join(' | '));
 
-    PARSED_ROWS = rows;
-    wd3RenderPreview(rows, serial, skipped, corrected, discarded, file.name);
-  };
-  reader.onerror = () => alert('No se pudo leer el archivo.');
-  reader.readAsText(file);
+    const nombres = estudiosSeleccionados.map(s => esc(s.studyName) + (s.programName ? ' <span style="color:#888">(' + esc(s.programName) + ')</span>' : '')).join('<br>&nbsp;&nbsp;&middot; ');
+    statusEl.innerHTML = '<span class="hl-ok">Encontrado' + (estudiosSeleccionados.length>1?'s ('+estudiosSeleccionados.length+' ambientes)':'') + ':</span><br>&nbsp;&nbsp;&middot; ' + nombres + '<br>Presiona "Cargar OBS UNIT del vivero".';
+    document.getElementById('btnCargarVivero').disabled = false;
+  } catch (e) {
+    statusEl.innerHTML = '<span class="hl-bad">Error: ' + e.message + '</span>';
+    dbg('debugVivero', 'Error: ' + e.message);
+  }
 }
 
-function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename) {
-  const stationCode = STATION_MAP[serial] || serial || '??';
-  const stationName = stationCode === 'CE' ? 'CE — Centro Experimental, Suchitepéquez'
-                     : stationCode === 'Ovejero' ? 'Ovejero — Jutiapa (corredor seco)'
-                     : `Desconocida (S/N ${serial})`;
+async function cargarViveroBMS() {
+  if (!estudiosSeleccionados.length) return;
+  const { crop } = cfg();
+  const statusEl = document.getElementById('statusVivero');
+  const btn = document.getElementById('btnCargarVivero');
+  btn.disabled = true;
+  viveroIndex = new Map();
+  pendingGidResolution = [];
+  let totalGeneral = 0;
 
-  document.getElementById('wd3-prev-hint').textContent = `Archivo: ${filename} · Serie: ${serial}`;
-  document.getElementById('wd3-s-station').innerHTML =
-    `<span class="tag ${stationCode==='CE'?'ce':'ov'}">${stationName}</span>`;
-  document.getElementById('wd3-s-rows').textContent = rows.length.toLocaleString();
-  document.getElementById('wd3-s-skip').textContent  = (skipped + discarded).toLocaleString();
-  document.getElementById('wd3-s-range').textContent = `${rows[0].Dia} → ${rows[rows.length-1].Dia}`;
-  document.getElementById('wd3-prev-total').textContent = rows.length;
-
-  const baddateNote = document.getElementById('wd3-baddate-note');
-  if (corrected > 0 || discarded > 0) {
-    baddateNote.style.display = 'block';
-    let msg = '';
-    if (corrected > 0) {
-      msg += `🔧 <strong>${corrected.toLocaleString()} registro(s) con año corregido automáticamente</strong> (ej. "1026" → "2026"). `;
-    }
-    if (discarded > 0) {
-      msg += `⚠️ ${discarded.toLocaleString()} registro(s) con fecha irrecuperable fueron descartados. `;
-    }
-    msg += `Esto indica que el reloj interno de la estación ${stationName.split(' —')[0]} se desconfiguró (batería/RTC baja o corte de energía). Revisá la fecha/hora con WatchDog Mobile antes de la próxima sincronización.`;
-    baddateNote.innerHTML = msg;
-  } else {
-    baddateNote.style.display = 'none';
-  }
-
-  const resampleNote = document.getElementById('wd3-resample-note');
-  if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
-    resampleNote.style.display = 'block';
-    resampleNote.textContent = `⏱ Remuestreado de 5 min a 10 min: ${RESAMPLE_INFO.before.toLocaleString()} registros originales → ${RESAMPLE_INFO.after.toLocaleString()} registros de 10 min (temperatura/humedad/voltaje/viento promediados, lluvia sumada por bloque, dirección de viento con promedio circular).`;
-  } else {
-    resampleNote.style.display = 'none';
-  }
-
-  const sample = [...rows.slice(0,5), ...(rows.length > 10 ? rows.slice(-5) : [])];
-  const tb = document.getElementById('wd3-prev-body');
-  tb.innerHTML = sample.map(r => `
-    <tr>
-      <td><span class="tag ${r.Estacion==='CE'?'ce':'ov'}">${r.Estacion}</span></td>
-      <td>${r.Dia}</td><td>${r.Hora}</td>
-      <td>${r['Temperatura (C)']}</td><td>${r['Humedad (%HR)']}</td>
-      <td>${r['Lluvia (mm/10min)']}</td><td>${r['Viento (mph)']}</td>
-      <td>${r['Direccion Viento (deg)']}</td><td>${r['Rafaga (mph)']}</td>
-      <td>${r['Voltaje (V)']}</td><td>${r['Bateria (%)']}</td>
-    </tr>`).join('');
-
-  document.getElementById('wd3-step1').classList.add('done');
-  document.getElementById('wd3-step1').classList.remove('active');
-  document.getElementById('wd3-step2').classList.add('active');
-  document.getElementById('wd3-preview-panel').style.display = 'block';
-  document.getElementById('wd3-config-panel').style.display  = 'block';
-  document.getElementById('wd3-btn-upload').disabled   = !document.getElementById('wd3-webapp-url').value.trim();
-  document.getElementById('wd3-btn-download').disabled = false;
-  document.getElementById('wd3-btn-view-dashboard').style.display = 'none';
-  document.getElementById('wd3-preview-panel').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-// ── Drag & drop / selector ───────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const dz = document.getElementById('wd3-drop-zone');
-  const fi = document.getElementById('wd3-file-input');
-  fi.addEventListener('change', () => wd3HandleFile(fi.files[0]));
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-  dz.addEventListener('drop', e => {
-    e.preventDefault(); dz.classList.remove('over');
-    wd3HandleFile(e.dataTransfer.files[0]);
-  });
-
-  // ── Config de URL (guardada en memoria del navegador, no en servidor) ─
-  const urlInput = document.getElementById('wd3-webapp-url');
-  try {
-    const saved = window.name && window.name.startsWith('wd3url:') ? window.name.slice(7) : '';
-    urlInput.value = saved || DEFAULT_WEBAPP_URL;
-  } catch(e){ urlInput.value = DEFAULT_WEBAPP_URL; }
-
-  document.getElementById('wd3-btn-save-url').addEventListener('click', () => {
-    const url = urlInput.value.trim();
-    if (!url) { alert('Pegá primero la URL del Web App.'); return; }
-    window.name = 'wd3url:' + url; // persiste mientras la pestaña/ventana esté abierta
-    document.getElementById('wd3-btn-upload').disabled = PARSED_ROWS.length === 0;
-    wd3Log('URL guardada para esta sesión del navegador.', 'ok');
-  });
-  urlInput.addEventListener('input', () => {
-    document.getElementById('wd3-btn-upload').disabled = !(PARSED_ROWS.length && urlInput.value.trim());
-  });
-
-  // ── Subida a Google Sheets vía Apps Script Web App ──────────────────
-  document.getElementById('wd3-btn-upload').addEventListener('click', async () => {
-    const url = urlInput.value.trim();
-    if (!url) { alert('Pegá la URL del Web App primero.'); return; }
-    if (!PARSED_ROWS.length) { alert('Cargá un archivo .WD3 primero.'); return; }
-
-    const btn = document.getElementById('wd3-btn-upload');
-    btn.disabled = true;
-    wd3Log(`Enviando ${PARSED_ROWS.length} registros...`, 'info');
-
+  for (const est of estudiosSeleccionados) {
+    const etiquetaEst = est.studyName + (est.programName ? ' [' + est.programName + ']' : '');
+    statusEl.innerHTML = '<span class="spinner-inline"></span> Cargando "' + esc(etiquetaEst) + '" (studyDbId ' + est.studyDbId + ')...';
     try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS con Apps Script
-        body: JSON.stringify({ rows: PARSED_ROWS })
-      });
-      const data = await resp.json();
-      if (data.status === 'ok') {
-        wd3Log(`Listo. ${data.added} registros nuevos agregados, ${data.skipped} ya existían (duplicados omitidos).`, 'ok');
-        document.getElementById('wd3-step2').classList.add('done');
-        document.getElementById('wd3-step3').classList.add('done');
-        document.getElementById('wd3-btn-view-dashboard').style.display = 'inline-flex';
-      } else {
-        wd3Log(`Error del servidor: ${data.message}`, 'err');
+      let page = 0;
+      const pageSize = 1000;
+      let totalEsteEstudio = 0;
+      while (true) {
+        const qs = '?studyDbId=' + encodeURIComponent(est.studyDbId) + '&page=' + page + '&pageSize=' + pageSize;
+        const r = await nativeFetch('/bmsapi/' + crop + '/brapi/v2/observationunits', { qs }, 'debugVivero');
+        if (!r.ok) { dbg('debugVivero', 'Página ' + page + ' de "' + etiquetaEst + '" falló HTTP ' + r.status); break; }
+        const d = await r.json();
+        const recs = (d.result && d.result.data) || [];
+        if (!recs.length) break;
+        recs.forEach(rec => indexarObsUnit(rec, etiquetaEst));
+        totalEsteEstudio += recs.length;
+        totalGeneral += recs.length;
+        statusEl.innerHTML = '<span class="spinner-inline"></span> Cargando OBS UNIT... ' + totalGeneral + ' hasta ahora';
+        const totalPages = (d.metadata && d.metadata.pagination && d.metadata.pagination.totalPages) || null;
+        if (recs.length < pageSize) break;
+        page++;
+        if (totalPages != null && page >= totalPages) break;
+        if (page > 200) break; // límite de seguridad
       }
-    } catch (err) {
-      wd3Log(`No se pudo conectar con el Web App: ${err.message}`, 'err');
-      wd3Log('Verificá que la URL termine en /exec y que el despliegue tenga acceso "Cualquier usuario".', 'err');
+      dbg('debugVivero', '"' + etiquetaEst + '" (studyDbId ' + est.studyDbId + '): ' + totalEsteEstudio + ' OBS UNIT cargados');
+    } catch (e) {
+      dbg('debugVivero', 'Error cargando "' + etiquetaEst + '": ' + e.message);
     }
-    btn.disabled = false;
-  });
+  }
 
-  // ── Descarga CSV de respaldo (por si la API falla) ───────────────────
-  document.getElementById('wd3-btn-download').addEventListener('click', () => {
-    if (!PARSED_ROWS.length) return;
-    const headers = Object.keys(PARSED_ROWS[0]).filter(h => !h.startsWith('_'));
-    const csv = [headers.join(',')]
-      .concat(PARSED_ROWS.map(r => headers.map(h => r[h]).join(',')))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `wd3_${PARSED_ROWS[0].Estacion}_${PARSED_ROWS[0].Dia.replace(/\//g,'-')}.csv`;
-    a.click();
-  });
+  if (pendingGidResolution.length > 0) {
+    statusEl.innerHTML = '<span class="spinner-inline"></span> Resolviendo ' + pendingGidResolution.length + ' GID faltantes vía germplasmDbId...';
+    await resolverGIDsFaltantes(crop);
+  }
 
-  // ── Volver al dashboard y refrescar con los datos recién subidos ────
-  document.getElementById('wd3-btn-view-dashboard').addEventListener('click', () => {
-    showPage('dashboard');
-    document.getElementById('load-msg').textContent = 'Actualizando con los datos recién subidos...';
-    loadFromSheets();
+  if (viveroIndex.size === 0) {
+    statusEl.innerHTML = '<span class="hl-bad">No se cargó ningún OBS UNIT. Revisa el diagnóstico.</span>';
+  } else {
+    const nombres = estudiosSeleccionados.map(s => esc(s.studyName) + (s.programName ? ' (' + esc(s.programName) + ')' : '')).join(', ');
+    statusEl.innerHTML = '<span class="hl-ok">Vivero cargado:</span> ' + viveroIndex.size + ' OBS UNIT ID únicos de ' +
+      estudiosSeleccionados.length + ' ambiente' + (estudiosSeleccionados.length>1?'s':'') + ' (' + nombres + ').';
+  }
+  btn.disabled = false;
+}
+
+async function resolverGIDsFaltantes(crop) {
+  if (!pendingGidResolution.length) return;
+  const uuids = [...new Set(pendingGidResolution.map(p => p.uuid).filter(Boolean))];
+  if (!uuids.length) return;
+  const BATCH = 200;
+  const uuidToGid = {};
+  for (let i = 0; i < uuids.length; i += BATCH) {
+    const batch = uuids.slice(i, i + BATCH);
+    try {
+      const r = await nativeFetch('/bmsapi/crops/' + crop + '/germplasm/matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ germplasmUUIDs: batch })
+      }, 'debugVivero');
+      if (r.ok) {
+        const d = await r.json();
+        const lista = extractList(d);
+        lista.forEach((item, idx) => {
+          const numGid = String(item.gid || item.GID || item.id || '');
+          const uuid = item.germplasmDbId || item.germplasmUUID || item.uuid || item.uid || '';
+          if (numGid && uuid) uuidToGid[uuid] = numGid;
+          else if (numGid && batch[idx]) uuidToGid[batch[idx]] = numGid; // fallback posicional
+        });
+      } else {
+        dbg('debugVivero', 'germplasm/matches (batch ' + (i/BATCH+1) + ') falló HTTP ' + r.status);
+      }
+    } catch (e) {
+      dbg('debugVivero', 'germplasm/matches error: ' + e.message);
+    }
+  }
+  let resueltos = 0;
+  pendingGidResolution.forEach(p => {
+    if (uuidToGid[p.uuid]) { p.obj.gid = uuidToGid[p.uuid]; resueltos++; }
   });
+  dbg('debugVivero', 'GIDs resueltos: ' + resueltos + '/' + pendingGidResolution.length);
+}
+
+function indexarObsUnit(rec, envName) {
+  if (!window.__yaLoggeaado) { window.__yaLoggeaado = true; console.log('REGISTRO CRUDO COMPLETO:', JSON.stringify(rec, null, 2));}
+  const obs = rec.observationUnitDbId || rec.observationUnitName || '';
+  if (!obs) return;
+  let gid = String(rec.gid || '');
+  const desig = rec.germplasmName || '';
+
+  let entry = '';
+  try {
+    const ai = typeof rec.additionalInfo === 'string' ? JSON.parse(rec.additionalInfo) : (rec.additionalInfo || {});
+    entry = ai.ENTRY_NO || ai.entryNo || '';
+  } catch (e) {}
+
+  let plot = '';
+  try {
+    const pos = rec.observationUnitPosition || {};
+    if (Array.isArray(pos.observationLevelRelationships)) {
+      const p = pos.observationLevelRelationships.find(l => l.levelName === 'PLOT_CODE');
+      if (p) plot = p.levelCode || '';
+    }
+  } catch (e) {}
+
+  const entry_obj = { obs: String(obs), gid, desig, entry: String(entry||''), plot: String(plot||''), env: envName || '' };
+
+  // Si BMS no trajo el GID numérico directo en este registro, guardamos el
+  // germplasmDbId (UUID) para resolverlo en bloque después vía
+  // /germplasm/matches -- así no se pierde la comparación por GID vacío.
+  if (!gid && rec.germplasmDbId) {
+    pendingGidResolution.push({ obj: entry_obj, uuid: rec.germplasmDbId });
+  }
+
+  viveroIndex.set(String(obs).toUpperCase(), entry_obj);
+  const nameKey = String(rec.observationUnitName||'').toUpperCase();
+  if (nameKey && nameKey !== String(obs).toUpperCase()) viveroIndex.set(nameKey, entry_obj);
+  const puiKey = String(rec.observationUnitPUI||'').toUpperCase();
+  if (puiKey) viveroIndex.set(puiKey, entry_obj);
+}
+
+/* =========================================================================
+   ESCANEO / COMPARACION / HISTORIAL  (igual que la versión basada en Excel)
+   ========================================================================= */
+
+const $ = id => document.getElementById(id);
+const norm = v => String(v ?? '').trim();
+const key  = v => norm(v).toUpperCase();
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+let cur = { origen:null, vivero:null, origenCount:0 };
+let history = [];
+
+function fijarOrigen(hit, code) {
+  cur.origen = { code, ...hit };
+  cur.origenCount = 0;
+  $('boxOrigen').classList.add('locked');
+  $('lockTag').style.display = 'inline-block';
+  $('btnLiberar').style.display = 'inline-block';
+  $('scanOrigen').value = code;
+  $('scanOrigen').disabled = true;
+  $('subOrigen').innerHTML = 'Origen fijado &middot; GID ' + esc(hit.gid) + ' &middot; ' + esc(hit.desig);
+  $('scanVivero').disabled = false;
+  $('scanVivero').placeholder = 'Escanee OBS UNIT ID (puede escanear varios)';
+  $('subVivero').innerHTML = '<span style="color:#137333">Listo para escanear.</span>';
+  $('verdict').className = 'verdict';
+  $('verdict').innerHTML = 'Origen fijado. Escanee los OBS UNIT ID del vivero.';
+  renderPanels();
+  $('scanVivero').focus();
+}
+
+function liberarOrigen() {
+  cur.origen = null;
+  cur.vivero = null;
+  cur.origenCount = 0;
+  $('boxOrigen').classList.remove('locked');
+  $('lockTag').style.display = 'none';
+  $('btnLiberar').style.display = 'none';
+  $('scanOrigen').disabled = false;
+  $('scanOrigen').value = '';
+  $('subOrigen').textContent = '';
+  $('scanVivero').disabled = true;
+  $('scanVivero').value = '';
+  $('scanVivero').placeholder = 'Primero fije un origen';
+  $('subVivero').textContent = '';
+  $('verdict').className = 'verdict';
+  $('verdict').textContent = 'Escanee el LOT UID de origen para comenzar';
+  renderPanels();
+  $('scanOrigen').focus();
+}
+
+$('btnLiberar').addEventListener('click', liberarOrigen);
+
+$('scanOrigen').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = norm($('scanOrigen').value);
+  if (!lotIndex.size) { $('subOrigen').innerHTML = '<span class="hl-bad">Carga primero el catálogo de lotes desde BMS.</span>'; return; }
+  if (!code) return;
+  const hit = lotIndex.get(code.toUpperCase());
+  if (!hit) {
+    $('subOrigen').innerHTML = '<span class="hl-bad">No encontrado en el catálogo de lotes.</span>';
+    cur.origen = null;
+    return;
+  }
+  fijarOrigen(hit, code);
 });
 
-// ── Log de subida ────────────────────────────────────────────────────
-function wd3Log(msg, cls) {
-  const el = document.getElementById('wd3-log');
-  el.style.display = 'block';
-  const line = document.createElement('div');
-  if (cls) line.className = cls;
-  line.textContent = `[${new Date().toLocaleTimeString('es-GT')}] ${msg}`;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
-}
-</script>
+$('scanVivero').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = norm($('scanVivero').value);
+  if (!cur.origen) { $('subVivero').innerHTML = '<span class="hl-bad">Fije primero un origen.</span>'; return; }
+  if (!viveroIndex.size) { $('subVivero').innerHTML = '<span class="hl-bad">Carga primero el vivero desde BMS.</span>'; return; }
+  if (!code) return;
+  const hit = viveroIndex.get(code.toUpperCase());
+  cur.vivero = hit ? {code, ...hit} : {code, gid:'', desig:'', entry:'', plot:'', notFound:true};
+  if (hit) $('subVivero').innerHTML = 'GID ' + esc(hit.gid) + ' &middot; ' + esc(hit.desig) + (hit.env ? ' &middot; <span style="color:#888">'+esc(hit.env)+'</span>' : '');
+  else     $('subVivero').innerHTML = '<span class="hl-bad">No encontrado en el vivero cargado.</span> <span style="color:#137333">(campo listo para el siguiente escaneo)</span>';
+  renderPanels();
+  evaluate();
+  $('scanVivero').value = '';
+  $('scanVivero').focus();
+});
 
+function renderPanels() {
+  const o = cur.origen, v = cur.vivero;
+  $('kvOrigen').innerHTML =
+    '<b>LOT UID</b><span class="mono">' + (o ? esc(o.code) : '&mdash;') + '</span>' +
+    '<b>GID</b><span class="mono">' + (o && o.gid ? esc(o.gid) : '&mdash;') + '</span>' +
+    '<b>DESIGNATION</b><span>' + (o && o.desig ? esc(o.desig) : '&mdash;') + '</span>';
+  $('kvVivero').innerHTML =
+    '<b>OBS UNIT ID</b><span class="mono">' + (v ? esc(v.code) : '&mdash;') + '</span>' +
+    '<b>GID</b><span class="mono">' + (v && v.gid ? esc(v.gid) : '&mdash;') + '</span>' +
+    '<b>DESIGNATION</b><span>' + (v && v.desig ? esc(v.desig) : '&mdash;') + '</span>' +
+    '<b>ENTRY</b><span>' + (v && v.entry ? esc(v.entry) : '&mdash;') + '</span>' +
+    '<b>PLOT_CODE</b><span class="mono">' + (v && v.plot ? esc(v.plot) : '&mdash;') + '</span>';
+}
+
+function evaluate() {
+  const o = cur.origen, v = cur.vivero;
+  if (!o || !v) return;
+  const ve = $('verdict');
+  if (o.notFound || v.notFound) {
+    cur.origenCount = (cur.origenCount || 0) + 1;
+    ve.className = 'verdict false';
+    ve.innerHTML = 'FALSO <small>El OBS UNIT ID no se encontró en el vivero cargado &middot; OBS verificados con este origen: ' + cur.origenCount + '</small>';
+    pushHistory('FALSO');
+    return;
+  }
+  cur.origenCount = (cur.origenCount || 0) + 1;
+  const gidOk   = key(o.gid)   === key(v.gid)   && o.gid   !== '';
+  const desigOk = key(o.desig) === key(v.desig) && o.desig !== '';
+  const ok = gidOk && desigOk;
+  const contador = ' &middot; OBS verificados con este origen: ' + cur.origenCount;
+  ve.className = 'verdict ' + (ok ? 'true' : 'false');
+  if (ok) {
+    ve.innerHTML = 'VERDADERO <small>GID y DESIGNATION coinciden &middot; ENTRY ' +
+                   esc(v.entry||'-') + ' &middot; PLOT ' + esc(v.plot||'-') + contador + '</small>';
+  } else {
+    const dif = [];
+    if (!gidOk)   dif.push('GID');
+    if (!desigOk) dif.push('DESIGNATION');
+    ve.innerHTML = 'FALSO <small>No coincide: ' + dif.join(' y ') + contador + '</small>';
+  }
+  pushHistory(ok ? 'VERDADERO' : 'FALSO');
+}
+
+function pushHistory(result) {
+  const o = cur.origen, v = cur.vivero;
+  const rec = {
+    hora: new Date().toLocaleTimeString(),
+    lot: o.code, obs: v.code,
+    gidO: o.gid, gidV: v.gid,
+    desO: o.desig, desV: v.desig,
+    entry: v.entry, plot: v.plot,
+    result
+  };
+  history.unshift(rec);
+  const tb = $('histTable').querySelector('tbody');
+  const tr = document.createElement('tr');
+  const cls = result === 'VERDADERO' ? 'badge-true' : 'badge-false';
+  const gidCls = key(o.gid)===key(v.gid) && o.gid!=='' ? '' : 'hl-bad';
+  const desCls = key(o.desig)===key(v.desig) && o.desig!=='' ? '' : 'hl-bad';
+  tr.innerHTML =
+    '<td>' + rec.hora + '</td>' +
+    '<td class="mono">' + esc(rec.lot) + '</td>' +
+    '<td class="mono">' + esc(rec.obs) + '</td>' +
+    '<td class="mono ' + gidCls + '">' + esc(rec.gidO||'-') + '</td>' +
+    '<td class="mono ' + gidCls + '">' + esc(rec.gidV||'-') + '</td>' +
+    '<td class="' + desCls + '">' + esc(rec.desO||'-') + '</td>' +
+    '<td class="' + desCls + '">' + esc(rec.desV||'-') + '</td>' +
+    '<td>' + esc(rec.entry||'-') + '</td>' +
+    '<td class="mono">' + esc(rec.plot||'-') + '</td>' +
+    '<td><span class="' + cls + '">' + result + '</span></td>';
+  tb.prepend(tr);
+  updateCounts();
+}
+
+function updateCounts() {
+  const ok = history.filter(h => h.result==='VERDADERO').length;
+  const bad = history.length - ok;
+  $('counts').innerHTML = 'OK: ' + ok + ' &nbsp;|&nbsp; Fallos: ' + bad + ' &nbsp;|&nbsp; Total: ' + history.length;
+}
+
+$('btnClear').addEventListener('click', () => {
+  history = [];
+  $('histTable').querySelector('tbody').innerHTML = '';
+  updateCounts();
+});
+
+$('btnExport').addEventListener('click', () => {
+  if (!history.length) { alert('No hay historial para exportar.'); return; }
+  const headers = ['Hora','LOT UID origen','OBS UNIT ID','GID origen','GID vivero','DESIG origen','DESIG vivero','ENTRY','PLOT','Resultado'];
+  const rows = [headers.join(',')];
+  history.forEach(h => {
+    const vals = [h.hora, h.lot, h.obs, h.gidO, h.gidV, h.desO, h.desV, h.entry, h.plot, h.result];
+    rows.push(vals.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(','));
+  });
+  const csv = '\uFEFF' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'control_calidad_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+});
+
+/* =========================================================================
+   PESTAÑAS
+   ========================================================================= */
+function showTab(tab) {
+  $('tabEscaneo').style.display = (tab === 'escaneo') ? '' : 'none';
+  $('tabValidacion').style.display = (tab === 'validacion') ? '' : 'none';
+  $('tabGenbank').style.display = (tab === 'genbank') ? '' : 'none';
+  $('tabBtnEscaneo').classList.toggle('active', tab === 'escaneo');
+  $('tabBtnValidacion').classList.toggle('active', tab === 'validacion');
+  $('tabBtnGenbank').classList.toggle('active', tab === 'genbank');
+  $('tabReporte').style.display = (tab === 'reporte') ? '' : 'none';
+  $('tabBtnReporte').classList.toggle('active', tab === 'reporte');
+}
+
+
+let genbankActual = null;
+let historialGenbank = [];
+let html5QrCodeGenbank = null;
+let streamFotoGenbank = null;
+const URL_RESPALDO_DRIVE_GENBANK = 'https://script.google.com/macros/s/AKfycbyWgli-1Xm1fW7127lb0klTX6IYVjcDu4olzo9Xenbk46z6YW5G1XrXRVWdxf3l9r321g/exec';
+
+$('scanGenbank').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const code = norm($('scanGenbank').value);
+  if (!code) return;
+  procesarEscaneoGenbank(code);
+  $('scanGenbank').value = '';
+  $('scanGenbank').focus();
+});
+
+function procesarEscaneoGenbank(code) {
+  if (!lotIndex.size) {
+    $('subGenbank').innerHTML = '<span class="hl-bad">Carga Primero el catálogo de lotes desde BMS.</span>';
+      return;
+  }
+  const hit = lotIndex.get(code.toUpperCase());
+  if (!hit) {
+    $('subGenbank').innerHTML = '<span class="hl-bad">No encontrado en el inventario (catálogo de lotes)</span>';
+    genbankActual = null;
+    return;
+  }
+
+  const inv = gidIndex.get(hit.gid);
+  const disponible = inv ? disponibilidadTexto(inv) : '';
+
+  genbankActual = { obs: code, gid: hit.gid, desig: hit.desig, disponible, foto: '' };
+  $('subGenbank').innerHTML  = '<span class="hl-ok">Encontrado en inventario &mdash; confirma contra el sticker</span>';
+  $('kvGenbank').innerHTML = 
+    '<b>OBS UNIT ID</b><span class="mono">' + esc(code) + '</span>' +
+    '<b>GID</b><span class="mono">' + esc(hit.gid || '-') + '</span>' +
+    '<b>DESIGNATION</b><span>' + esc(hit.desig || '-') +  '</span>' +
+    '<b>DISPONIBLE</b><span>' + esc(disponible || '-') + '</span>';
+  $('fotoGenbankWrap').style.display = 'block';
+  agregarHistorialGenbank();
+}
+
+function agregarHistorialGenbank() {
+  if (!genbankActual) return;
+  historialGenbank.unshift({ hora: new Date().toLocaleTimeString(), ...genbankActual });
+  renderHistorialGenbank();
+}
+
+function renderHistorialGenbank() {
+  const tb = document.querySelector('#histGenbankTable tbody');
+  tb.innerHTML = '';
+  historialGenbank.forEach(h => {
+    const tr = document.createElement('tr');
+    const fotoCell = h.foto ? '<a href="' + h.foto + '" download="genbank_' + esc(h.obs) + '.jpg">ver</a>' : '&mdash;';
+    tr.innerHTML =
+      '<td>' + esc(h.hora) + '</td>' +
+      '<td class="mono">' + esc(h.obs) + '</td>' +
+      '<td class="mono">' + esc(h.gid|| '-') + '</td>' +
+      '<td>' + esc(h.desig || '-') + '</td>' +
+      '<td>' + esc(h.disponible || '-') + '</td>' +
+      '<td>' + fotoCell + '</td>';
+    tb.appendChild(tr);
+  });
+}
+
+function limpiarHistorialGenbank() {
+  historialGenbank = [];
+  renderHistorialGenbank();
+}
+
+async function iniciarEscaneoGenbank() {
+  if (!lotIndex.size) {
+    $('subGenbank').innerHTML = '<span class="hl-bad">Carga primero el catálogo de lotes.</span>';
+    return;
+  }
+  $('btnIniciarCamaraGenbank').style.display = 'none';
+  $('btnDetenerCamaraGenbank').style.display = 'inline-block';
+  $('subGenbank').innerHTML = 'Apunta la cámara al código del sticker...';
+
+  html5QrCodeGenbank = new Html5Qrcode('readerGenbank');
+  try {
+    await html5QrCodeGenbank.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 260, height: 160 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93, Html5QrcodeSupportedFormats.QR_CODE
+        ]
+      },
+      (decodedText) => {
+        procesarEscaneoGenbank(String(decodedText).trim());
+        detenerEscaneoGenbank(false);
+      },
+      () => {}
+    );
+  } catch (e) {
+    $('subGenbank').innerHTML = '<span class="hl-bad">No se pudo iniciar la cámara: ' + esc((e && (e.message || e.name)) || 'error desconocido') + '</span>';
+    $('btnIniciarCamaraGenbank').style.display = 'inline-block';
+    $('btnDetenerCamaraGenbank').style.display = 'none';
+  }
+}
+
+async function detenerEscaneoGenbank(manual) {
+  if (html5QrCodeGenbank) {
+    try { await html5QrCodeGenbank.stop(); html5QrCodeGenbank.clear(); } catch (e) {}
+    html5QrCodeGenbank = null;
+  }
+  $('btnIniciarCamaraGenbank').style.display = 'inline-block';
+  $('btnDetenerCamaraGenbank').style.display = 'none';
+}
+
+async function tomarFotoGenbank() {
+  $('videoFotoGenbankWrap').style.display = 'block';
+  try {
+    streamFotoGenbank = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    $('videoFotoGenbank').srcObject = streamFotoGenbank;
+  } catch (e) {
+    alert('No se pudo abrir la cámara para la foto: ' + ((e && (e.message || e.name)) || 'error desconocido'));
+  }
+}
+
+function capturarFotoGenbank() {
+  const video = $('videoFotoGenbank');
+  const canvas = $('canvasFotoGenbank');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+  if (streamFotoGenbank) { streamFotoGenbank.getTracks().forEach(t => t.stop()); streamFotoGenbank = null; }
+  $('videoFotoGenbankWrap').style.display = 'none';
+  $('fotoGenbankWrap').style.display = 'none';
+
+  if (historialGenbank.length) {
+    historialGenbank[0].foto = dataUrl;
+    renderHistorialGenbank();
+    respaldaFotoGenbankADrive(dataUrl, historialGenbank[0]);
+  }
+}
+
+async function respaldaFotoGenbankADrive(dataUrl,registro){
+  if (!URL_RESPALDO_DRIVE_GENBANK )return;
+  const nombreArchivo  = 'genbank_' + (registro.obs || 'sin_codigo') + '_ ' + Date.now() + '.jpg';
+  try {
+    await fetch(URL_RESPALDO_DRIVE_GENBANK, {
+      method: 'POST',
+      body: JSON.stringify({ imagen: dataUrl, nombreArchivo: nombreArchivoc })   // <-- aquí
+    });
+  } catch (e) {
+    console.warn('No se pudo respoladar la foto en Drive:', e);
+  }
+}
+
+/* =========================================================================
+   VALIDACIÓN DE LISTADO CRUDO
+   Usa el mismo gidIndex / uniqueGermplasmList que ya llenó cargarLotesBMS()
+   arriba -- no vuelve a llamar a BMS, solo compara localmente.
+   ========================================================================= */
+let workbook = null;
+let sheetRows = [];   // filas crudas de la hoja seleccionada (array de arrays)
+let headers = [];
+
+const HEADER_ALIASES = {
+  gid: ['gid'],
+  name: ['preferred name', 'preferred_name', 'designation', 'nombre', 'name'],
+  orden: ['orden', 'no.', 'no', 'item', '#'],
+  rol: ['hembra/macho', 'hembra', 'macho', 'sexo', 'role', 'parent type', 'tipo'],
+  peso: ['peso', 'weigth', 'peso (g)', 'gramos', 'g']
+};
+
+function detectCol(hdrs, aliases) {
+  const normH = hdrs.map(h => normLoose(h));
+  for (const alias of aliases) {
+    const idx = normH.findIndex(h => h === normLoose(alias));
+    if (idx >= 0) return idx;
+  }
+  for (const alias of aliases) {
+    const idx = normH.findIndex(h => h.includes(normLoose(alias)));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function fillSelect(selectId, hdrs, guessIdx, optional) {
+  const sel = $(selectId);
+  sel.innerHTML = '';
+  if (optional) {
+    const opt = document.createElement('option');
+    opt.value = '-1'; opt.textContent = '(ninguna)';
+    sel.appendChild(opt);
+  }
+  hdrs.forEach((h, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = h || '(columna ' + (i+1) + ')';
+    sel.appendChild(opt);
+  });
+  sel.value = String(guessIdx >= 0 ? guessIdx : (optional ? -1 : 0));
+}
+
+function loadSheet(idx) {
+  const sheetName = workbook.SheetNames[idx];
+  const ws = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+  headers = (rows[0] || []).map(h => String(h || '').trim());
+  sheetRows = rows.slice(1).filter(r => r.some(c => String(c).trim() !== ''));
+
+  $('mapGrid').style.display = 'grid';
+  fillSelect('colGid', headers, detectCol(headers, HEADER_ALIASES.gid), false);
+  fillSelect('colName', headers, detectCol(headers, HEADER_ALIASES.name), false);
+  fillSelect('colOrden', headers, detectCol(headers, HEADER_ALIASES.orden), true);
+  fillSelect('colRol', headers, detectCol(headers, HEADER_ALIASES.rol), true);
+  fillSelect('colPeso', headers, detectCol(headers, HEADER_ALIASES.peso), true);
+
+  $('fileStatus').textContent = sheetRows.length + ' filas detectadas en la hoja "' + sheetName + '". Revisa el mapeo de columnas y presiona Validar.';
+  $('btnProcesar').disabled = (gidIndex.size === 0 || sheetRows.length === 0);
+}
+
+$('fileInput').addEventListener('change', (ev) => {
+  const file = ev.target.files[0];
+  if (!file) return;
+  $('fileStatus').textContent = 'Leyendo archivo...';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      workbook = XLSX.read(e.target.result, { type: 'array' });
+      const picker = $('sheetPicker');
+      picker.innerHTML = '';
+      workbook.SheetNames.forEach((name, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i); opt.textContent = name;
+        picker.appendChild(opt);
+      });
+      $('sheetPickerWrap').style.display = workbook.SheetNames.length > 1 ? 'block' : 'none';
+      loadSheet(0);
+    } catch (err) {
+      $('fileStatus').textContent = 'Error leyendo el archivo: ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+$('sheetPicker').addEventListener('change', (ev) => loadSheet(parseInt(ev.target.value, 10)));
+
+function levenshtein(a, b) {
+  const al = a.length, bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+  let prev = new Array(bl + 1), curr = new Array(bl + 1);
+  for (let j = 0; j <= bl; j++) prev[j] = j;
+  for (let i = 1; i <= al; i++) {
+    curr[0] = i;
+    const ca = a.charCodeAt(i - 1);
+    for (let j = 1; j <= bl; j++) {
+      const cost = (ca === b.charCodeAt(j - 1)) ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[bl];
+}
+
+function buscarPorNombre(nameTight) {
+  const candidatos = [];
+  for (const g of uniqueGermplasmList) {
+    if (Math.abs(g.desigTight.length - nameTight.length) > 4) continue;
+    const dist = levenshtein(nameTight, g.desigTight);
+    if (dist <= 4) candidatos.push({ gid: g.gid, desig: g.desigOriginal, dist });
+  }
+  candidatos.sort((a, b) => a.dist - b.dist);
+  return candidatos.slice(0, 3);
+}
+
+function disponibilidadTexto(entry) {
+  if (!entry) return '';
+  const cant = Math.round(entry.totalAvailable * 100) / 100;
+  if (cant > 0) return cant + ' (en ' + entry.lotCount + (entry.lotCount === 1 ? ' lote' : ' lotes') + ')';
+  if (entry.anyOpen) return '0 (lote abierto, sin saldo)';
+  return '0 (sin existencia / cerrado)';
+}
+
+// Si el nombre coincide perfecto (estado 'ok') pero el GID no tiene semilla
+// disponible, esto igual merece una advertencia visible -- no es un error
+// de datos, pero sí algo que hay que revisar antes de ir al campo.
+function conAlertaStock(estado, entry, detalle) {
+  if (estado === 'ok' && entry && entry.totalAvailable <= 0) {
+    return { estado: 'ok_sin_stock', detalle: detalle + ' · SIN EXISTENCIA DISPONIBLE' };
+  }
+  return { estado, detalle };
+}
+
+/* =========================================================================
+   NOMBRES ALTERNOS POR GID (CRSNM / LNAME / etc.)
+   Endpoint confirmado: GET /crops/{crop}/germplasm/{gid}?programUUID=X
+   Solo se consulta para los GID que realmente aparecen en el archivo subido
+   (no para los ~50,000 del catálogo completo -- sería lento e innecesario).
+   Se prueba primero sin programUUID; si falla, se reintenta con cada
+   programUUID detectado (ver cargarProgramasBMS), igual que el resto de
+   la herramienta.
+   ========================================================================= */
+let germplasmNamesCache = new Map(); // gid (string) -> {CRSNM:'...', LNAME:'...', ...} o null si no se pudo obtener
+
+function extraerNombresPorTipo(d) {
+  const out = {};
+  if (d && Array.isArray(d.names)) {
+    d.names.forEach(n => {
+      const code = String(n.nameTypeCode || '').toUpperCase();
+      if (code && code !== 'PED' && n.name && !out[code]) out[code] = n.name;
+    });
+  }
+  return out;
+}
+
+async function obtenerNombresGermplasma(gid) {
+  if (germplasmNamesCache.has(gid)) return germplasmNamesCache.get(gid);
+  const { crop } = cfg();
+  const programUUIDs = [null].concat(programasDisponibles.map(p => p.programUUID).filter(Boolean));
+  let nombres = {};
+  for (const puuid of programUUIDs) {
+    const qs = puuid ? ('?programUUID=' + encodeURIComponent(puuid)) : '';
+    try {
+      const r = await nativeFetch('/bmsapi/crops/' + crop + '/germplasm/' + encodeURIComponent(gid), { qs }, 'debugValidacion');
+      if (r.ok) {
+        const d = await r.json();
+        nombres = extraerNombresPorTipo(d);
+        if (Object.keys(nombres).length) break;
+      }
+    } catch (e) {
+      dbg('debugValidacion', 'GID ' + gid + ' (programUUID=' + puuid + ') -> error: ' + e.message);
+    }
+  }
+  germplasmNamesCache.set(gid, nombres);
+  return nombres;
+}
+
+function evaluarFila(gidRaw, nameRaw) {
+  const gid = String(gidRaw == null ? '' : gidRaw).trim().replace(/\.0$/, '');
+  const name = String(nameRaw == null ? '' : nameRaw).trim();
+
+  if (!gid && !name) {
+    return { estado: 'fila_invalida', gidBMS: '', desigBMS: '', disponible: '', detalle: 'Fila sin GID ni Nombre' };
+  }
+
+  if (gid) {
+    const entry = gidIndex.get(gid);
+    if (!entry) {
+      return { estado: 'gid_no_encontrado', gidBMS: '', desigBMS: '', disponible: '', detalle: 'GID ' + gid + ' no existe en el catálogo de lotes cargado' };
+    }
+    if (!name) {
+      const av = conAlertaStock('ok', entry, 'GID encontrado (sin nombre en el archivo para comparar)');
+      return { estado: av.estado, gidBMS: gid, desigBMS: entry.desigOriginal, disponible: disponibilidadTexto(entry), detalle: av.detalle };
+    }
+
+    // Candidatos de nombre para este GID: el de lots/search (normalmente
+    // LNAME) + los que trajo /germplasm/{gid} (CRSNM, LNAME, etc.),
+    // deduplicados por valor.
+    const extra = germplasmNamesCache.get(gid) || {};
+    const candidatos = [{ tipo: 'DESIGNATION', valor: entry.desigOriginal }];
+    Object.keys(extra).forEach(tipo => candidatos.push({ tipo, valor: extra[tipo] }));
+    const vistos = new Set();
+    const candidatosUnicos = candidatos.filter(c => {
+      const t = normTight(c.valor);
+      if (!t || vistos.has(t)) return false;
+      vistos.add(t);
+      return true;
+    });
+
+    const nTight = normTight(name);
+    const exacto = candidatosUnicos.find(c => normTight(c.valor) === nTight);
+    if (exacto) {
+      const av = conAlertaStock('ok', entry, 'Coincidencia exacta con ' + exacto.tipo + ' ("' + exacto.valor + '")');
+      return { estado: av.estado, gidBMS: gid, desigBMS: exacto.valor, disponible: disponibilidadTexto(entry), detalle: av.detalle };
+    }
+
+    let mejor = null;
+    candidatosUnicos.forEach(c => {
+      const d = levenshtein(nTight, normTight(c.valor));
+      if (!mejor || d < mejor.dist) mejor = { tipo: c.tipo, valor: c.valor, dist: d };
+    });
+    if (mejor && mejor.dist <= 2) {
+      return { estado: 'ok_typo', gidBMS: gid, desigBMS: mejor.valor, disponible: disponibilidadTexto(entry), detalle: 'Posible error de tipeo contra ' + mejor.tipo + ' (distancia ' + mejor.dist + '): archivo dice "' + name + '", BMS dice "' + mejor.valor + '"' };
+    }
+    const listaNombres = candidatosUnicos.map(c => c.tipo + '="' + c.valor + '"').join(', ');
+    return { estado: 'nombre_no_coincide', gidBMS: gid, desigBMS: entry.desigOriginal, disponible: disponibilidadTexto(entry), detalle: 'El nombre no coincide con ninguno de los nombres en BMS (' + listaNombres + '): archivo dice "' + name + '"' };
+  }
+
+  const nTight = normTight(name);
+  const cands = buscarPorNombre(nTight);
+  if (!cands.length) {
+    return { estado: 'nombre_no_encontrado', gidBMS: '', desigBMS: '', disponible: '', detalle: 'Sin GID en el archivo; no se halló ninguna coincidencia cercana por nombre en el catálogo' };
+  }
+  if (cands[0].dist === 0) {
+    return { estado: 'revisar_sin_gid', gidBMS: cands[0].gid, desigBMS: cands[0].desig, disponible: disponibilidadTexto(gidIndex.get(cands[0].gid)), detalle: 'Sin GID en el archivo, pero el nombre coincide exacto con GID ' + cands[0].gid + ' en BMS' };
+  }
+  const lista = cands.map(c => 'GID ' + c.gid + ' ("' + c.desig + '", distancia ' + c.dist + ')').join('; ');
+  return { estado: 'revisar_sin_gid_aprox', gidBMS: cands[0].gid, desigBMS: cands[0].desig, disponible: disponibilidadTexto(gidIndex.get(cands[0].gid)), detalle: 'Sin GID en el archivo; candidatos cercanos: ' + lista };
+}
+
+const ESTADO_INFO = {
+  ok:                     { tag: 'ok',   texto: 'OK' },
+  ok_sin_stock:           { tag: 'warn', texto: 'OK, sin existencia' },
+  ok_typo:                { tag: 'warn', texto: 'Posible tipeo' },
+  nombre_no_coincide:     { tag: 'bad',  texto: 'Nombre no coincide' },
+  gid_no_encontrado:      { tag: 'bad',  texto: 'GID no encontrado' },
+  revisar_sin_gid:        { tag: 'warn', texto: 'Falta GID (match exacto)' },
+  revisar_sin_gid_aprox:  { tag: 'warn', texto: 'Falta GID (revisar candidatos)' },
+  nombre_no_encontrado:   { tag: 'bad',  texto: 'No encontrado' },
+  fila_invalida:          { tag: 'gray', texto: 'Fila inválida' }
+};
+
+let ultimosResultados = [];
+
+async function procesarListado() {
+  const idxGid = parseInt($('colGid').value, 10);
+  const idxName = parseInt($('colName').value, 10);
+  const idxOrden = parseInt($('colOrden').value, 10);
+  const idxRol = parseInt($('colRol').value, 10);
+  const idxPeso = parseInt($('colPeso').value,10);
+
+  $('btnProcesar').disabled = true;
+
+  // Paso 1: consultar en BMS los nombres alternos (CRSNM/LNAME) de cada GID
+  // único del archivo -- uno por uno, con caché, solo para las filas que
+  // sí traen GID.
+  const gidsUnicos = [...new Set(sheetRows.map(row => {
+    const raw = idxGid >= 0 ? row[idxGid] : '';
+    return String(raw == null ? '' : raw).trim().replace(/\.0$/, '');
+  }).filter(Boolean))];
+
+  let hechos = 0;
+  for (const gid of gidsUnicos) {
+    $('procesarStatus').innerHTML = '<span class="spinner-inline"></span> Consultando nombres alternos en BMS... ' + hechos + '/' + gidsUnicos.length;
+    await obtenerNombresGermplasma(gid);
+    hechos++;
+  }
+
+  // Paso 2: evaluar cada fila ya con los nombres alternos en caché
+  ultimosResultados = sheetRows.map((row, i) => {
+    const gidRaw = idxGid >= 0 ? row[idxGid] : '';
+    const nameRaw = idxName >= 0 ? row[idxName] : '';
+    const orden = idxOrden >= 0 ? row[idxOrden] : (i + 1);
+    const rol = idxRol >= 0 ? row[idxRol] : '';
+    const pesoArchivo = idxPeso >= 0 ? row[idxPeso] : '';
+    const res = evaluarFila(gidRaw, nameRaw);
+    return Object.assign({ orden, rol, pesoArchivo, gidArchivo: gidRaw, nombreArchivo: nameRaw }, res);
+  });
+
+  renderResultadosValidacion();
+  $('btnProcesar').disabled = false;
+}
+$('btnProcesar').addEventListener('click', procesarListado);
+
+function renderResultadosValidacion() {
+  const tbody = document.querySelector('#resultTable tbody');
+  tbody.innerHTML = '';
+  let cOk = 0, cWarn = 0, cBad = 0;
+
+  ultimosResultados.forEach(r => {
+    const info = ESTADO_INFO[r.estado];
+    let rowClass = 'row-gray';
+    if (info.tag === 'ok') { rowClass = 'row-ok'; cOk++; }
+    else if (info.tag === 'warn') { rowClass = 'row-warn'; cWarn++; }
+    else if (info.tag === 'bad') { rowClass = 'row-bad'; cBad++; }
+
+    const tr = document.createElement('tr');
+    tr.className = rowClass;
+    tr.innerHTML =
+      '<td>' + esc(r.orden) + '</td>' +
+      '<td>' + esc(r.rol) + '</td>' +
+      '<td>' + esc(r.gidArchivo) + '</td>' +
+      '<td>' + esc(r.nombreArchivo) + '</td>' +
+      '<td>' + esc(r.gidBMS) + '</td>' +
+      '<td>' + esc(r.desigBMS) + '</td>' +
+      '<td>' + esc(r.disponible) + '</td>' +
+      '<td><span class="tag ' + info.tag + '">' + info.texto + '</span></td>' +
+      '<td>' + esc(r.detalle) + '</td>';
+    tbody.appendChild(tr);
+  });
+
+  $('summary').style.display = 'flex';
+  $('sTotal').textContent = ultimosResultados.length;
+  $('sOk').textContent = cOk;
+  $('sWarn').textContent = cWarn;
+  $('sBad').textContent = cBad;
+  $('procesarStatus').textContent = 'Validación completa.';
+  $('btnExportValidacion').disabled = ultimosResultados.length === 0;
+}
+
+$('btnExportValidacion').addEventListener('click', () => {
+  const cols = ['Orden','Rol','GID archivo','Nombre archivo','GID BMS','Designation BMS','Disponible','Estado','Detalle'];
+  const lines = [cols.join(',')];
+  ultimosResultados.forEach(r => {
+    const info = ESTADO_INFO[r.estado];
+    const vals = [r.orden, r.rol, r.gidArchivo, r.nombreArchivo, r.gidBMS, r.desigBMS, r.disponible, info.texto, r.detalle]
+      .map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"');
+    lines.push(vals.join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'validacion_listado_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+});
+
+let reportRows = [];
+
+function generarReporteEKGenbank() {
+  if (!ultimosResultados.length) {
+    $('statusReporte').innerHTML = '<span class="hl-bad">Primero valida un listado en la pestaña "Validar Listado Crudo".</span>';
+    return;
+  }
+
+  const escaneosPorGid = new Map();
+  historialGenbank.forEach(h => {
+    if (!h.gid) return;
+    let e = escaneosPorGid.get(h.gid);
+    if (!e) { e = { veces: 0, ultimaHora: '', fotos: [] }; escaneosPorGid.set(h.gid, e); }
+    e.veces++;
+    if (!e.ultimaHora) e.ultimaHora = h.hora;
+    if (h.foto) e.fotos.push(h.foto);
+  });
+
+  reportRows = ultimosResultados
+    .filter(r => r.gidBMS)
+    .map(r => {
+      const e = escaneosPorGid.get(r.gidBMS);
+      return {
+        orden: r.orden,
+        gid: r.gidBMS,
+        nombre: r.desigBMS,
+        disponible: r.disponible,
+        pesoArchivo: r.pesoArchivo || '',
+        estadoValidacion: ESTADO_INFO[r.estado].texto,
+        veces: e ? e.veces : 0,
+        ultimaHora: e ? e.ultimaHora : '',
+        fotos: e ? e.fotos : []
+      };
+    });
+
+  $('statusReporte').textContent = '';
+  renderReporte();
+}
+
+function renderReporte() {
+  const tbody = document.querySelector('#reporteTable tbody');
+  tbody.innerHTML = '';
+  let escaneados = 0;
+  reportRows.forEach(r => {
+    const ok = r.veces > 0;
+    if (ok) escaneados++;
+    const tr = document.createElement('tr');
+    tr.className = ok ? 'row-ok' : 'row-bad';
+    const fotoCell = r.fotos.length
+      ? r.fotos.map((f, i) => '<a href="' + f + '" download="genbank_' + esc(r.gid) + '_' + i + '.jpg">ver' + (r.fotos.length > 1 ? ' ' + (i + 1) : '') + '</a>').join(' &middot; ')
+      : '&mdash;';
+
+    tr.innerHTML =
+      '<td>' + esc(r.orden) + '</td>' +
+      '<td class="mono">' + esc(r.gid) + '</td>' +
+      '<td>' + esc(r.nombre) + '</td>' +
+      '<td>' + esc(r.disponible) + '</td>' +
+      '<td>' + esc(r.pesoArchivo || '-') + '</td>' 
+      '<td>' + esc(r.estadoValidacion) + '</td>' +
+      '<td>' + (ok ? '<span class="hl-ok">Sí (' + r.veces + ')</span>' : '<span class="hl-bad">No</span>') + '</td>' +
+      '<td>' + esc(r.ultimaHora || '-') + '</td>' +
+      '<td>' + fotoCell + '</td>';
+    tbody.appendChild(tr);
+  });
+  $('summaryReporte').style.display = 'flex';
+  $('sTotalReporte').textContent = reportRows.length;
+  $('sEscaneadoReporte').textContent = escaneados;
+  $('sPendienteReporte').textContent = reportRows.length - escaneados;
+  $('btnExportReporte').disabled = reportRows.length === 0;
+}
+
+function exportarReporte() {
+  if (!reportRows.length) { alert('No hay reporte generado.'); return; }
+  const headers = ['Orden', 'GID', 'Nombre BMS', 'Disponible', 'Estado validación EK', 'Escaneado en Genbank', 'Veces', 'Última hora'];
+  const rows = [headers.join(',')];
+  reportRows.forEach(r => {
+    const vals = [r.orden, r.gid, r.nombre, r.disponible, r.pesoArchivo, r.estadoValidacion, r.veces > 0 ? 'Sí' : 'No', r.veces, r.ultimaHora];
+    rows.push(vals.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(','));
+  });
+  const csv = '\uFEFF' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'reporte_ek_genbank_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+</script>
 </body>
 </html>
