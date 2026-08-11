@@ -918,7 +918,7 @@ if(minP && maxP){
     let fromTS = isoToTS(DETAIL_FROM);
     let toTS   = isoToTS(DETAIL_TO);
     if(fromTS===null) fromTS = -Infinity;
-    if(toTS===null) toTS = 'Infinty';
+    if(toTS===null) toTS = Infinity;
     if(fromTS > toTS){ const t=fromTS; fromTS=toTS; toTS=t; }
     return rows.filter(r=>{
       const p = parseDiaParts(r['Dia']);
