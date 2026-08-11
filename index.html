@@ -317,51 +317,46 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div></div>
 
     <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia total diaria</span></div>
+      <div class="panel"><div class="ph"><span class="pt">&#127783; Precipitaci&oacute;n diaria (mm)</span></div>
         <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
-      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
-        <div style="position:relative;height:220px"><canvas id="cW"></canvas></div></div>
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#127783; Precipitaci&oacute;n acumulada (mm)</span>
+          <span class ="ks" id="rmonth-total" style="font-size:11px;color:var(--sub)"></span>
+        </div>
+        <div style="position:relative;height:220px"><canvas id="cRMonth"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panels r2">
+      <div class="panel"><div class="ph"<span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
+        <div style="position:relative;height:220px"><canvas id =cW></canvas></div></div>
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#129517; Rosa de los vientos</span>
+          <span class="kes" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
+        </div>
+        <div style="position:relative;height:190px;" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
+        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7 ">No hay datos de viento en este per&iacute;odo .<br>Agreg&aacute; la columna.</p>
+        <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
+        a tu hoja "Datos" para activar este panel
+        </p>
+      </div>
     </div>
 
     <div class="panels r1"><div class="panel">
       <div class="ph">
-        <span class="pt">&#127783; Lluvia total por mes &mdash; comparaci&oacute;n</span>
-        <span class="ks" id="rmonth-total" style="font-size:11px;color:var(--sub)"></span>
-      </div>
-      <div style="position:relative;height:200px"><canvas id="cRMonth"></canvas></div>
-    </div></div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
-      <div style="position:relative;height:200px"><canvas id="cH"></canvas></div>
-    </div></div>
-
-    <div class="panels r2">
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#129517; Rosa de los vientos</span>
-          <span class="ks" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
+        <span class="pt">&#128168; Punto de roc&iacute;o y riesgo de pat&oacute;genos</span>
+        <div class="leg" id="dew-leg">
+          <span class="lu"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
+          <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
         </div>
-        <div style="position:relative;height:190px" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
-        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7">
-          No hay datos de dirección de viento en este período.<br>Agregá la columna
-          <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
-          a tu hoja "Datos" para activar este panel.
-        </p>
       </div>
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#128167; Punto de roc&iacute;o &amp; riesgo de hongos</span>
-          <div class="leg" id="dew-leg">
-            <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
-            <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
-          </div>
-        </div>
-        <div style="position:relative;height:140px"><canvas id="cDew"></canvas></div>
-        <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
-      </div>
+      <div style="position:relative;height:210px"><canvas id="cDew"></canvas></div>
+      <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-weight:600;line-height:1.5"></div>
+    </div></div>
+    
     </div>
-
     <div class="panels r2">
       <div class="panel">
         <div class="ph"><span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span></div>
@@ -424,7 +419,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="panels r2">
       <div class="panel">
         <div class="ph">
-          <span class="pt">&#127777; Temperatura diaria &mdash; comparaci&oacute;n</span>
+          <span class="pt">&#127777; Temperatura diaria promedio &mdash; comparaci&oacute;n</span>
           <div class="leg">
             <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
             <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
