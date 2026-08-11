@@ -272,7 +272,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   </div>
 
   <!-- KPIs -->
-  <div class="kpi-grid">
+  <div class="kpi-grid" id="kpi-grid">
     <div class="kpi"><div class="kl">Lluvia total</div>
       <div class="kv" id="kv1" style="color:var(--steel)">—</div>
       <div class="ks" id="ks1">—</div></div>
@@ -310,18 +310,39 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div style="position:relative;height:210px"><canvas id="cS"></canvas></div>
     </div></div>
 
-    <div class="panels r1"><div class="panel">
-      <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
-      <div style="position:relative;height:200px"><canvas id="cT"></canvas></div>
-      <p id="tdaily-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p>
+    <div class="panels r1"><div class="panel" style="padding-bottom:12px">
+      <div class="ph">
+        <span class="pt">&#127777;&#128167; Temperatura y humedad diaria &mdash; detalle</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
+          <span>Filtro independiente:</span>
+          <span>Desde</span>
+          <input type="date" id="detail-filter-from" style="padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:11px;font-family:inherit;background:#fff;color:var(--txt)">
+          <span>Hasta</span>
+          <input type="date" id="detail-filter-to" style="padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:11px;font-family:inherit;background:#fff;color:var(--txt)">
+          <button class="filter-clear" id="detail-filter-clear" style="display:none">Quitar</button>
+        </div>
+      </div>
+      <p style="font-size:10px;color:var(--sub)">Este filtro afecta solo los dos gr&aacute;ficos de abajo (temperatura y humedad diaria), independientemente del rango que est&eacute;s usando en el resto del dashboard.</p>
     </div></div>
+
+    <div class="panels r2">
+      <div class="panel">
+        <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
+        <div style="position:relative;height:200px"><canvas id="cT"></canvas></div>
+        <p id="tdaily-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">&#128167; Humedad relativa diaria</span></div>
+        <div style="position:relative;height:200px"><canvas id="cH"></canvas></div>
+      </div>
+    </div>
 
     <div class="panels r2">
       <div class="panel"><div class="ph"><span class="pt">&#127783; Precipitaci&oacute;n diaria (mm)</span></div>
         <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
       <div class="panel">
         <div class="ph">
-          <span class="pt">&#127783; Precipitaci&oacute;n acumulada (mm)</span>
+          <span class="pt">&#127783; Precipitaci&oacute;n acumulada mensual (mm)</span>
           <span class ="ks" id="rmonth-total" style="font-size:11px;color:var(--sub)"></span>
         </div>
         <div style="position:relative;height:220px"><canvas id="cRMonth"></canvas></div>
@@ -329,15 +350,15 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div class="panels r2">
-      <div class="panel"><div class="ph"<span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
+      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
         <div style="position:relative;height:220px"><canvas id =cW></canvas></div></div>
       <div class="panel">
         <div class="ph">
           <span class="pt">&#129517; Rosa de los vientos</span>
-          <span class="kes" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
+          <span class="ks" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
         </div>
         <div style="position:relative;height:190px;" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
-        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7 ">No hay datos de viento en este per&iacute;odo .<br>Agreg&aacute; la columna.</p>
+        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7 ">No hay datos de dirección de viento en este per&iacute;odo.<br>Agreg&aacute; la columna.
         <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
         a tu hoja "Datos" para activar este panel
         </p>
@@ -346,17 +367,17 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
     <div class="panels r1"><div class="panel">
       <div class="ph">
-        <span class="pt">&#128168; Punto de roc&iacute;o y riesgo de pat&oacute;genos</span>
+        <span class="pt">&#128167; Punto de roc&iacute;o y riesgo de pat&oacute;genos</span>
         <div class="leg" id="dew-leg">
-          <span class="lu"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
+          <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
           <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
         </div>
       </div>
       <div style="position:relative;height:210px"><canvas id="cDew"></canvas></div>
-      <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-weight:600;line-height:1.5"></div>
+      <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
     </div></div>
     
-    </div>
+
     <div class="panels r2">
       <div class="panel">
         <div class="ph"><span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span></div>
@@ -438,6 +459,17 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <div style="position:relative;height:220px"><canvas id="cCmpR"></canvas></div>
       </div>
     </div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#127783; Lluvia mensual &mdash; comparaci&oacute;n</span>
+        <div class="leg">
+          <span class="li"><span class="ll" style="background:#E05A2B"></span>Suchitep&eacute;quez</span>
+          <span class="li"><span class="ll" style="background:#1A9E72"></span>Ovejero</span>
+        </div>
+      </div>
+    <div style="position:relative;height:210px"><canvas id="cCmpRMonth"></canvas></div>
+    </div></div>
 
     <div class="panels r1"><div class="panel">
       <div class="ph">
@@ -689,6 +721,8 @@ let ALL_ROWS = [];
 let CUR_STATION = 'all';
 let CUR_FROM = ''; // fecha ISO "YYYY-MM-DD" o '' si no hay filtro
 let CUR_TO   = '';
+let DETAIL_FROM = '';
+let DETAIL_TO   = '';
 let LAST_RENDER_ROWS = null;
 let refreshTimer = null;
 const chartRefs = {};
@@ -769,7 +803,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpGDD','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -844,6 +878,57 @@ function applyDateFilter(rows) {
   });
 }
 
+// ── Filtro INDEPENDIENTE (solo para Temperatura y Humedad diaria) ──
+// A diferencia del filtro principal, sus límites se calculan sobre TODO
+// el historial de la estación activa (no sobre lo que ya esté filtrado
+// por el filtro principal), para poder acotar el detalle a pocos días
+// sin importar el rango que esté usando el resto del dashboard
+function setupDetailFilter(rows){
+  const fromInput = document.getElementById('detail-filter-from');
+  const toInput = document.getElementById('detail-filter-to');
+  if(!fromInput || !toInput) return;
+
+  let minP = null, maxP = null, minTS = Infinity, maxTS = -Infinity;
+  rows.forEach(r=>{
+    const p = parseDiaParts(r['Dia']);
+    if(!p) return;
+    const ts = new Date(p.y, p.m-1, p.d).getTime();
+    if(ts < minTS) { minTS = ts; minP = p; }
+    if(ts > maxTS) { maxTS = ts; maxP = p; }
+});
+
+if(minP && maxP){
+    fromInput.min = toInput.min = isoDate(minP);
+    fromInput.max = toInput.max = isoDate(maxP);
+  }
+  if(fromInput.value && (toInput.value < toInput.mon || toInput.value > fromInput.max)){
+    fromInput.value = ''; DETAIL_FROM = '';
+  }
+  if(toInput.value && (to.Input.value < toInputt.min || toInput.value > toInput.max)){
+    toInput.value = ''; DETAIL_TO = '';
+  }
+
+  const clearBtn = document.getElementById('detail-filter-clear');
+  if(clearBtn) clearBtn.style.display = (DETAIL_FROM||DETAIL_TO) ? 'inline' : 'none';
+  }
+
+  //Devuelve null si no hay filtro independiente activo, así el llamador usa el mismo rango que el resto del dashboard por defecto
+  function applyDetailFilter(rows){
+    if(!DETAIL_FROM && !DETAIL_TO) return null;
+    let fromTS = isoToTS(DETAIL_FROM);
+    let toTS   = isoToTS(DETAIL_TO);
+    if(fromTS===null) fromTS = -Infinity;
+    if(toTS===null) toTS = 'Infinty';
+    if(fromTS > toTS){ const t=fromTS; fromTS=toTS; toTS=t; }
+    return rows.filter(r=>{
+      const p = parseDiaParts(r['Dia']);
+      if(!p) return false;
+      const ts = new Date(p.y, p.m-1, p.d).getTime();
+      return ts>=fromTS && ts<=toTS;
+    })
+  }
+
+
 // ── Cambia estación activa ─────────────────────────────────────────
 function setStation(st) {
   CUR_STATION = st;
@@ -860,20 +945,26 @@ function setStation(st) {
     document.getElementById('single-view').style.display  = 'none';
     document.getElementById('no-data-panel').style.display = 'none';
     document.getElementById('compare-view').style.display = 'block';
+    document.getElementById('banner').style.display = 'none';
+    document.getElementById('kpi-grid').style.display = 'none';
     buildCompareView();
   } else {
     document.getElementById('single-view').style.display  = 'block';
     document.getElementById('compare-view').style.display = 'none';
+    document.getElementById('banner').style.display = 'flex';
+    document.getElementById('kpi-grid').style.display = 'grid';
     const stationFiltered = (st === 'all' || !st)
       ? ALL_ROWS
       : ALL_ROWS.filter(r => r['Estacion'] === st || !r['Estacion']);
-    renderDashboard(applyDateFilter(stationFiltered));
+    setupDetailFilter(stationFiltered);
+    renderDashboard(applyDateFilter(stationFiltered), stationFiltered);
   }
 }
 
 // ── Renderiza dashboard principal ──────────────────────────────────
-function renderDashboard(rows) {
+function renderDashboard(rows, stationRowsRaw) {
   rows = rows.filter(r=>r['Dia']&&parseDiaParts(r['Dia'])&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
+  stationRowsRaw = (stationRowsRaw || rows).filter(r=>r['Dia']&&parseDiaParts(r['Dia'])&&r['Temperatura (C)']&&!isNaN(parseFloat(r['Temperatura (C)'])));
   document.getElementById('picker').style.display = 'none';
   if(!rows.length){ showNoData(); return; }
   hideNoData();
@@ -890,8 +981,18 @@ function renderDashboard(rows) {
     tsW.push(+((parseFloat(r['Viento (mph)'])||0)*1.60934).toFixed(1));
   });
 
-  const D    = aggregateByDay(rows);
-  const dL   = D.map(d=>d.dia);
+  const D = aggregateByDay(rows);
+  const dL = D.map(d=>d.dia);
+
+  const detailFiltered = applyDetailFilter(stationRowsRaw);
+  let Ddetail = null, detailNoMatch = false;
+  if(detailFiltered !== null){
+    if(detailFiltered.length) Ddetail = aggregateByDay(detailFiltered);
+    else detailNoMatch = true;
+  }
+  if(!Ddetail) Ddetail = D;
+  const dLdetail = Ddetail.map(d=>d.dia);
+  
   const totR = D.reduce((a,d)=>a+d.rain,0).toFixed(1);
   const tMax = Math.max(...tsT).toFixed(1);
   const tMin = Math.min(...tsT).toFixed(1);
@@ -964,26 +1065,29 @@ function renderDashboard(rows) {
       yH:{position:'right',grid:{display:false},ticks:{color:isAllStations?TC:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
   }});
 
-  chartRefs['cT']=new Chart('cT',{data:{labels:dL,datasets:[
-    {type:'bar',data:D.map(d=>[d.tmin,d.tmax]),backgroundColor:clr.light,
+  chartRefs['cT']=new Chart('cT',{data:{labels:dLdetail,datasets:[
+    {type:'bar',data:Ddetail.map(d=>[d.tmin,d.tmax]),backgroundColor:clr.light,
      borderColor:clr.border,borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:D.map(d=>d.tavg),borderColor:clr.main,borderWidth:2.5,
-     pointRadius:D.map(d=>d.altSource?6:5),
-     pointBackgroundColor:D.map(d=>d.altSource?'#fff':clr.main),
-     pointBorderColor:clr.main, pointBorderWidth:D.map(d=>d.altSource?2.5:0),
+    {type:'line',data:Ddetail.map(d=>d.tavg),borderColor:clr.main,borderWidth:2.5,
+     pointRadius:Ddetail.map(d=>d.altSource?6:5),
+     pointBackgroundColor:Ddetail.map(d=>d.altSource?'#fff':clr.main),
+     pointBorderColor:clr.main, pointBorderWidth:Ddetail.map(d=>d.altSource?2.5:0),
      tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>{
       if(c.datasetIndex===0) return ` Rango ${c.raw[0]}–${c.raw[1]}°C`;
-      const d = D[c.dataIndex];
+      const d = Ddetail[c.dataIndex];
       return d.altSource ? ` Prom ${c.parsed.y}°C · ⚠ fuente alterna (${d.fuente})` : ` Prom ${c.parsed.y}°C`;
     }}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
       ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
   }});
-  document.getElementById('tdaily-note').textContent = D.some(d=>d.altSource)
-    ? '○ punto hueco = día completado con datos de una fuente alterna (ver columna "Fuente" en la tabla de abajo)'
-    : '';
+  {
+    const notes = [];
+    if(Ddetail.some(d=>d.altSource)) notes.push('○ punto hueco = día completado con datos de una fuente alterna (ver columna "Fuente" en la tabla de abajo)');
+    if(detailNoMatch) notes.push('⚠ El filtro independiente no tiene datos en ese rango — mostrando el mismo rango que el resto del dashboard.');
+    document.getElementById('tdaily-note').textContent = notes.join(' · ');
+  }
 
   chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.rain),
     backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
@@ -1018,10 +1122,10 @@ function renderDashboard(rows) {
       scales:{x:{grid:{display:false},ticks:XT},
         y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
 
-  chartRefs['cH']=new Chart('cH',{data:{labels:dL,datasets:[
-    {type:'bar',data:D.map(d=>[d.hmin,d.hmax]),backgroundColor:'rgba(31,127,223,.12)',
+  chartRefs['cH']=new Chart('cH',{data:{labels:dLdetail,datasets:[
+    {type:'bar',data:Ddetail.map(d=>[d.hmin,d.hmax]),backgroundColor:'rgba(31,127,223,.12)',
      borderColor:'rgba(31,127,223,.35)',borderWidth:1,borderRadius:4,order:2},
-    {type:'line',data:D.map(d=>d.havg),borderColor:clr.hum,borderWidth:2.5,
+    {type:'line',data:Ddetail.map(d=>d.havg),borderColor:clr.hum,borderWidth:2.5,
      pointRadius:5,pointBackgroundColor:clr.hum,tension:0,order:1}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}%`:` Prom ${c.parsed.y}%`}}},
@@ -1277,14 +1381,46 @@ function buildCompareView() {
       y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
   }});
 
-  // Chart lluvia comparativa
+ // Chart lluvia comparativa (más opacas + con borde para distinguirse mejor)
   chartRefs['cCmpR']=new Chart('cCmpR',{type:'bar',data:{labels:cL,datasets:[
-    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.rain),backgroundColor:'rgba(224,90,43,.75)',borderRadius:4},
-    {label:'Ovejero',data:cOV.map(d=>d.rain),backgroundColor:'rgba(26,158,114,.75)',borderRadius:4}
+    {label:'CE – Suchitepéquez',data:cSJ.map(d=>d.rain),backgroundColor:'rgba(224,90,43,.85)',
+     borderColor:'#E05A2B',borderWidth:1,borderRadius:3,categoryPercentage:0.7,barPercentage:0.9},
+    {label:'Ovejero',data:cOV.map(d=>d.rain),backgroundColor:'rgba(26,158,114,.85)',
+     borderColor:'#1A9E72',borderWidth:1,borderRadius:3,categoryPercentage:0.7,barPercentage:0.9}
   ]},options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} mm`}}},
     scales:{x:{grid:{color:GC},ticks:XT},
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
+  }});
+
+  // Chart lluvia MENSUAL comparativa — usa todo el rango filtrado de cada
+  // estación (no solo el período común), porque la agregación mensual no
+  // necesita que los días coincidan entre las dos estaciones.
+  function monthlyRainMap(D) {
+    const map = {};
+    D.forEach(d=>{
+      const key = `${d.y}-${String(d.m).padStart(2,'0')}`;
+      map[key] = (map[key]||0) + d.rain;
+    });
+    return map;
+  }
+  const rainSJmap = monthlyRainMap(DSJ);
+  const rainOVmap = monthlyRainMap(DOV);
+  const allMonthKeys = [...new Set([...Object.keys(rainSJmap), ...Object.keys(rainOVmap)])].sort();
+  const monthLabelsCmp = allMonthKeys.map(k=>{ const [y,m]=k.split('-').map(Number); return `${MONTH_ABBR[m-1]} ${y}`; });
+  const rainSJvals = allMonthKeys.map(k=>+((rainSJmap[k]||0).toFixed(1)));
+  const rainOVvals = allMonthKeys.map(k=>+((rainOVmap[k]||0).toFixed(1)));
+
+  chartRefs['cCmpRMonth']=new Chart('cCmpRMonth',{type:'bar',data:{labels:monthLabelsCmp,datasets:[
+    {label:'CE – Suchitepéquez',data:rainSJvals,backgroundColor:'rgba(224,90,43,.85)',
+     borderColor:'#E05A2B',borderWidth:1,borderRadius:5,maxBarThickness:46},
+    {label:'Ovejero',data:rainOVvals,backgroundColor:'rgba(26,158,114,.85)',
+     borderColor:'#1A9E72',borderWidth:1,borderRadius:5,maxBarThickness:46}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y} mm`}}},
+    scales:{x:{grid:{display:false},ticks:{color:TC,font:{size:10}}},
       y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
   }});
 
@@ -1435,6 +1571,26 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('filter-from').value='';
     document.getElementById('filter-to').value='';
     document.getElementById('filter-clear').style.display='none';
+    setStation(CUR_STATION);
+  });
+
+  document.getElementById('detail-filter-from')?.addEventListener('change', e=>{
+    DETAIL_FROM = e.target.value;
+    document.getElementById('detail-filter-clear').style.display =
+      (DETAIL_FROM||DETAIL_TO) ? 'inline' : 'none';
+    setStation(CUR_STATION);
+  });
+  document.getElementById('detail-filter-to')?.addEventListener('change', e=>{
+    DETAIL_TO = e.target.value;
+    document.getElementById('detail-filter-clear').style.display =
+      (DETAIL_FROM||DETAIL_TO) ? 'inline' : 'none';
+    setStation(CUR_STATION);
+  });
+  document.getElementById('detail-filter-clear')?.addEventListener('click', ()=>{
+    DETAIL_FROM=''; DETAIL_TO='';
+    document.getElementById('detail-filter-from').value='';
+    document.getElementById('detail-filter-to').value='';
+    document.getElementById('detail-filter-clear').style.display='none';
     setStation(CUR_STATION);
   });
 
