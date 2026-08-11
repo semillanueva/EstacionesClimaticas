@@ -901,10 +901,10 @@ if(minP && maxP){
     fromInput.min = toInput.min = isoDate(minP);
     fromInput.max = toInput.max = isoDate(maxP);
   }
-  if(fromInput.value && (toInput.value < toInput.mon || toInput.value > fromInput.max)){
+  if(fromInput.value && (fromInput.value < fromInput.min || fromInput.value > fromInput.max)){
     fromInput.value = ''; DETAIL_FROM = '';
   }
-  if(toInput.value && (to.Input.value < toInputt.min || toInput.value > toInput.max)){
+  if(toInput.value && (toInput.value < toInput.min || toInput.value > toInput.max)){
     toInput.value = ''; DETAIL_TO = '';
   }
 
