@@ -380,8 +380,15 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
     <div class="panels r2">
       <div class="panel">
-        <div class="ph"><span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span></div>
+        <div class="ph">
+          <span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:rgba(232,168,56,.6)"></span>Temp. m&aacute;xima real</span>
+            <span class="li"><span class="ll" style="background:#C4421A"></span>Sensaci&oacute;n t&eacute;rmica</span>
+          </div>
+        </div>
         <div style="position:relative;height:165px"><canvas id="cHeat"></canvas></div>
+        <p style="font-size:10px;color:var(--sub);margin-top:6px">La l&iacute;nea roja es la sensaci&oacute;n t&eacute;rmica calculada (f&oacute;rmula Rothfusz/NWS a partir de temp. + humedad), no la temperatura del sensor. El eje vertical se ajusta autom&aacute;ticamente por encima del m&aacute;ximo observado &mdash; su l&iacute;mite superior es solo la escala del gr&aacute;fico, no necesariamente un dato real.</p>
       </div>
       <div class="panel">
         <div class="ph">
