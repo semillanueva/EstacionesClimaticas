@@ -199,6 +199,21 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
 #page-uploader footer{text-align:center;font-size:11px;color:var(--sub);padding:20px 0 8px}
 @media(max-width:700px){#page-uploader .summary{grid-template-columns:repeat(2,1fr)}}
+
+/* ── PÁGINA: CUARTOS / BODEGA (monitoreo interno, sensores Govee) ──
+   Estilos propios escopados bajo #page-cuartos para no chocar con el dashboard ── */
+#page-cuartos main{max-width:1100px;margin:0 auto;padding:20px 20px 50px}
+#page-cuartos .tabs-bar{position:sticky;top:0}
+#page-cuartos .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600}
+#page-cuartos .badge.ok{background:#E8F8F0;color:var(--teal)}
+#page-cuartos .badge.alert{background:#FFF0E8;color:var(--coral)}
+#page-cuartos .badge.na{background:var(--surf2);color:var(--sub)}
+#page-cuartos .alert-row td{padding:7px 10px;font-size:11px;border-bottom:1px solid var(--brd)}
+#page-cuartos .alert-row td:first-child{color:var(--muted);white-space:nowrap}
+#page-cuartos table{width:100%;border-collapse:collapse}
+#page-cuartos thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);padding:6px 10px;border-bottom:2px solid var(--brd)}
+#page-cuartos .empty-alerts{text-align:center;padding:24px;color:var(--sub);font-size:12px}
 </style>
 </head>
 <body>
@@ -212,6 +227,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <span>&#128205; UTC-6</span>
     <span id="nav-src"></span>
     <span id="nav-ts"></span>
+    <button class="nav-tab-btn" id="btn-open-cuartos" onclick="showPage('cuartos')">&#127777; Bodega / Cuarto Fr&iacute;o</button>
     <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
   </div>
 </nav>
@@ -601,11 +617,97 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 </main>
 </div><!-- /page-uploader -->
 
+<!-- ═══════════════════ PÁGINA: BODEGA / CUARTO FRÍO (sensores Govee) ═══════════════════ -->
+<div id="page-cuartos" style="display:none">
+<nav>
+  <div>
+    <div class="nav-t">&#127777; Bodega &amp; Cuarto Fr&iacute;o &mdash; Monitoreo interno</div>
+    <div class="nav-s">Sensores Govee &bull; Centro Experimental, Suchitep&eacute;quez</div>
+  </div>
+  <div class="nav-r">
+    <span id="cuartos-nav-src"></span>
+    <span id="cuartos-nav-ts"></span>
+    <button class="nav-tab-btn back" onclick="showPage('dashboard')">&larr; Volver al dashboard</button>
+  </div>
+</nav>
+
+<div class="tabs-bar" id="cuartos-tabs-bar" style="display:none"></div>
+
+<main>
+  <div id="cuartos-loading" style="text-align:center;padding:60px 20px">
+    <div class="spinner"></div>
+    <p id="cuartos-load-msg" style="margin-top:10px;color:var(--muted);font-size:12px">Conectando con Google Sheets...</p>
+  </div>
+
+  <div id="cuartos-content" style="display:none">
+    <div class="kpi-grid" id="cuartos-kpi-grid">
+      <div class="kpi"><div class="kl">&Uacute;ltima lectura</div>
+        <div class="kv" id="ck-last-temp" style="color:var(--coral)">—</div>
+        <div class="ks" id="ck-last-ts">—</div></div>
+      <div class="kpi"><div class="kl">Humedad actual</div>
+        <div class="kv" id="ck-last-hum" style="color:var(--blue)">—</div>
+        <div class="ks">&uacute;ltima lectura</div></div>
+      <div class="kpi"><div class="kl">Temp. m&iacute;n / m&aacute;x</div>
+        <div class="kv" id="ck-minmax-temp" style="color:var(--navy);font-size:18px">—</div>
+        <div class="ks">del per&iacute;odo mostrado</div></div>
+      <div class="kpi"><div class="kl">Alertas activas</div>
+        <div class="kv" id="ck-alert-count" style="color:var(--coral)">—</div>
+        <div class="ks" id="ck-alert-note">fuera de umbral</div></div>
+      <div class="kpi"><div class="kl">Registros</div>
+        <div class="kv" id="ck-n-records" style="color:var(--navy)">—</div>
+        <div class="ks" id="ck-range">—</div></div>
+    </div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt" id="cuartos-serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad</span>
+        <div class="leg">
+          <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura (°C)</span>
+          <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Humedad %</span>
+        </div>
+      </div>
+      <p class="hint" id="cuartos-threshold-note" style="font-size:11px;color:var(--muted);margin-bottom:8px"></p>
+      <div style="position:relative;height:230px"><canvas id="cCuartosSerie"></canvas></div>
+    </div></div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph"><span class="pt">&#9888;&#65039; Registro de alertas (fuera de umbral)</span></div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>Fecha y hora</th><th>Variable</th><th>Valor</th><th>Umbral</th></tr></thead>
+          <tbody id="cuartos-alerts-body"></tbody>
+        </table>
+      </div>
+      <div class="empty-alerts" id="cuartos-alerts-empty" style="display:none">Sin alertas registradas para este cuarto en el per&iacute;odo mostrado. &#9989;</div>
+    </div></div>
+  </div>
+
+  <div id="cuartos-error" style="display:none;text-align:center;padding:40px 20px">
+    <div style="font-size:28px;margin-bottom:8px">&#128203;</div>
+    <p style="color:var(--muted);font-size:13px">Configur&aacute; la URL de la hoja "Datos_Cuartos" en <code>SHEETS_URL_CUARTOS</code>, dentro del &lt;script&gt; principal.</p>
+  </div>
+
+  <footer>Monitoreo de bodega y cuarto fr&iacute;o &middot; Sensores Govee &middot; Datos independientes de las estaciones WatchDog 3000</footer>
+</main>
+</div><!-- /page-cuartos -->
+
 <script>
 // ════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
 const AUTO_REFRESH_MIN = 10;
+
+// Hoja "Datos_Cuartos" (bodega/cuarto frío, sensores Govee), publicada como CSV aparte.
+// ⚠️ Reemplazá esta URL vacía por la que te da Google al publicar esa pestaña
+// (Archivo → Compartir → Publicar en la web → elegí la pestaña "Datos_Cuartos").
+const SHEETS_URL_CUARTOS = '';
+// Umbrales de alerta por ubicación (los de CF1 vienen de tu pestaña "Alertas" existente).
+// Poné null si todavía no hay umbral definido para esa ubicación (no se calculan alertas).
+const ROOM_THRESHOLDS = {
+  'CF1':      { tempMin:10, tempMax:15, humMax:50, humMin:null },
+  'CE-Bodega': null
+};
+let CUARTOS_LOADED = false;
 // ════════════════════════════════════════════════════════════════════
 
 const GC='rgba(0,0,0,0.06)',TC='#999';
@@ -1614,8 +1716,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 // ── Cambio de página ────────────────────────────────────────────────
 function showPage(page){
-  document.getElementById('page-dashboard').style.display = (page==='uploader') ? 'none' : '';
-  document.getElementById('page-uploader').style.display  = (page==='uploader') ? '' : 'none';
+  document.getElementById('page-dashboard').style.display = (page==='dashboard') ? '' : 'none';
+  document.getElementById('page-uploader').style.display  = (page==='uploader')  ? '' : 'none';
+  document.getElementById('page-cuartos').style.display   = (page==='cuartos')   ? '' : 'none';
+  if(page==='cuartos' && !CUARTOS_LOADED) loadCuartos();
   window.scrollTo({top:0, behavior:'instant'});
 }
 
@@ -1974,6 +2078,166 @@ function wd3Log(msg, cls) {
   line.textContent = `[${new Date().toLocaleTimeString('es-GT')}] ${msg}`;
   el.appendChild(line);
   el.scrollTop = el.scrollHeight;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CUARTOS / BODEGA — monitoreo interno con sensores Govee
+// Fuente independiente de las estaciones WD3 (otra pestaña, otra URL CSV).
+// ════════════════════════════════════════════════════════════════════
+let CUARTOS_ROWS = [];      // filas ya parseadas/deduplicadas, todas las ubicaciones
+let CUARTOS_ROOM = null;    // ubicación seleccionada actualmente
+
+// "12/04/2026 14:30" → timestamp numérico para ordenar/graficar
+function parseCuartoTS(str) {
+  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const [, d, mo, y, h, mi] = m.map(Number);
+  return new Date(y, mo - 1, d, h, mi).getTime();
+}
+
+function loadCuartos() {
+  if (!SHEETS_URL_CUARTOS) {
+    document.getElementById('cuartos-loading').style.display = 'none';
+    document.getElementById('cuartos-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('cuartos-loading').style.display = 'block';
+  document.getElementById('cuartos-error').style.display = 'none';
+  document.getElementById('cuartos-content').style.display = 'none';
+
+  Papa.parse(SHEETS_URL_CUARTOS, { download:true, header:true, skipEmptyLines:true,
+    complete: (res) => {
+      CUARTOS_LOADED = true;
+      buildCuartosRows(res.data);
+      document.getElementById('cuartos-nav-src').innerHTML =
+        `<span class="dot"></span>&nbsp;Google Sheets live`;
+      document.getElementById('cuartos-nav-ts').textContent =
+        `🔄 ${new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+    },
+    error: () => {
+      document.getElementById('cuartos-loading').style.display = 'none';
+      document.getElementById('cuartos-error').style.display = 'block';
+      document.getElementById('cuartos-error').querySelector('p').textContent =
+        'No se pudo cargar la hoja "Datos_Cuartos". Revisá que la URL esté publicada como CSV y sea pública.';
+    }
+  });
+}
+
+// Agrupa por (Ubicacion, timestamp) y promedia — cubre el caso de exportaciones
+// del app Govee que se solapan y generan más de una lectura para el mismo minuto
+// (mismo problema de fondo que los duplicados por reinicio de módem en las WD3).
+function buildCuartosRows(rawRows) {
+  const groups = {};
+  rawRows.forEach(r => {
+    const ubic = (r['Ubicacion'] || '').trim();
+    const temp = parseFloat(r['Temperatura (C)']);
+    const hum  = parseFloat(r['Humedad (%)']);
+    const ts   = parseCuartoTS(r['Fecha Hora']);
+    if (!ubic || ts === null || isNaN(temp) || isNaN(hum)) return;
+    const key = ubic + '|' + ts;
+    (groups[key] = groups[key] || { ubic, ts, temps:[], hums:[] });
+    groups[key].temps.push(temp);
+    groups[key].hums.push(hum);
+  });
+
+  CUARTOS_ROWS = Object.values(groups).map(g => {
+    const temp = g.temps.reduce((a,b)=>a+b,0) / g.temps.length;
+    const hum  = g.hums.reduce((a,b)=>a+b,0) / g.hums.length;
+    const th = ROOM_THRESHOLDS[g.ubic];
+    let alertTemp = null, alertHum = null;
+    if (th) {
+      if (th.tempMax != null && temp > th.tempMax) alertTemp = { valor:temp, limite:`> ${th.tempMax}°C (alta)` };
+      else if (th.tempMin != null && temp < th.tempMin) alertTemp = { valor:temp, limite:`< ${th.tempMin}°C (baja)` };
+      if (th.humMax != null && hum > th.humMax) alertHum = { valor:hum, limite:`> ${th.humMax}% (alta)` };
+      else if (th.humMin != null && hum < th.humMin) alertHum = { valor:hum, limite:`< ${th.humMin}% (baja)` };
+    }
+    return { ubicacion:g.ubic, ts:g.ts, temp:+temp.toFixed(1), hum:+hum.toFixed(1), alertTemp, alertHum, hasThreshold: !!th };
+  }).sort((a,b) => a.ts - b.ts);
+
+  const rooms = [...new Set(CUARTOS_ROWS.map(r => r.ubicacion))];
+  const bar = document.getElementById('cuartos-tabs-bar');
+  bar.innerHTML = rooms.map(r =>
+    `<button class="tab" data-room="${r}" onclick="setCuartosRoom('${r}')">${r}</button>`).join('');
+  bar.style.display = rooms.length > 1 ? 'flex' : 'none';
+
+  document.getElementById('cuartos-loading').style.display = 'none';
+  document.getElementById('cuartos-content').style.display = 'block';
+  setCuartosRoom(CUARTOS_ROOM && rooms.includes(CUARTOS_ROOM) ? CUARTOS_ROOM : rooms[0]);
+}
+
+function setCuartosRoom(ubic) {
+  CUARTOS_ROOM = ubic;
+  document.querySelectorAll('#cuartos-tabs-bar .tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.room === ubic));
+  renderCuartos();
+}
+
+function renderCuartos() {
+  const D = CUARTOS_ROWS.filter(r => r.ubicacion === CUARTOS_ROOM);
+  if (!D.length) return;
+
+  const th = ROOM_THRESHOLDS[CUARTOS_ROOM];
+  document.getElementById('cuartos-serie-title').textContent = `📊 Serie temporal — ${CUARTOS_ROOM}`;
+  document.getElementById('cuartos-threshold-note').textContent = th
+    ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C` + (th.humMax ? `, humedad < ${th.humMax}%` : '')
+    : 'Sin umbral de alerta definido todavía para esta ubicación.';
+
+  const last = D[D.length - 1];
+  document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;
+  document.getElementById('ck-last-hum').textContent  = `${last.hum}%`;
+  document.getElementById('ck-last-ts').textContent   = new Date(last.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  const temps = D.map(r => r.temp);
+  document.getElementById('ck-minmax-temp').textContent = `${Math.min(...temps).toFixed(1)} / ${Math.max(...temps).toFixed(1)}°C`;
+
+  const alerts = D.filter(r => r.alertTemp || r.alertHum);
+  document.getElementById('ck-alert-count').textContent = th ? alerts.length : '—';
+  document.getElementById('ck-alert-note').textContent = th ? 'fuera de umbral' : 'sin umbral definido';
+
+  document.getElementById('ck-n-records').textContent = D.length.toLocaleString('es-GT');
+  document.getElementById('ck-range').textContent =
+    `${new Date(D[0].ts).toLocaleDateString('es-GT')} – ${new Date(last.ts).toLocaleDateString('es-GT')}`;
+
+  // Serie temporal (temperatura + humedad, eje dual)
+  if (chartRefs['cCuartosSerie']) { chartRefs['cCuartosSerie'].destroy(); delete chartRefs['cCuartosSerie']; }
+  const labels = D.map(r => new Date(r.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}));
+  chartRefs['cCuartosSerie'] = new Chart('cCuartosSerie', {
+    data: {
+      labels,
+      datasets: [
+        { type:'line', label:'Temperatura (°C)', data:D.map(r=>r.temp), borderColor:'#E05A2B',
+          backgroundColor:'#E05A2B', yAxisID:'y', pointRadius:0, borderWidth:1.5, tension:.2 },
+        { type:'line', label:'Humedad %', data:D.map(r=>r.hum), borderColor:'#1F7FDF',
+          backgroundColor:'#1F7FDF', yAxisID:'y1', pointRadius:0, borderWidth:1.5, borderDash:[4,3], tension:.2 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:10, font:{size:10} }, grid:{display:false} },
+        y:{ position:'left', title:{display:true,text:'°C'}, ticks:{font:{size:10}} },
+        y1:{ position:'right', title:{display:true,text:'%HR'}, grid:{drawOnChartArea:false}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+
+  // Tabla de alertas (más recientes primero, máx. 100 filas)
+  const tbody = document.getElementById('cuartos-alerts-body');
+  const emptyMsg = document.getElementById('cuartos-alerts-empty');
+  if (!th || !alerts.length) {
+    tbody.innerHTML = '';
+    emptyMsg.style.display = 'block';
+  } else {
+    emptyMsg.style.display = 'none';
+    tbody.innerHTML = alerts.slice(-100).reverse().map(r => {
+      const rows = [];
+      if (r.alertTemp) rows.push(`<tr class="alert-row"><td>${new Date(r.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>Temperatura</td><td><span class="badge alert">${r.alertTemp.valor.toFixed(1)}°C</span></td><td>${r.alertTemp.limite}</td></tr>`);
+      if (r.alertHum) rows.push(`<tr class="alert-row"><td>${new Date(r.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>Humedad</td><td><span class="badge alert">${r.alertHum.valor.toFixed(1)}%</span></td><td>${r.alertHum.limite}</td></tr>`);
+      return rows.join('');
+    }).join('');
+  }
 }
 </script>
 
