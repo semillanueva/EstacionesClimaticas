@@ -203,7 +203,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 /* ── PÁGINA: CUARTOS / BODEGA (monitoreo interno, sensores Govee) ──
    Estilos propios escopados bajo #page-cuartos para no chocar con el dashboard ── */
 #page-cuartos main{max-width:1100px;margin:0 auto;padding:20px 20px 50px}
-#page-cuartos .tabs-bar{position:sticky;top:0}
 #page-cuartos .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600}
 #page-cuartos .badge.ok{background:#E8F8F0;color:var(--teal)}
 #page-cuartos .badge.alert{background:#FFF0E8;color:var(--coral)}
@@ -220,15 +219,20 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
 <nav>
   <div>
-    <div class="nav-t">&#127782; WatchDog 3000 &mdash; Estaciones Clim&aacute;ticas</div>
-    <div class="nav-s">Suchitep&eacute;quez &amp; Ovejero, Jutiapa &bull; Guatemala</div>
+    <div class="nav-t" id="nav-title">&#127782; WatchDog 3000 &mdash; Estaciones Clim&aacute;ticas</div>
+    <div class="nav-s" id="nav-subtitle">Suchitep&eacute;quez &amp; Ovejero, Jutiapa &bull; Guatemala</div>
   </div>
   <div class="nav-r">
-    <span>&#128205; UTC-6</span>
+    <span id="nav-pin">&#128205; UTC-6</span>
     <span id="nav-src"></span>
     <span id="nav-ts"></span>
-    <button class="nav-tab-btn" id="btn-open-cuartos" onclick="showPage('cuartos')">&#127777; Bodega / Cuarto Fr&iacute;o</button>
-    <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
+    <span id="cuartos-nav-src" style="display:none"></span>
+    <span id="cuartos-nav-ts" style="display:none"></span>
+    <span id="nav-btns-dashboard">
+      <button class="nav-tab-btn" id="btn-open-cuartos" onclick="showPage('cuartos')">&#127777; Thermo-Hygrometer CE</button>
+      <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
+    </span>
+    <button class="nav-tab-btn back" id="btn-back-cuartos" onclick="showPage('dashboard')" style="display:none">&larr; Volver al dashboard</button>
   </div>
 </nav>
 
@@ -617,26 +621,22 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 </main>
 </div><!-- /page-uploader -->
 
-<!-- ═══════════════════ PÁGINA: BODEGA / CUARTO FRÍO (sensores Govee) ═══════════════════ -->
+<!-- ═══════════════════ PÁGINA: THERMO-HYGROMETER CE (sensor Govee interno) ═══════════════════ -->
 <div id="page-cuartos" style="display:none">
-<nav>
-  <div>
-    <div class="nav-t">&#127777; Bodega &amp; Cuarto Fr&iacute;o &mdash; Monitoreo interno</div>
-    <div class="nav-s">Sensores Govee &bull; Centro Experimental, Suchitep&eacute;quez</div>
-  </div>
-  <div class="nav-r">
-    <span id="cuartos-nav-src"></span>
-    <span id="cuartos-nav-ts"></span>
-    <button class="nav-tab-btn back" onclick="showPage('dashboard')">&larr; Volver al dashboard</button>
-  </div>
-</nav>
-
-<div class="tabs-bar" id="cuartos-tabs-bar" style="display:none"></div>
 
 <main>
   <div id="cuartos-loading" style="text-align:center;padding:60px 20px">
     <div class="spinner"></div>
     <p id="cuartos-load-msg" style="margin-top:10px;color:var(--muted);font-size:12px">Conectando con Google Sheets...</p>
+  </div>
+
+  <div class="filter-bar" id="cuartos-filter-bar" style="display:none">
+    <span class="fl">&#128197; Filtrar por rango de fechas:</span>
+    <span class="fl">Desde</span>
+    <input type="date" id="cuartos-filter-from">
+    <span class="fl">Hasta</span>
+    <input type="date" id="cuartos-filter-to">
+    <button class="filter-clear" id="cuartos-filter-clear">Quitar filtro</button>
   </div>
 
   <div id="cuartos-content" style="display:none">
@@ -647,15 +647,19 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="kpi"><div class="kl">Humedad actual</div>
         <div class="kv" id="ck-last-hum" style="color:var(--blue)">—</div>
         <div class="ks">&uacute;ltima lectura</div></div>
+      <div class="kpi"><div class="kl">Punto de roc&iacute;o</div>
+        <div class="kv" id="ck-dewpoint" style="color:var(--steel)">—</div>
+        <div class="ks" id="ck-dew-spread">—</div></div>
       <div class="kpi"><div class="kl">Temp. m&iacute;n / m&aacute;x</div>
         <div class="kv" id="ck-minmax-temp" style="color:var(--navy);font-size:18px">—</div>
-        <div class="ks">del per&iacute;odo mostrado</div></div>
+        <div class="ks" id="ck-range">del per&iacute;odo mostrado</div></div>
       <div class="kpi"><div class="kl">Alertas activas</div>
         <div class="kv" id="ck-alert-count" style="color:var(--coral)">—</div>
         <div class="ks" id="ck-alert-note">fuera de umbral</div></div>
-      <div class="kpi"><div class="kl">Registros</div>
-        <div class="kv" id="ck-n-records" style="color:var(--navy)">—</div>
-        <div class="ks" id="ck-range">—</div></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div id="cuartos-risk-banner" style="border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
     </div>
 
     <div class="panels r1"><div class="panel">
@@ -670,6 +674,17 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div style="position:relative;height:230px"><canvas id="cCuartosSerie"></canvas></div>
     </div></div>
 
+    <div class="panels r2">
+      <div class="panel">
+        <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
+        <div style="position:relative;height:200px"><canvas id="cCuartosDailyTemp"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">&#128167; Humedad diaria &mdash; rango y promedio</span></div>
+        <div style="position:relative;height:200px"><canvas id="cCuartosDailyHum"></canvas></div>
+      </div>
+    </div>
+
     <div class="panels r1"><div class="panel">
       <div class="ph"><span class="pt">&#9888;&#65039; Registro de alertas (fuera de umbral)</span></div>
       <div style="overflow-x:auto">
@@ -678,16 +693,18 @@ footer{text-align:center;font-size:11px;color:var(--sub);
           <tbody id="cuartos-alerts-body"></tbody>
         </table>
       </div>
-      <div class="empty-alerts" id="cuartos-alerts-empty" style="display:none">Sin alertas registradas para este cuarto en el per&iacute;odo mostrado. &#9989;</div>
+      <div class="empty-alerts" id="cuartos-alerts-empty" style="display:none">Sin alertas registradas en el per&iacute;odo mostrado. &#9989;</div>
     </div></div>
   </div>
+
 
   <div id="cuartos-error" style="display:none;text-align:center;padding:40px 20px">
     <div style="font-size:28px;margin-bottom:8px">&#128203;</div>
     <p style="color:var(--muted);font-size:13px">Configur&aacute; la URL de la hoja "Datos_Cuartos" en <code>SHEETS_URL_CUARTOS</code>, dentro del &lt;script&gt; principal.</p>
   </div>
 
-  <footer>Monitoreo de bodega y cuarto fr&iacute;o &middot; Sensores Govee &middot; Datos independientes de las estaciones WatchDog 3000</footer>
+  <footer>Thermo-Hygrometer CE &middot; Sensor Govee interno, Centro Experimental &middot; Datos independientes de las estaciones WatchDog 3000</footer>
+
 </main>
 </div><!-- /page-cuartos -->
 
@@ -697,16 +714,18 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
 const AUTO_REFRESH_MIN = 10;
 
-// Hoja "Datos_Cuartos" (bodega/cuarto frío, sensores Govee), publicada como CSV aparte.
+// Hoja "Datos_Cuartos" (sensor Govee interno en CE), publicada como CSV aparte.
 // ⚠️ Reemplazá esta URL vacía por la que te da Google al publicar esa pestaña
 // (Archivo → Compartir → Publicar en la web → elegí la pestaña "Datos_Cuartos").
+// Nota: esa hoja puede tener filas de otros cuartos (CF1/CF2) si comparten pestaña con
+// el sistema de Cuartos Fríos — esta página los ignora a propósito y solo muestra 'CE-Bodega'
+// (ese es el cuarto en el Centro Experimental; CF1/CF2 tienen su propio dashboard aparte).
 const SHEETS_URL_CUARTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=1317877305&single=true&output=csv';
-// Umbrales de alerta por ubicación (los de CF1 vienen de tu pestaña "Alertas" existente).
-// Poné null si todavía no hay umbral definido para esa ubicación (no se calculan alertas).
-const ROOM_THRESHOLDS = {
-  'CF1':      { tempMin:10, tempMax:15, humMax:50, humMin:null },
-  'CE-Bodega': null
-};
+const CUARTOS_UBICACION = 'CE-Bodega'; // clave interna del dato; en pantalla se muestra como "CE"
+// Umbral de alerta para CE. Todavía no hay uno definido (igual que en el Apps Script de
+// Cuartos Fríos, donde "CE sin límites por el momento"). Poné los valores cuando los tengan:
+// { tempMin:.., tempMax:.., humMin:.., humMax:.. }
+const CE_THRESHOLD = null;
 let CUARTOS_LOADED = false;
 // ════════════════════════════════════════════════════════════════════
 
@@ -1719,6 +1738,22 @@ function showPage(page){
   document.getElementById('page-dashboard').style.display = (page==='dashboard') ? '' : 'none';
   document.getElementById('page-uploader').style.display  = (page==='uploader')  ? '' : 'none';
   document.getElementById('page-cuartos').style.display   = (page==='cuartos')   ? '' : 'none';
+
+  const isCuartos = page === 'cuartos';
+  document.getElementById('nav-title').innerHTML = isCuartos
+    ? '🌡️ Thermo-Hygrometer CE'
+    : '&#127782; WatchDog 3000 &mdash; Estaciones Clim&aacute;ticas';
+  document.getElementById('nav-subtitle').textContent = isCuartos
+    ? 'Sensor Govee interno · Centro Experimental, Suchitepéquez'
+    : 'Suchitepéquez & Ovejero, Jutiapa • Guatemala';
+  document.getElementById('nav-pin').style.display         = isCuartos ? 'none' : '';
+  document.getElementById('nav-src').style.display          = isCuartos ? 'none' : '';
+  document.getElementById('nav-ts').style.display           = isCuartos ? 'none' : '';
+  document.getElementById('cuartos-nav-src').style.display  = isCuartos ? '' : 'none';
+  document.getElementById('cuartos-nav-ts').style.display   = isCuartos ? '' : 'none';
+  document.getElementById('nav-btns-dashboard').style.display = isCuartos ? 'none' : '';
+  document.getElementById('btn-back-cuartos').style.display   = isCuartos ? '' : 'none';
+
   if(page==='cuartos' && !CUARTOS_LOADED) loadCuartos();
   window.scrollTo({top:0, behavior:'instant'});
 }
@@ -2084,8 +2119,10 @@ function wd3Log(msg, cls) {
 // CUARTOS / BODEGA — monitoreo interno con sensores Govee
 // Fuente independiente de las estaciones WD3 (otra pestaña, otra URL CSV).
 // ════════════════════════════════════════════════════════════════════
-let CUARTOS_ROWS = [];      // filas ya parseadas/deduplicadas, todas las ubicaciones
-let CUARTOS_ROOM = null;    // ubicación seleccionada actualmente
+let CUARTOS_ROWS_ALL = []; // filas ya parseadas/deduplicadas, solo de CUARTOS_UBICACION (CE) — sin filtro de fecha
+let CUARTOS_ROWS     = []; // subconjunto de arriba luego de aplicar el filtro de fecha (lo que se grafica)
+let CUARTOS_FROM = ''; // fecha ISO "YYYY-MM-DD" o '' si no hay filtro
+let CUARTOS_TO   = '';
 
 // "12/04/2026 14:30" → timestamp numérico para ordenar/graficar
 function parseCuartoTS(str) {
@@ -2123,63 +2160,123 @@ function loadCuartos() {
   });
 }
 
-// Agrupa por (Ubicacion, timestamp) y promedia — cubre el caso de exportaciones
-// del app Govee que se solapan y generan más de una lectura para el mismo minuto
-// (mismo problema de fondo que los duplicados por reinicio de módem en las WD3).
+// Agrupa por timestamp y promedia — cubre el caso de exportaciones del app Govee que se
+// solapan y generan más de una lectura para el mismo minuto (mismo problema de fondo que
+// los duplicados por reinicio de módem en las WD3). Ignora a propósito cualquier fila que
+// no sea de CUARTOS_UBICACION (CF1/CF2 tienen su propio dashboard aparte).
 function buildCuartosRows(rawRows) {
   const groups = {};
   rawRows.forEach(r => {
     const ubic = (r['Ubicacion'] || '').trim();
+    if (ubic !== CUARTOS_UBICACION) return;
     const temp = parseFloat(r['Temperatura (C)']);
     const hum  = parseFloat(r['Humedad (%)']);
     const ts   = parseCuartoTS(r['Fecha Hora']);
-    if (!ubic || ts === null || isNaN(temp) || isNaN(hum)) return;
-    const key = ubic + '|' + ts;
-    (groups[key] = groups[key] || { ubic, ts, temps:[], hums:[] });
-    groups[key].temps.push(temp);
-    groups[key].hums.push(hum);
+    if (ts === null || isNaN(temp) || isNaN(hum)) return;
+    (groups[ts] = groups[ts] || { ts, temps:[], hums:[] });
+    groups[ts].temps.push(temp);
+    groups[ts].hums.push(hum);
   });
 
-  CUARTOS_ROWS = Object.values(groups).map(g => {
+  CUARTOS_ROWS_ALL = Object.values(groups).map(g => {
     const temp = g.temps.reduce((a,b)=>a+b,0) / g.temps.length;
     const hum  = g.hums.reduce((a,b)=>a+b,0) / g.hums.length;
-    const th = ROOM_THRESHOLDS[g.ubic];
     let alertTemp = null, alertHum = null;
-    if (th) {
+    if (CE_THRESHOLD) {
+      const th = CE_THRESHOLD;
       if (th.tempMax != null && temp > th.tempMax) alertTemp = { valor:temp, limite:`> ${th.tempMax}°C (alta)` };
       else if (th.tempMin != null && temp < th.tempMin) alertTemp = { valor:temp, limite:`< ${th.tempMin}°C (baja)` };
       if (th.humMax != null && hum > th.humMax) alertHum = { valor:hum, limite:`> ${th.humMax}% (alta)` };
       else if (th.humMin != null && hum < th.humMin) alertHum = { valor:hum, limite:`< ${th.humMin}% (baja)` };
     }
-    return { ubicacion:g.ubic, ts:g.ts, temp:+temp.toFixed(1), hum:+hum.toFixed(1), alertTemp, alertHum, hasThreshold: !!th };
+    const temp1 = +temp.toFixed(1), hum1 = +hum.toFixed(1);
+    const dew = dewPointC(temp1, hum1); // reutiliza la misma fórmula (Magnus-Tetens) del dashboard principal
+    return { ts:g.ts, temp:temp1, hum:hum1, dew: isNaN(dew) ? null : +dew.toFixed(1), alertTemp, alertHum };
   }).sort((a,b) => a.ts - b.ts);
 
-  const rooms = [...new Set(CUARTOS_ROWS.map(r => r.ubicacion))];
-  const bar = document.getElementById('cuartos-tabs-bar');
-  bar.innerHTML = rooms.map(r =>
-    `<button class="tab" data-room="${r}" onclick="setCuartosRoom('${r}')">${r}</button>`).join('');
-  bar.style.display = rooms.length > 1 ? 'flex' : 'none';
-
+  setupCuartosDateFilter();
   document.getElementById('cuartos-loading').style.display = 'none';
   document.getElementById('cuartos-content').style.display = 'block';
-  setCuartosRoom(CUARTOS_ROOM && rooms.includes(CUARTOS_ROOM) ? CUARTOS_ROOM : rooms[0]);
-}
-
-function setCuartosRoom(ubic) {
-  CUARTOS_ROOM = ubic;
-  document.querySelectorAll('#cuartos-tabs-bar .tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.room === ubic));
   renderCuartos();
 }
 
+// ── Filtro de fecha independiente (mismo patrón que el filtro del dashboard principal) ──
+function setupCuartosDateFilter() {
+  if (!CUARTOS_ROWS_ALL.length) return;
+  const minP = new Date(CUARTOS_ROWS_ALL[0].ts);
+  const maxP = new Date(CUARTOS_ROWS_ALL[CUARTOS_ROWS_ALL.length - 1].ts);
+  const iso = d => d.toISOString().slice(0, 10);
+  const fromInput = document.getElementById('cuartos-filter-from');
+  const toInput   = document.getElementById('cuartos-filter-to');
+  fromInput.min = toInput.min = iso(minP);
+  fromInput.max = toInput.max = iso(maxP);
+  document.getElementById('cuartos-filter-bar').style.display = 'flex';
+}
+
+function applyCuartosDateFilter(rows) {
+  if (!CUARTOS_FROM && !CUARTOS_TO) return rows;
+  const isoToTS = iso => { if(!iso) return null; const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d).getTime(); };
+  let fromTS = isoToTS(CUARTOS_FROM), toTS = isoToTS(CUARTOS_TO);
+  if (fromTS === null) fromTS = -Infinity;
+  if (toTS   === null) toTS   = Infinity;
+  else toTS += 24*60*60*1000 - 1; // incluye todo el día "Hasta"
+  if (fromTS > toTS) { const t=fromTS; fromTS=toTS; toTS=t; }
+  return rows.filter(r => r.ts >= fromTS && r.ts <= toTS);
+}
+
+document.getElementById('cuartos-filter-from').addEventListener('change', e => {
+  CUARTOS_FROM = e.target.value;
+  document.getElementById('cuartos-filter-clear').style.display = (CUARTOS_FROM||CUARTOS_TO) ? 'inline' : 'none';
+  renderCuartos();
+});
+document.getElementById('cuartos-filter-to').addEventListener('change', e => {
+  CUARTOS_TO = e.target.value;
+  document.getElementById('cuartos-filter-clear').style.display = (CUARTOS_FROM||CUARTOS_TO) ? 'inline' : 'none';
+  renderCuartos();
+});
+document.getElementById('cuartos-filter-clear').addEventListener('click', () => {
+  CUARTOS_FROM = ''; CUARTOS_TO = '';
+  document.getElementById('cuartos-filter-from').value = '';
+  document.getElementById('cuartos-filter-to').value = '';
+  document.getElementById('cuartos-filter-clear').style.display = 'none';
+  renderCuartos();
+});
+
+// ── Agregación diaria (mín/prom/máx) para ver el patrón día-noche ──
+function aggregateCuartosByDay(rows) {
+  const map = {};
+  const order = [];
+  rows.forEach(r => {
+    const d = new Date(r.ts);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (!map[key]) { map[key] = { temps:[], hums:[], d }; order.push(key); }
+    map[key].temps.push(r.temp);
+    map[key].hums.push(r.hum);
+  });
+  return order.map(key => {
+    const g = map[key];
+    return {
+      dia: `${String(g.d.getDate()).padStart(2,'0')}/${String(g.d.getMonth()+1).padStart(2,'0')}`,
+      tmin: +Math.min(...g.temps).toFixed(1), tmax: +Math.max(...g.temps).toFixed(1),
+      tavg: +(g.temps.reduce((a,b)=>a+b,0)/g.temps.length).toFixed(1),
+      hmin: +Math.min(...g.hums).toFixed(1), hmax: +Math.max(...g.hums).toFixed(1),
+      havg: +(g.hums.reduce((a,b)=>a+b,0)/g.hums.length).toFixed(1)
+    };
+  });
+}
+
 function renderCuartos() {
-  const D = CUARTOS_ROWS.filter(r => r.ubicacion === CUARTOS_ROOM);
+  CUARTOS_ROWS = applyCuartosDateFilter(CUARTOS_ROWS_ALL);
+  const D = CUARTOS_ROWS;
   if (!D.length) return;
 
-  const th = ROOM_THRESHOLDS[CUARTOS_ROOM];
-  document.getElementById('cuartos-serie-title').textContent = `📊 Serie temporal — ${CUARTOS_ROOM}`;
+  const th = CE_THRESHOLD;
+  let humText = '';
+  if (th && th.humMin != null && th.humMax != null) humText = `, humedad ${th.humMin}–${th.humMax}%`;
+  else if (th && th.humMax != null) humText = `, humedad < ${th.humMax}%`;
+  else if (th && th.humMin != null) humText = `, humedad > ${th.humMin}%`;
   document.getElementById('cuartos-threshold-note').textContent = th
-    ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C` + (th.humMax ? `, humedad < ${th.humMax}%` : '')
+    ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C${humText}`
     : 'Sin umbral de alerta definido todavía para esta ubicación.';
 
   const last = D[D.length - 1];
@@ -2189,14 +2286,34 @@ function renderCuartos() {
 
   const temps = D.map(r => r.temp);
   document.getElementById('ck-minmax-temp').textContent = `${Math.min(...temps).toFixed(1)} / ${Math.max(...temps).toFixed(1)}°C`;
+  document.getElementById('ck-range').textContent =
+    `${new Date(D[0].ts).toLocaleDateString('es-GT')} – ${new Date(last.ts).toLocaleDateString('es-GT')}`;
 
   const alerts = D.filter(r => r.alertTemp || r.alertHum);
   document.getElementById('ck-alert-count').textContent = th ? alerts.length : '—';
   document.getElementById('ck-alert-note').textContent = th ? 'fuera de umbral' : 'sin umbral definido';
 
-  document.getElementById('ck-n-records').textContent = D.length.toLocaleString('es-GT');
-  document.getElementById('ck-range').textContent =
-    `${new Date(D[0].ts).toLocaleDateString('es-GT')} – ${new Date(last.ts).toLocaleDateString('es-GT')}`;
+  // ── Punto de rocío + riesgo de condensación ──
+  // Mismo criterio que el banner de riesgo de hongos del dashboard principal
+  // (HR≥90% y diferencia con el punto de rocío ≤2.5°C), aplicado acá a condensación:
+  // cuando el aire está tan cerca de saturarse, cualquier superficie más fría que el
+  // ambiente (una pared, una caja, un techo metálico) puede formar gotas de agua.
+  if (last.dew != null) {
+    const spread = +(last.temp - last.dew).toFixed(1);
+    document.getElementById('ck-dewpoint').textContent = `${last.dew}°C`;
+    document.getElementById('ck-dew-spread').textContent = `Δ ${spread}°C con la temp. actual`;
+  }
+  const riskRows = D.filter(r => r.dew != null && r.hum >= 90 && (r.temp - r.dew) <= 2.5);
+  const riskPct = D.length ? Math.round(riskRows.length / D.length * 100) : 0;
+  const riskNow = last.dew != null && last.hum >= 90 && (last.temp - last.dew) <= 2.5;
+  const rb = document.getElementById('cuartos-risk-banner');
+  if (riskNow) {
+    rb.style.background = '#FFF0EC'; rb.style.color = '#A8401E';
+    rb.innerHTML = `⚠️ Riesgo alto de condensación en la última lectura (HR ${last.hum.toFixed(0)}%, diferencia con el rocío de ${(last.temp-last.dew).toFixed(1)}°C). ${riskPct}% de los registros del período mostrado estuvieron en este rango.`;
+  } else {
+    rb.style.background = '#EAF7EF'; rb.style.color = '#176B45';
+    rb.innerHTML = `✅ Sin riesgo elevado de condensación en la última lectura. ${riskPct}% de los registros del período mostrado estuvieron en rango de riesgo (HR≥90% y diferencia con el rocío ≤2.5°C).`;
+  }
 
   // Serie temporal (temperatura + humedad, eje dual)
   if (chartRefs['cCuartosSerie']) { chartRefs['cCuartosSerie'].destroy(); delete chartRefs['cCuartosSerie']; }
@@ -2220,6 +2337,40 @@ function renderCuartos() {
         y:{ position:'left', title:{display:true,text:'°C'}, ticks:{font:{size:10}} },
         y1:{ position:'right', title:{display:true,text:'%HR'}, grid:{drawOnChartArea:false}, ticks:{font:{size:10}} }
       }
+    }
+  });
+
+  // ── Vista diaria (mín/prom/máx) — para ver el patrón día-noche sin la densidad
+  //    de la serie de 30 en 30 minutos ──
+  const DD = aggregateCuartosByDay(D);
+  const dL = DD.map(d => d.dia);
+  ['cCuartosDailyTemp','cCuartosDailyHum'].forEach(id => {
+    if (chartRefs[id]) { chartRefs[id].destroy(); delete chartRefs[id]; }
+  });
+  chartRefs['cCuartosDailyTemp'] = new Chart('cCuartosDailyTemp', {
+    data: { labels:dL, datasets:[
+      { type:'bar', data:DD.map(d=>[d.tmin,d.tmax]), backgroundColor:'rgba(224,90,43,.18)',
+        borderColor:'rgba(224,90,43,.4)', borderWidth:1, borderRadius:4, order:2 },
+      { type:'line', data:DD.map(d=>d.tavg), borderColor:'#E05A2B', borderWidth:2.5,
+        pointRadius:3, pointBackgroundColor:'#E05A2B', tension:0, order:1 }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:c => c.datasetIndex===0 ? ` Rango ${c.raw[0]}–${c.raw[1]}°C` : ` Prom ${c.parsed.y}°C` } } },
+      scales:{ x:{ ticks:{...XT,maxTicksLimit:10} }, y:{ grid:{color:GC}, ticks:{color:TC,font:{size:9},callback:v=>v+'°C'} } }
+    }
+  });
+  chartRefs['cCuartosDailyHum'] = new Chart('cCuartosDailyHum', {
+    data: { labels:dL, datasets:[
+      { type:'bar', data:DD.map(d=>[d.hmin,d.hmax]), backgroundColor:'rgba(31,127,223,.18)',
+        borderColor:'rgba(31,127,223,.4)', borderWidth:1, borderRadius:4, order:2 },
+      { type:'line', data:DD.map(d=>d.havg), borderColor:'#1F7FDF', borderWidth:2.5,
+        pointRadius:3, pointBackgroundColor:'#1F7FDF', tension:0, order:1 }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:c => c.datasetIndex===0 ? ` Rango ${c.raw[0]}–${c.raw[1]}%` : ` Prom ${c.parsed.y}%` } } },
+      scales:{ x:{ ticks:{...XT,maxTicksLimit:10} }, y:{ grid:{color:GC}, ticks:{color:TC,font:{size:9},callback:v=>v+'%'}, min:0, max:100 } }
     }
   });
 
