@@ -721,7 +721,6 @@ const AUTO_REFRESH_MIN = 10;
 // el sistema de Cuartos Fríos — esta página los ignora a propósito y solo muestra 'CE-Bodega'
 // (ese es el cuarto en el Centro Experimental; CF1/CF2 tienen su propio dashboard aparte).
 const SHEETS_URL_CUARTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=1317877305&single=true&output=csv';
-const CUARTOS_UBICACION = 'CE-Bodega'; // clave interna del dato; en pantalla se muestra como "CE"
 // Umbral de alerta para CE. Todavía no hay uno definido (igual que en el Apps Script de
 // Cuartos Fríos, donde "CE sin límites por el momento"). Poné los valores cuando los tengan:
 // { tempMin:.., tempMax:.., humMin:.., humMax:.. }
@@ -2119,17 +2118,29 @@ function wd3Log(msg, cls) {
 // CUARTOS / BODEGA — monitoreo interno con sensores Govee
 // Fuente independiente de las estaciones WD3 (otra pestaña, otra URL CSV).
 // ════════════════════════════════════════════════════════════════════
-let CUARTOS_ROWS_ALL = []; // filas ya parseadas/deduplicadas, solo de CUARTOS_UBICACION (CE) — sin filtro de fecha
+let CUARTOS_ROWS_ALL = []; // filas ya parseadas/deduplicadas de CE (cualquier variante de nombre) — sin filtro de fecha
 let CUARTOS_ROWS     = []; // subconjunto de arriba luego de aplicar el filtro de fecha (lo que se grafica)
 let CUARTOS_FROM = ''; // fecha ISO "YYYY-MM-DD" o '' si no hay filtro
 let CUARTOS_TO   = '';
 
-// "12/04/2026 14:30" → timestamp numérico para ordenar/graficar
+// "12/04/2026 14:30" (o con segundos "14:30:00", o ISO si Sheets autoconvirtió
+// la celda a fecha real) → timestamp numérico para ordenar/graficar.
 function parseCuartoTS(str) {
-  const m = String(str).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/);
-  if (!m) return null;
-  const [, d, mo, y, h, mi] = m.map(Number);
-  return new Date(y, mo - 1, d, h, mi).getTime();
+  const s = String(str).trim();
+  // Formato principal del proyecto: D/M/YYYY H:MM, segundos opcionales.
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m) {
+    const [, d, mo, y, h, mi] = m.map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  }
+  // Alternativa: si Sheets autoconvirtió la celda a fecha real, puede exportarla
+  // en ISO (YYYY-MM-DD HH:MM:SS) en vez de texto plano.
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (m) {
+    const [, y, mo, d, h, mi] = m.map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  }
+  return null;
 }
 
 function loadCuartos() {
@@ -2162,17 +2173,21 @@ function loadCuartos() {
 
 // Agrupa por timestamp y promedia — cubre el caso de exportaciones del app Govee que se
 // solapan y generan más de una lectura para el mismo minuto (mismo problema de fondo que
-// los duplicados por reinicio de módem en las WD3). Ignora a propósito cualquier fila que
-// no sea de CUARTOS_UBICACION (CF1/CF2 tienen su propio dashboard aparte).
+// los duplicados por reinicio de módem en las WD3). Acepta cualquier variante de la
+// ubicación CE (CE, CE-Bodega, CE2026, CE2027...) y descarta solo lo que sea Cuarto Frío
+// (CF1/CF2 tienen su propio dashboard aparte) — así no depende de que el texto de
+// "Ubicacion" coincida letra por letra con lo que se usó al armar el histórico.
+let CUARTOS_SKIPPED = 0; // filas con ubicación CE pero fecha/valores no interpretables
 function buildCuartosRows(rawRows) {
   const groups = {};
+  CUARTOS_SKIPPED = 0;
   rawRows.forEach(r => {
     const ubic = (r['Ubicacion'] || '').trim();
-    if (ubic !== CUARTOS_UBICACION) return;
+    if (!ubic || /^CF\d*/i.test(ubic)) return; // ignora Cuartos Fríos y filas vacías
     const temp = parseFloat(r['Temperatura (C)']);
     const hum  = parseFloat(r['Humedad (%)']);
     const ts   = parseCuartoTS(r['Fecha Hora']);
-    if (ts === null || isNaN(temp) || isNaN(hum)) return;
+    if (ts === null || isNaN(temp) || isNaN(hum)) { CUARTOS_SKIPPED++; return; }
     (groups[ts] = groups[ts] || { ts, temps:[], hums:[] });
     groups[ts].temps.push(temp);
     groups[ts].hums.push(hum);
@@ -2278,6 +2293,10 @@ function renderCuartos() {
   document.getElementById('cuartos-threshold-note').textContent = th
     ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C${humText}`
     : 'Sin umbral de alerta definido todavía para esta ubicación.';
+  if (CUARTOS_SKIPPED > 0) {
+    document.getElementById('cuartos-threshold-note').textContent +=
+      ` ⚠ ${CUARTOS_SKIPPED} fila(s) con fecha o valores no reconocidos fueron ignoradas — revisá el formato en la hoja.`;
+  }
 
   const last = D[D.length - 1];
   document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;
