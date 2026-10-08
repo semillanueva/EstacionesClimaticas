@@ -1848,7 +1848,7 @@ function resampleTo10Min(rows) {
       'Lluvia (in/10min)': +rainsIn.reduce((a, c) => a + c, 0).toFixed(3),
       'Viento (mph)': winds.length ? +avg(winds).toFixed(1) : '',
       'Direccion Viento (deg)': dirAvg,
-      'Rafaga (mph)': gusts.length ? +avg(gusts).toFixed(1) : '',
+      'Rafaga (mph)': gusts.length ? Math.max(...gusts) : '', // ráfaga = máximo del bloque, no promedio
       'Voltaje (V)': volts.length ? +avg(volts).toFixed(3) : '',
       'Bateria (%)': batts.length ? Math.round(avg(batts)) : '',
       'Punto de Rocio (C)': dewPointCSV(tempAvg, humAvg),
@@ -1906,8 +1906,12 @@ function parseWD3(text) {
     const tempF   = parseFloat(f[6]);
     const hum     = parseFloat(f[7]);
     const windDir = parseFloat(f[8]);
-    const windMph = parseFloat(f[9]);
-    const gustMph = parseFloat(f[10]);
+    // Orden real en el archivo WD3: f[9] = ráfaga, f[10] = velocidad promedio.
+    // (Antes estaban al revés; verificado contra SpecConnect el 08/10/2026:
+    // ráfaga 8 km/h vs velocidad 2 km/h, y en las filas viejas del conversor
+    // la "ráfaga" quedaba menor que el viento en ~80% de los registros.)
+    const gustMph = parseFloat(f[9]);
+    const windMph = parseFloat(f[10]);
     const battPct = parseFloat(f[3]);
     const volt    = parseFloat(f[12]);
 
