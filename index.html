@@ -304,7 +304,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="ks">m&iacute;nimo nocturno</div></div>
     <div class="kpi"><div class="kl">Viento m&aacute;ximo</div>
       <div class="kv" id="kv4" style="color:var(--teal)">—</div>
-      <div class="ks">km/h &bull; r&aacute;faga m&aacute;xima</div></div>
+      <div class="ks" id="ks4">km/h &bull; r&aacute;faga m&aacute;xima</div></div>
     <div class="kpi"><div class="kl">Registros</div>
       <div class="kv" id="kv5" style="color:var(--navy)">—</div>
       <div class="ks" id="ks5">—</div></div>
@@ -370,7 +370,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento m&aacute;ximo diario (km/h)</span></div>
+      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento diario (km/h)</span>
+          <span class="leg" style="font-size:10px;color:var(--sub)">barras = r&aacute;faga m&aacute;x &middot; l&iacute;nea = viento prom. m&aacute;x</span></div>
         <div style="position:relative;height:220px"><canvas id =cW></canvas></div></div>
       <div class="panel">
         <div class="ph">
@@ -437,7 +438,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <thead><tr>
           <th>Fecha</th><th>T M&iacute;n</th><th>T Prom</th><th>T M&aacute;x</th>
           <th>HR M&iacute;n</th><th>HR Prom</th><th>HR M&aacute;x</th>
-          <th>Lluvia (mm)</th><th>Viento M&aacute;x (km/h)</th>
+          <th>Lluvia (mm)</th><th>Viento prom. m&aacute;x (km/h)</th><th>R&aacute;faga m&aacute;x (km/h)</th>
+          <th title="% de registros recibidos respecto a los esperados para ese día">Cobertura</th>
         </tr></thead>
         <tbody id="tb"></tbody>
         <tfoot><tr id="tf"></tr></tfoot>
@@ -463,6 +465,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <div id="cmp-ov-stats"></div>
       </div>
     </div>
+    <p id="cmp-cards-note" style="font-size:10px;color:var(--sub);margin:-6px 4px 14px"></p>
 
     <div class="panels r2">
       <div class="panel">
@@ -884,6 +887,22 @@ function aggregateByDay(rows) {
     const hm = recs.map(r=>parseFloat(r['Humedad (%HR)'])||0).filter(v=>v>0);
     const rn = recs.map(r=>parseFloat(r['Lluvia (mm/10min)'])||0);
     const wd = recs.map(r=>parseFloat(r['Viento (mph)'])||0);
+    const gs = recs.map(r=>parseFloat(r['Rafaga (mph)'])).filter(v=>!isNaN(v));
+    // Cobertura: registros recibidos vs. esperados. El intervalo esperado se
+    // deduce del propio día (mediana entre lecturas), porque no es fijo:
+    // CE registra cada 10 min y Ovejero cada 15 min desde el 23/06/2026.
+    const mins = [...new Set(recs.map(r=>{
+      const hp=(r['Hora']||'').substring(0,5).split(':');
+      return (parseInt(hp[0],10)||0)*60+(parseInt(hp[1],10)||0);
+    }))].sort((a,b)=>a-b);
+    // Promedio de los saltos normales (≤30 min, así los huecos no cuentan),
+    // redondeado a 5 min. Ovejero alterna saltos de 10 y 20 min porque sus
+    // lecturas de :15/:45 se guardan como :10/:40 → promedio 15 min.
+    const diffs = mins.slice(1).map((m,i)=>m-mins[i]).filter(x=>x>0 && x<=30);
+    const step = diffs.length
+      ? Math.max(5, Math.round(diffs.reduce((a,b)=>a+b,0)/diffs.length/5)*5)
+      : 10;
+    const coverage = Math.min(100, Math.round(mins.length / (1440/step) * 100));
     const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
     const heatVals = recs.map(r=>{
       const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
@@ -905,6 +924,11 @@ function aggregateByDay(rows) {
       hmax: hm.length?+Math.max(...hm).toFixed(1):0,
       rain: +rn.reduce((x,y)=>x+y,0).toFixed(1),
       wmax: +(Math.max(...wd,0)*1.60934).toFixed(1),
+      gmax: gs.length ? +(Math.max(...gs)*1.60934).toFixed(1) : null,
+      key: k,          // fecha completa DD/MM/YYYY (para cruzar estaciones sin ambigüedad)
+      n: recs.length,
+      step,            // intervalo típico del día, en minutos
+      coverage,        // % de registros esperados que llegaron
       heatMax: heatVals.length?+Math.max(...heatVals).toFixed(1):0,
       altSource: fuentes.length>0,
       fuente: fuentes.join(', ')
@@ -1090,7 +1114,7 @@ function setStation(st) {
     document.getElementById('kpi-grid').style.display = 'grid';
     const stationFiltered = (st === 'all' || !st)
       ? ALL_ROWS
-      : ALL_ROWS.filter(r => r['Estacion'] === st || !r['Estacion']);
+      : ALL_ROWS.filter(r => r['Estacion'] === st || !HAS_STATION_COL);
     setupDetailFilter(stationFiltered);
     renderDashboard(applyDateFilter(stationFiltered), stationFiltered);
   }
@@ -1132,6 +1156,11 @@ function renderDashboard(rows, stationRowsRaw) {
   const tMax = Math.max(...tsT).toFixed(1);
   const tMin = Math.min(...tsT).toFixed(1);
   const wMax = Math.max(...tsW).toFixed(1);
+  const gVals = rows.map(r=>parseFloat(r['Rafaga (mph)'])).filter(v=>!isNaN(v));
+  const gMax = gVals.length ? (Math.max(...gVals)*1.60934).toFixed(1) : null;
+  const lowCov = D.filter(d=>d.coverage<80);
+  const avgCov = Math.round(D.reduce((a,d)=>a+d.coverage,0)/D.length);
+  const steps = [...new Set(D.map(d=>d.step))].sort((a,b)=>a-b);
   const dias = D.filter(d=>d.rain>0).length;
   const fi   = formatDiaShort(rows[0]?.['Dia']);
   const ff   = formatDiaShort(rows[rows.length-1]?.['Dia']);
@@ -1150,9 +1179,13 @@ function renderDashboard(rows, stationRowsRaw) {
   document.getElementById('ks1').textContent= `${dias} día(s) con lluvia`;
   document.getElementById('kv2').innerHTML  = `${tMax}<span style="font-size:13px;font-weight:500"> °C</span>`;
   document.getElementById('kv3').innerHTML  = `${tMin}<span style="font-size:13px;font-weight:500"> °C</span>`;
-  document.getElementById('kv4').innerHTML  = `${wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
-  document.getElementById('kv5').textContent= rows.length;
-  document.getElementById('ks5').textContent= `${D.length} días • 10 min/reg.`;
+  document.getElementById('kv4').innerHTML  = `${gMax ?? wMax}<span style="font-size:13px;font-weight:500"> km/h</span>`;
+  document.getElementById('ks4').textContent = gMax
+    ? `ráfaga máxima • viento prom. máx ${wMax} km/h`
+    : 'km/h • viento prom. máx (sin datos de ráfaga)';
+  document.getElementById('kv5').textContent= rows.length.toLocaleString('es-GT');
+  document.getElementById('ks5').textContent= `${D.length} días • cada ${steps.join('/')} min • cobertura ${avgCov}%`
+    + (DUP_REMOVED ? ` • ${DUP_REMOVED} fila(s) duplicada(s) en la hoja omitida(s)` : '');
 
   // Leyenda de la serie temporal (una línea por estación en la vista "Todas")
 
@@ -1196,8 +1229,8 @@ function renderDashboard(rows, stationRowsRaw) {
         return ` ${c.dataset.label}: ${c.parsed.y}${isHum?'% HR':'°C'}`;
       }}}},
     scales:{x:{grid:{color:GC},ticks:{...XT,maxTicksLimit:8}},
-      yT:{position:'left',grid:{color:GC},ticks:{color:isAllStations?TC:clr.main,font:{size:9},callback:v=>v+'°C'},min:15,max:40},
-      yH:{position:'right',grid:{display:false},ticks:{color:isAllStations?TC:clr.hum,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
+      yT:{position:'left',grid:{color:GC},ticks:{color:isAllStations?TC:clr.main,font:{size:9},callback:v=>v+'°C'},suggestedMin:15,suggestedMax:40},
+      yH:{position:'right',grid:{display:false},ticks:{color:isAllStations?TC:clr.hum,font:{size:9},callback:v=>v+'%'},suggestedMin:35,max:100}}
   }});
 
   chartRefs['cT']=new Chart('cT',{data:{labels:dLdetail,datasets:[
@@ -1215,11 +1248,13 @@ function renderDashboard(rows, stationRowsRaw) {
       return d.altSource ? ` Prom ${c.parsed.y}°C · ⚠ fuente alterna (${d.fuente})` : ` Prom ${c.parsed.y}°C`;
     }}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
-      ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
+      ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},suggestedMin:15,suggestedMax:40}}
   }});
   {
     const notes = [];
     if(Ddetail.some(d=>d.altSource)) notes.push('○ punto hueco = día completado con datos de una fuente alterna (ver columna "Fuente" en la tabla de abajo)');
+    const lowDet = Ddetail.filter(d=>d.coverage<80);
+    if(lowDet.length) notes.push(`⚠ ${lowDet.length} día(s) incompleto(s) (<80% de registros): ${lowDet.slice(0,8).map(d=>`${d.dia} (${d.coverage}%)`).join(', ')}${lowDet.length>8?'…':''} — su mín/máx y lluvia pueden estar subestimados`);
     if(detailNoMatch) notes.push('⚠ El filtro independiente no tiene datos en ese rango — mostrando el mismo rango que el resto del dashboard.');
     document.getElementById('tdaily-note').textContent = notes.join(' · ');
   }
@@ -1249,11 +1284,14 @@ function renderDashboard(rows, stationRowsRaw) {
       y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}
   }});
 
-  chartRefs['cW']=new Chart('cW',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.wmax),
-    backgroundColor:st==='Ovejero'?'rgba(26,158,114,.7)':'rgba(26,158,114,.7)',
-    borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y} km/h`}}},
+  chartRefs['cW']=new Chart('cW',{data:{labels:dL,datasets:[
+    {type:'bar',label:'Ráfaga máx',data:D.map(d=>d.gmax),backgroundColor:'rgba(26,158,114,.55)',
+     borderRadius:5,borderWidth:0,order:2},
+    {type:'line',label:'Viento prom. máx',data:D.map(d=>d.wmax),borderColor:'#1D3461',borderWidth:2,
+     pointRadius:2,pointBackgroundColor:'#1D3461',tension:0,order:1}]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} km/h`}}},
       scales:{x:{grid:{display:false},ticks:XT},
         y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' km/h'},min:0}}}});
 
@@ -1265,7 +1303,7 @@ function renderDashboard(rows, stationRowsRaw) {
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
     tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Rango ${c.raw[0]}–${c.raw[1]}%`:` Prom ${c.parsed.y}%`}}},
     scales:{x:{grid:{color:GC},ticks:XT},y:{grid:{color:GC},
-      ticks:{color:TC,font:{size:9},callback:v=>v+'%'},min:35,max:100}}
+      ticks:{color:TC,font:{size:9},callback:v=>v+'%'},suggestedMin:35,max:100}}
   }});
 
   LAST_RENDER_ROWS = rows;
@@ -1334,7 +1372,7 @@ function renderDashboard(rows, stationRowsRaw) {
     plugins:{legend:{display:false},decimation:{enabled:true,algorithm:'lttb',samples:300},
       tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}},
     scales:{x:{grid:{display:false},ticks:{...XT,maxTicksLimit:6}},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:10,max:40}}
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},suggestedMin:10,suggestedMax:40}}
   }});
 
   // El riesgo de hongos se calcula solo con los registros de la estación
@@ -1377,7 +1415,7 @@ function renderDashboard(rows, stationRowsRaw) {
     plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>c.datasetIndex===0?` Temp. máx ${c.parsed.y}°C`:` Sensación ${c.parsed.y}°C`}}},
     scales:{x:{grid:{display:false},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:heatAxisMax}}
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},suggestedMin:15,max:heatAxisMax}}
   }});
 
   // ── GDU / Grados-día de crecimiento ──────────────────────────────
@@ -1395,7 +1433,9 @@ function renderDashboard(rows, stationRowsRaw) {
       <td>${diaLabel}</td><td>${d.tmin}°C</td><td>${d.tavg}°C</td><td>${d.tmax}°C</td>
       <td>${d.hmin}%</td><td>${d.havg}%</td><td>${d.hmax}%</td>
       <td>${d.rain>0?`<span class="rb">${d.rain}</span>`:'<span style="color:#ccc">—</span>'}</td>
-      <td>${d.wmax} km/h</td>`;
+      <td>${d.wmax} km/h</td>
+      <td>${d.gmax!=null?d.gmax+' km/h':'—'}</td>
+      <td title="${d.n} registros, cada ~${d.step} min" style="${d.coverage<80?'color:#A8401E;font-weight:700':'color:var(--sub)'}">${d.coverage<80?'⚠ ':''}${d.coverage}%</td>`;
     tb.appendChild(tr);
   });
   const aT=(D.reduce((a,d)=>a+d.tavg,0)/D.length).toFixed(1);
@@ -1407,7 +1447,9 @@ function renderDashboard(rows, stationRowsRaw) {
     <td>${Math.min(...D.map(d=>d.hmin)).toFixed(1)}%</td><td>${aH}%</td>
     <td>${Math.max(...D.map(d=>d.hmax)).toFixed(1)}%</td>
     <td><strong>${totR} mm</strong></td>
-    <td>${Math.max(...D.map(d=>d.wmax)).toFixed(1)} km/h</td>`;
+    <td>${Math.max(...D.map(d=>d.wmax)).toFixed(1)} km/h</td>
+    <td>${gMax!=null?gMax+' km/h':'—'}</td>
+    <td>${avgCov}%${lowCov.length?` · ${lowCov.length} día(s) &lt;80%`:''}</td>`;
 }
 
 function renderGDD(D){
@@ -1462,12 +1504,26 @@ function buildCompareView() {
       wmax:Math.max(...D.map(d=>d.wmax)).toFixed(1),
       havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
       gdu:D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp),0).toFixed(1),
-      n: rows.length,
+      n: D.reduce((a,d)=>a+d.n,0),
       dias: D.length
     };
   }
 
-  const sS=stStats(DSJ,sj), sO=stStats(DOV,ov);
+  // Período común por FECHA COMPLETA (d.key = DD/MM/YYYY), no por la etiqueta
+  // corta: si una estación tiene datos de dos años su etiqueta es "15/06/26" y
+  // la de la otra "15/06", y nunca coincidirían.
+  const ovKeys = new Set(DOV.map(d=>d.key));
+  const commonKeys = DSJ.map(d=>d.key).filter(k=>ovKeys.has(k));
+  const commonSet = new Set(commonKeys);
+  const cSJ = DSJ.filter(d=>commonSet.has(d.key));
+  const cOV = DOV.filter(d=>commonSet.has(d.key));
+  // Las tarjetas se calculan sobre el período común para que lluvia, GDU, etc.
+  // sean comparables (si no, cada estación sumaría una cantidad distinta de días).
+  const useCommon = commonKeys.length > 0;
+  const sS = stStats(useCommon?cSJ:DSJ, null), sO = stStats(useCommon?cOV:DOV, null);
+  document.getElementById('cmp-cards-note').textContent = useCommon
+    ? `Tarjetas calculadas sobre el período común (${commonKeys.length} días, ${cSJ[0].dia} – ${cSJ[cSJ.length-1].dia}), para que sean comparables.`
+    : 'Sin días en común: cada tarjeta usa el rango completo de su estación (no son directamente comparables).';
 
   function renderStats(containerId, s) {
     document.getElementById(containerId).innerHTML=[
@@ -1487,11 +1543,7 @@ function buildCompareView() {
 
   // Período común (días que existen en ambas) — se conserva el orden
   // cronológico que ya trae DSJ (aggregateByDay ordena por fecha real).
-  const ovDias = new Set(DOV.map(d=>d.dia));
-  const common = DSJ.map(d=>d.dia).filter(d=>ovDias.has(d));
-
-  const cSJ = DSJ.filter(d=>common.includes(d.dia));
-  const cOV = DOV.filter(d=>common.includes(d.dia));
+  const common = cSJ.map(d=>d.dia);   // etiquetas para ejes/tabla
   const cL  = common;
 
   document.getElementById('cmp-period').textContent = common.length
@@ -1513,7 +1565,7 @@ function buildCompareView() {
     plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}°C`}}},
     scales:{x:{grid:{color:GC},ticks:XT},
-      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},min:15,max:40}}
+      y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'°C'},suggestedMin:15,suggestedMax:40}}
   }});
 
  // Chart lluvia comparativa (más opacas + con borde para distinguirse mejor)
@@ -1579,9 +1631,9 @@ function buildCompareView() {
 
   // Tabla comparativa
   const cmpTb=document.getElementById('cmp-tb'); cmpTb.innerHTML='';
-  common.forEach(dia=>{
-    const s=DSJ.find(d=>d.dia===dia)||{};
-    const o=DOV.find(d=>d.dia===dia)||{};
+  cSJ.forEach((s,i)=>{
+    const o=cOV[i]||{};
+    const dia=s.dia;
     const tr=document.createElement('tr');
     const hasRain=(s.rain||0)>0||(o.rain||0)>0;
     if(hasRain) tr.className='rn';
@@ -1600,8 +1652,21 @@ function buildCompareView() {
 }
 
 // ── Carga y entrada de datos ───────────────────────────────────────
+let DUP_REMOVED = 0;
+let HAS_STATION_COL = true;
 function buildFromRows(rows, source) {
   ALL_ROWS = rows.filter(r=>r['Temperatura (C)'] && parseDiaParts(r['Dia']));
+  // Protección contra filas repetidas (misma estación + día + hora): si se
+  // pega o sube dos veces el mismo bloque, la lluvia se contaría doble.
+  // Se conserva la primera aparición.
+  const seenKeys = new Set();
+  DUP_REMOVED = 0;
+  ALL_ROWS = ALL_ROWS.filter(r=>{
+    const k = `${r['Estacion']||''}|${normalizeDayKey(r['Dia'])}|${(r['Hora']||'').substring(0,5)}`;
+    if(seenKeys.has(k)){ DUP_REMOVED++; return false; }
+    seenKeys.add(k); return true;
+  });
+  HAS_STATION_COL = ALL_ROWS.some(r=>r['Estacion']);
   // Orden cronológico real de todos los registros (fecha + hora), evita que
   // el orden de llegada del CSV desordene meses/años en las series y tablas.
   ALL_ROWS.sort((a,b)=>parseDiaHoraTS(a)-parseDiaHoraTS(b));
