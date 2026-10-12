@@ -230,7 +230,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <span id="cuartos-nav-ts" style="display:none"></span>
     <span id="nav-btns-dashboard">
       <button class="nav-tab-btn" id="btn-open-cuartos" onclick="showPage('cuartos')">&#127777; Thermo-Hygrometer CE</button>
-      <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos WD3</button>
+      <button class="nav-tab-btn" id="btn-open-uploader" onclick="showPage('uploader')">&#128228; Cargar datos (WD3 / SpecConnect)</button>
     </span>
     <button class="nav-tab-btn back" id="btn-back-cuartos" onclick="showPage('dashboard')" style="display:none">&larr; Volver al dashboard</button>
   </div>
@@ -563,11 +563,11 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <div style="height:14px"></div>
 
   <div class="panel">
-    <div class="step active" id="wd3-step1"><span class="n">1</span> Cargar archivo .WD3</div>
+    <div class="step active" id="wd3-step1"><span class="n">1</span> Cargar archivo .WD3 o CSV de SpecConnect</div>
     <h3>&#128193; Archivo de la estaci&oacute;n</h3>
-    <p class="hint">Sub&iacute; el archivo exportado por USB desde el WatchDog 3000 (extensi&oacute;n <code>.WD3</code>). La estaci&oacute;n se detecta autom&aacute;ticamente por el n&uacute;mero de serie del encabezado.</p>
+    <p class="hint">Sub&iacute; el archivo <code>.WD3</code> exportado por USB desde el WatchDog 3000 (Ovejero), o el <code>.csv</code> tal como se descarga de SpecConnect con el bot&oacute;n Exportar (CE), sin modificarlo. La estaci&oacute;n se detecta autom&aacute;ticamente por el n&uacute;mero de serie. Los registros que ya est&aacute;n en la hoja se omiten antes de subir.</p>
     <label id="wd3-drop-zone">
-      <input type="file" id="wd3-file-input" accept=".wd3,.WD3" style="display:none">
+      <input type="file" id="wd3-file-input" accept=".wd3,.WD3,.csv,.CSV" style="display:none">
       <div class="ic">&#128196;</div>
       <div class="t1">Clic para seleccionar o arrastr&aacute; el archivo aqu&iacute;</div>
       <div class="t2">54400111 = CE Suchitep&eacute;quez &middot; 54400110 = Ovejero, Jutiapa</div>
@@ -587,6 +587,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div id="wd3-resample-note" style="display:none;background:#FFF8E8;border:1px solid #F0D89A;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#7A5A10;margin-bottom:10px;line-height:1.6"></div>
+    <div id="wd3-dup-note" style="display:none;background:#EEF7F1;border:1px solid #B9DEC8;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#1F5E3B;margin-bottom:10px;line-height:1.6"></div>
     <div id="wd3-baddate-note" style="display:none;background:#EAF4FF;border:1px solid #B8D4F0;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#1D4E7A;margin-bottom:10px;line-height:1.6"></div>
 
     <div class="tw">
@@ -1502,6 +1503,7 @@ function buildCompareView() {
       rain:D.reduce((a,d)=>a+d.rain,0).toFixed(1),
       diasRain:D.filter(d=>d.rain>0).length,
       wmax:Math.max(...D.map(d=>d.wmax)).toFixed(1),
+      gmax:(()=>{const g=D.map(d=>d.gmax).filter(v=>v!=null);return g.length?Math.max(...g).toFixed(1):null})(),
       havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
       gdu:D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp),0).toFixed(1),
       n: D.reduce((a,d)=>a+d.n,0),
@@ -1533,7 +1535,8 @@ function buildCompareView() {
       ['Humedad promedio', s.havg+'%'],
       ['Lluvia total', s.rain+' mm'],
       ['Días con lluvia', s.diasRain+' de '+s.dias],
-      ['Viento máximo', s.wmax+' km/h'],
+      ['Ráfaga máxima', s.gmax!=null ? s.gmax+' km/h' : '—'],
+      ['Viento prom. máx', s.wmax+' km/h'],
       ['GDU acumulados', s.gdu],
       ['Registros', s.n.toLocaleString()],
     ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
@@ -2009,14 +2012,93 @@ function parseWD3(text) {
   return { rows, serial, skipped, corrected, discarded };
 }
 
+// ── CSV exportado de SpecConnect (CE) ───────────────────────────────
+// Formato tal como se descarga de SpecConnect → Exportar:
+//   línea 1: "Wireless Weather Station: 54400111 Fechas: ..."
+//   línea 2: Fecha de registro, B1: Temperatura, A1: Precipitaciones,
+//            B2: Humedad relativa, C1: Dirección del viento,
+//            C3: Velocidad del viento, C2: Ráfaga de viento
+// Unidades de SpecConnect: °C, mm, km/h. La hoja guarda viento en mph
+// (igual que el WD3), así que se convierte km/h → mph.
+function isSpecConnectCSV(text) {
+  return /Fecha de registro/i.test(text.slice(0, 2000));
+}
+function parseSpecConnectCSV(text) {
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  const sm = lines[0].match(/(\d{8})/);
+  const serial = sm ? sm[1] : '';
+  const hIdx = lines.findIndex(l => /Fecha de registro/i.test(l));
+  const sep = (lines[hIdx].match(/;/g)||[]).length > (lines[hIdx].match(/,/g)||[]).length ? ';' : ',';
+  const H = lines[hIdx].split(sep).map(h => h.trim());
+  const col = re => H.findIndex(h => re.test(h));
+  const iT = col(/Temperatura/i), iR = col(/Precipitaci/i), iH = col(/Humedad relativa/i),
+        iD = col(/Direcci/i), iW = col(/Velocidad del viento/i), iG = col(/R.faga/i);
+  if (iT < 0 || iH < 0) return { rows: [], serial, skipped: 0, corrected: 0, discarded: 0 };
+  const num = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(x) ? null : x; };
+  const kmhToMph = k => +(k / 1.60934).toFixed(1);
+  const rows = []; let skipped = 0;
+  for (const line of lines.slice(hIdx + 1)) {
+    if (!line.trim()) continue;
+    const f = line.split(sep);
+    const m = (f[0] || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    const tC = num(f[iT]), hum = num(f[iH]);
+    if (!m || tC === null || hum === null) { skipped++; continue; }
+    const [, y, mo, d, hh, mi] = m;
+    const diaStr = `${d}/${mo}/${y}`, horaStr = `${hh}:${mi}`;
+    const rainMm = iR >= 0 ? (num(f[iR]) ?? 0) : 0;
+    const w = iW >= 0 ? num(f[iW]) : null, g = iG >= 0 ? num(f[iG]) : null, dir = iD >= 0 ? num(f[iD]) : null;
+    rows.push({
+      'Estacion': STATION_MAP[serial] || serial || '??',
+      'Fecha Hora': `${diaStr} ${horaStr}`,
+      'Fecha': diaStr,
+      'Dia': diaStr,
+      'Hora': horaStr,
+      'Temperatura (C)': tC,
+      'Temperatura (F)': +(tC * 9 / 5 + 32).toFixed(1),
+      'Humedad (%HR)': hum,
+      'Lluvia (mm/10min)': rainMm,
+      'Lluvia (in/10min)': +(rainMm / 25.4).toFixed(3),
+      'Viento (mph)': w === null ? '' : kmhToMph(w),
+      'Direccion Viento (deg)': dir === null ? '' : dir,
+      'Rafaga (mph)': g === null ? '' : kmhToMph(g),
+      'Voltaje (V)': '',
+      'Bateria (%)': '',
+      'Punto de Rocio (C)': +Number(dewPointCSV(tC, hum)).toFixed(1)
+    });
+  }
+  return { rows, serial, skipped, corrected: 0, discarded: 0 };
+}
+
+// ── Omitir registros que ya están en la hoja ────────────────────────
+// Compara contra los datos que el dashboard ya cargó de Google Sheets
+// (misma estación + día + hora). Así, subir dos veces el mismo archivo o
+// archivos con días solapados no duplica nada, aunque algún valor
+// calculado (ej. punto de rocío) difiera por redondeo.
+let DUP_INFO = null;
+function removeAlreadyInSheet(rows) {
+  if (typeof ALL_ROWS === 'undefined' || !ALL_ROWS.length) {
+    DUP_INFO = { checked: false, removed: 0 };
+    return rows;
+  }
+  const key = r => `${r['Estacion']}|${normalizeDayKey(r['Dia'])}|${String(r['Hora']).substring(0,5)}`;
+  const existing = new Set(ALL_ROWS.map(key));
+  const fresh = rows.filter(r => !existing.has(key(r)));
+  DUP_INFO = { checked: true, removed: rows.length - fresh.length, total: rows.length };
+  return fresh;
+}
+
 // ── UI: carga de archivo ────────────────────────────────────────────
 function wd3HandleFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    let { rows, serial, skipped, corrected, discarded } = parseWD3(e.target.result);
+    const text = e.target.result;
+    const isSpec = isSpecConnectCSV(text);
+    let { rows, serial, skipped, corrected, discarded } = isSpec ? parseSpecConnectCSV(text) : parseWD3(text);
     if (!rows.length) {
-      alert('No se encontraron registros válidos (líneas "RM;") en este archivo.');
+      alert(isSpec
+        ? 'No se encontraron registros válidos en el CSV de SpecConnect.'
+        : 'No se encontraron registros válidos (líneas "RM;") en este archivo. Si es un CSV, debe ser el que se descarga directamente de SpecConnect.');
       return;
     }
 
@@ -2028,7 +2110,12 @@ function wd3HandleFile(file) {
       RESAMPLE_INFO = { applied: true, before: before, after: rows.length };
     }
 
+    rows = removeAlreadyInSheet(rows);
     PARSED_ROWS = rows;
+    if (!rows.length) {
+      alert(`Los ${DUP_INFO.total.toLocaleString()} registros de este archivo ya están en la hoja. No hay nada nuevo para subir.`);
+      return;
+    }
     wd3RenderPreview(rows, serial, skipped, corrected, discarded, file.name);
   };
   reader.onerror = () => alert('No se pudo leer el archivo.');
@@ -2063,6 +2150,16 @@ function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename)
     baddateNote.innerHTML = msg;
   } else {
     baddateNote.style.display = 'none';
+  }
+
+  const dupNote = document.getElementById('wd3-dup-note');
+  dupNote.style.display = 'block';
+  if (DUP_INFO && DUP_INFO.checked) {
+    dupNote.innerHTML = DUP_INFO.removed
+      ? `🔁 <strong>${DUP_INFO.removed.toLocaleString()} de ${DUP_INFO.total.toLocaleString()} registros ya estaban en la hoja</strong> y se omitieron. Solo se subirán los ${rows.length.toLocaleString()} nuevos.`
+      : `✅ Ninguno de estos registros está todavía en la hoja: se subirán todos.`;
+  } else {
+    dupNote.innerHTML = `⚠ El dashboard todavía no cargó los datos de Google Sheets, así que no se pudo revisar si hay registros repetidos. Volvé al dashboard, esperá a que cargue y volvé a cargar el archivo.`;
   }
 
   const resampleNote = document.getElementById('wd3-resample-note');
@@ -2130,7 +2227,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('wd3-btn-upload').addEventListener('click', async () => {
     const url = urlInput.value.trim();
     if (!url) { alert('Pegá la URL del Web App primero.'); return; }
-    if (!PARSED_ROWS.length) { alert('Cargá un archivo .WD3 primero.'); return; }
+    if (!PARSED_ROWS.length) { alert('Cargá un archivo .WD3 o CSV de SpecConnect primero.'); return; }
 
     const btn = document.getElementById('wd3-btn-upload');
     btn.disabled = true;
@@ -2145,9 +2242,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await resp.json();
       if (data.status === 'ok') {
         wd3Log(`Listo. ${data.added} registros nuevos agregados, ${data.skipped} ya existían (duplicados omitidos).`, 'ok');
+        // Se agregan a los datos en memoria para que, si se vuelve a cargar el
+        // mismo archivo sin recargar la página, también se detecten como repetidos.
+        if (typeof ALL_ROWS !== 'undefined') ALL_ROWS.push(...PARSED_ROWS);
+        PARSED_ROWS = [];
         document.getElementById('wd3-step2').classList.add('done');
         document.getElementById('wd3-step3').classList.add('done');
         document.getElementById('wd3-btn-view-dashboard').style.display = 'inline-flex';
+        btn.disabled = true;   // ya se subió: evita un segundo clic sobre lo mismo
+        return;
       } else {
         wd3Log(`Error del servidor: ${data.message}`, 'err');
       }
