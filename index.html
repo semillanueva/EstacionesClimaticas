@@ -93,6 +93,14 @@ main{max-width:1600px;margin:0 auto;padding:20px 28px 40px}
 .ll{width:14px;height:2px;border-radius:1px;flex-shrink:0}
 .ld{width:14px;height:0;border-top:2px dashed;flex-shrink:0}
 
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;padding:5px;background:var(--surf);
+  border:.5px solid var(--brd);border-radius:999px;box-shadow:var(--shd);width:fit-content;max-width:100%}
+.subtab{border:none;background:none;padding:8px 16px;border-radius:999px;font-size:12.5px;font-weight:600;
+  color:var(--muted);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.subtab:hover{color:var(--navy);background:var(--surf2)}
+.subtab.active{background:var(--navy);color:#fff}
+@media(max-width:540px){.subtabs{border-radius:var(--r)}.subtab{padding:7px 11px;font-size:12px}}
+
 /* COMPARE */
 .cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 .cmp-card{border-radius:var(--r);padding:16px 18px;border:.5px solid var(--brd);box-shadow:var(--shd)}
@@ -328,6 +336,13 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
   <!-- Vista individual (serie temporal + gráficas diarias) -->
   <div id="single-view">
+    <div class="subtabs" id="subtabs">
+      <button class="subtab active" data-sub="clima">&#127780;&#65039; Clima</button>
+      <button class="subtab" data-sub="agua">&#127783; Lluvia y agua</button>
+      <button class="subtab" data-sub="cultivo">&#127793; Cultivo</button>
+      <button class="subtab" data-sub="tabla">&#128203; Tabla diaria</button>
+    </div>
+    <div class="subtab-pane" data-pane="clima">
     <div class="panels r1"><div class="panel">
       <div class="ph">
         <span class="pt" id="serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad relativa</span>
@@ -366,6 +381,39 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </div>
     </div>
 
+    <div class="panels r2">
+      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento diario (km/h)</span>
+          <span class="leg" style="font-size:10px;color:var(--sub)">barras = r&aacute;faga m&aacute;x &middot; l&iacute;nea = viento prom. m&aacute;x</span></div>
+        <div style="position:relative;height:220px"><canvas id =cW></canvas></div></div>
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#129517; Rosa de los vientos</span>
+          <span class="ks" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
+        </div>
+        <div style="position:relative;height:190px;" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
+        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7 ">No hay datos de dirección de viento en este per&iacute;odo.<br>Agreg&aacute; la columna.
+        <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
+        a tu hoja "Datos" para activar este panel
+        </p>
+      </div>
+    </div>
+
+    <div class="panels r1">
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:rgba(232,168,56,.6)"></span>Temp. m&aacute;xima real</span>
+            <span class="li"><span class="ll" style="background:#C4421A"></span>Sensaci&oacute;n t&eacute;rmica</span>
+          </div>
+        </div>
+        <div style="position:relative;height:165px"><canvas id="cHeat"></canvas></div>
+        <p style="font-size:10px;color:var(--sub);margin-top:6px">La l&iacute;nea roja es la sensaci&oacute;n t&eacute;rmica calculada (f&oacute;rmula Rothfusz/NWS a partir de temp. + humedad), no la temperatura del sensor. El eje vertical se ajusta autom&aacute;ticamente por encima del m&aacute;ximo observado &mdash; su l&iacute;mite superior es solo la escala del gr&aacute;fico, no necesariamente un dato real.</p>
+      </div>
+    </div>
+
+    </div><!-- /clima -->
+    <div class="subtab-pane" data-pane="agua" style="display:none">
     <div class="panels r2">
       <div class="panel"><div class="ph"><span class="pt">&#127783; Precipitaci&oacute;n diaria (mm)</span></div>
         <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
@@ -440,6 +488,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <p id="wb-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
     </div></div>
 
+    </div><!-- /agua -->
+    <div class="subtab-pane" data-pane="cultivo" style="display:none">
     <div class="panels r1"><div class="panel">
       <div class="ph">
         <span class="pt">&#127793; Ciclo de cultivo &mdash; desarrollo y consumo de agua desde la siembra</span>
@@ -508,48 +558,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </div>
     </div></div>
 
-    <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#128168; Viento diario (km/h)</span>
-          <span class="leg" style="font-size:10px;color:var(--sub)">barras = r&aacute;faga m&aacute;x &middot; l&iacute;nea = viento prom. m&aacute;x</span></div>
-        <div style="position:relative;height:220px"><canvas id =cW></canvas></div></div>
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#129517; Rosa de los vientos</span>
-          <span class="ks" id="wr-dominant" style="font-size:11px;color:var(--sub)"></span>
-        </div>
-        <div style="position:relative;height:190px;" id="wr-wrap"><canvas id="cWindRose"></canvas></div>
-        <p id="wr-empty" style="display:none;font-size:11px;color:var(--sub);text-align:center;padding:24px 10px;line-height:1.7 ">No hay datos de dirección de viento en este per&iacute;odo.<br>Agreg&aacute; la columna.
-        <code style="background:#F0F4FA;padding:1px 5px;border-radius:4px">Direccion Viento (deg)</code>
-        a tu hoja "Datos" para activar este panel
-        </p>
-      </div>
-    </div>
-
-    <div class="panels r1"><div class="panel">
-      <div class="ph">
-        <span class="pt">&#128167; Punto de roc&iacute;o y riesgo de pat&oacute;genos</span>
-        <div class="leg" id="dew-leg">
-          <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
-          <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
-        </div>
-      </div>
-      <div style="position:relative;height:210px"><canvas id="cDew"></canvas></div>
-      <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
-    </div></div>
-    
-
-    <div class="panels r2">
-      <div class="panel">
-        <div class="ph">
-          <span class="pt">&#129397; &Iacute;ndice de calor diario (m&aacute;ximo)</span>
-          <div class="leg">
-            <span class="li"><span class="ll" style="background:rgba(232,168,56,.6)"></span>Temp. m&aacute;xima real</span>
-            <span class="li"><span class="ll" style="background:#C4421A"></span>Sensaci&oacute;n t&eacute;rmica</span>
-          </div>
-        </div>
-        <div style="position:relative;height:165px"><canvas id="cHeat"></canvas></div>
-        <p style="font-size:10px;color:var(--sub);margin-top:6px">La l&iacute;nea roja es la sensaci&oacute;n t&eacute;rmica calculada (f&oacute;rmula Rothfusz/NWS a partir de temp. + humedad), no la temperatura del sensor. El eje vertical se ajusta autom&aacute;ticamente por encima del m&aacute;ximo observado &mdash; su l&iacute;mite superior es solo la escala del gr&aacute;fico, no necesariamente un dato real.</p>
-      </div>
+    <div class="panels r1">
       <div class="panel">
         <div class="ph">
           <span class="pt">&#127793; Grados-d&iacute;a de crecimiento (GDU) acumulados</span>
@@ -571,6 +580,21 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
     </div>
 
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#128167; Punto de roc&iacute;o y riesgo de pat&oacute;genos</span>
+        <div class="leg" id="dew-leg">
+          <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura</span>
+          <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Punto de roc&iacute;o</span>
+        </div>
+      </div>
+      <div style="position:relative;height:210px"><canvas id="cDew"></canvas></div>
+      <div id="fungus-banner" style="margin-top:10px;border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;line-height:1.5"></div>
+    </div></div>
+    
+
+    </div><!-- /cultivo -->
+    <div class="subtab-pane" data-pane="tabla" style="display:none">
     <div class="panel" style="margin-bottom:16px">
       <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario</span></div>
       <div class="tw"><table>
@@ -584,6 +608,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <tfoot><tr id="tf"></tr></tfoot>
       </table></div>
     </div>
+    </div><!-- /tabla -->
+
   </div>
 
   <!-- Vista comparación -->
@@ -2279,6 +2305,34 @@ function buildCompareView() {
   document.getElementById('nav-ts').textContent =
     `🔄 ${new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
 }
+
+
+// ── Pestañas internas de la vista de estación (Clima / Agua / Cultivo / Tabla) ──
+// La pestaña elegida queda en la URL (#clima, #agua, #cultivo, #tabla) para
+// poder compartir el link apuntando directo a una sección.
+const SUBTABS = ['clima','agua','cultivo','tabla'];
+let CUR_SUB = 'clima';
+function setSubtab(name, updateHash){
+  if(!SUBTABS.includes(name)) name = 'clima';
+  CUR_SUB = name;
+  document.querySelectorAll('.subtab').forEach(b=>b.classList.toggle('active', b.dataset.sub===name));
+  document.querySelectorAll('.subtab-pane').forEach(p=>p.style.display = p.dataset.pane===name ? '' : 'none');
+  // Las gráficas dibujadas mientras su pestaña estaba oculta quedan con tamaño 0:
+  // se les pide recalcular el tamaño al mostrarlas.
+  (window.requestAnimationFrame || setTimeout)(()=>Object.values(chartRefs).forEach(c=>{ try{ c.resize(); }catch(e){} }));
+  if(updateHash !== false){
+    try { history.replaceState(null, '', '#'+name); } catch(e){}
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.querySelectorAll('.subtab').forEach(b=>b.addEventListener('click', ()=>setSubtab(b.dataset.sub)));
+  const h = (location.hash||'').replace('#','').toLowerCase();
+  setSubtab(SUBTABS.includes(h) ? h : 'clima', false);
+});
+window.addEventListener('hashchange', ()=>{
+  const h = (location.hash||'').replace('#','').toLowerCase();
+  if(SUBTABS.includes(h) && h!==CUR_SUB) setSubtab(h, false);
+});
 
 // ── Carga y entrada de datos ───────────────────────────────────────
 let DUP_REMOVED = 0;
