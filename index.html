@@ -140,6 +140,12 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
 /* ── Página "Cargar datos WD3" (antes conversor-wd3.html), con estilos
       propios escopados bajo #page-uploader para no chocar con el dashboard ── */
+.dry-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.dry-box{background:var(--surf2);border-radius:var(--r2);padding:10px 12px}
+.dry-box .l{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.dry-box .v{font-size:20px;font-weight:700;color:var(--navy);line-height:1.1}
+.dry-box .s{font-size:10.5px;color:var(--sub);margin-top:3px}
+@media(max-width:700px){.dry-stats{grid-template-columns:repeat(2,1fr)}}
 #page-uploader main{max-width:980px;margin:0 auto;padding:24px 20px 50px}
 #page-uploader .panel{padding:20px 22px;margin-bottom:18px}
 #page-uploader .panel h3{font-size:13px;font-weight:700;margin-bottom:4px;color:var(--navy)}
@@ -368,6 +374,34 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <div style="position:relative;height:220px"><canvas id="cRMonth"></canvas></div>
       </div>
     </div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#9728;&#65039; Racha seca &mdash; d&iacute;as consecutivos sin lluvia</span>
+        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);flex-wrap:wrap">
+          D&iacute;a seco = lluvia menor a
+          <input type="number" id="dry-thr" value="1" step="0.5" min="0" max="10"
+            style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
+          mm
+        </span>
+      </div>
+      <div class="dry-stats">
+        <div class="dry-box"><div class="l">Racha actual</div><div class="v" id="dry-cur">&mdash;</div><div class="s" id="dry-cur-s">&mdash;</div></div>
+        <div class="dry-box"><div class="l">Racha m&aacute;s larga</div><div class="v" id="dry-max">&mdash;</div><div class="s" id="dry-max-s">&mdash;</div></div>
+        <div class="dry-box"><div class="l">Rachas de 7+ d&iacute;as</div><div class="v" id="dry-n7">&mdash;</div><div class="s" id="dry-n7-s">en el per&iacute;odo</div></div>
+        <div class="dry-box"><div class="l">D&iacute;as secos</div><div class="v" id="dry-days">&mdash;</div><div class="s" id="dry-days-s">&mdash;</div></div>
+      </div>
+      <div class="ph" style="margin-bottom:6px">
+        <span style="font-size:10px;color:var(--sub)">Cada barra = d&iacute;as secos acumulados hasta ese d&iacute;a; vuelve a 0 cuando llueve.</span>
+        <div class="leg">
+          <span class="li"><span class="ll" style="background:rgba(46,134,171,.55);height:8px"></span>1&ndash;6 d&iacute;as</span>
+          <span class="li"><span class="ll" style="background:#E8A838;height:8px"></span>7&ndash;14 d&iacute;as</span>
+          <span class="li"><span class="ll" style="background:#E05A2B;height:8px"></span>15+ d&iacute;as</span>
+        </div>
+      </div>
+      <div style="position:relative;height:180px"><canvas id="cDry"></canvas></div>
+      <p id="dry-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p>
+    </div></div>
 
     <div class="panels r2">
       <div class="panel"><div class="ph"><span class="pt">&#128168; Viento diario (km/h)</span>
@@ -963,7 +997,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -1422,6 +1456,9 @@ function renderDashboard(rows, stationRowsRaw) {
   // ── GDU / Grados-día de crecimiento ──────────────────────────────
   renderGDD(D);
 
+  // ── Racha seca ───────────────────────────────────────────────────
+  renderDrySpell(D);
+
   // Tabla
   const tb=document.getElementById('tb'); tb.innerHTML='';
   D.forEach(d=>{
@@ -1451,6 +1488,79 @@ function renderDashboard(rows, stationRowsRaw) {
     <td>${Math.max(...D.map(d=>d.wmax)).toFixed(1)} km/h</td>
     <td>${gMax!=null?gMax+' km/h':'—'}</td>
     <td>${avgCov}%${lowCov.length?` · ${lowCov.length} día(s) &lt;80%`:''}</td>`;
+}
+
+// ── Racha seca: días consecutivos con lluvia < umbral ──────────────
+// Un día sin registros (hueco en los datos) corta la racha, porque no
+// se sabe si llovió. Los días incompletos (<80% de cobertura) sí cuentan
+// como secos si no registraron lluvia, pero se avisan en la nota porque
+// la lluvia de las horas faltantes podría no estar.
+function computeDrySpells(D, thr){
+  const series = [], spells = [];
+  let cur = 0, start = null, prev = null, prevTS = null, gaps = 0;
+  const close = (endDay, cutByGap) => {
+    if(cur>0) spells.push({ len:cur, from:start, to:endDay, cutByGap });
+  };
+  D.forEach(d=>{
+    const ts = parseDiaKey(d.key);
+    if(prevTS!==null && Math.round((ts-prevTS)/864e5) > 1){
+      gaps++;
+      close(prev, true); cur = 0; start = null;
+    }
+    if(d.rain < thr){ if(cur===0) start = d; cur++; }
+    else { close(prev, false); cur = 0; start = null; }
+    series.push(cur);
+    prev = d; prevTS = ts;
+  });
+  const ongoing = cur>0 ? { len:cur, from:start, to:prev, ongoing:true } : null;
+  if(ongoing) spells.push(ongoing);
+  const longest = spells.reduce((a,b)=> (!a || b.len>a.len) ? b : a, null);
+  return { series, spells, ongoing, longest, gaps };
+}
+
+function renderDrySpell(D){
+  const thrInput = document.getElementById('dry-thr');
+  let thr = parseFloat(thrInput.value);
+  if(isNaN(thr) || thr<0) thr = 1;
+  const R = computeDrySpells(D, thr);
+  const dryDays = D.filter(d=>d.rain<thr).length;
+  const n7 = R.spells.filter(s=>s.len>=7).length;
+  const dLbl = n => n===1 ? '1 día' : `${n} días`;
+
+  document.getElementById('dry-cur').textContent = R.ongoing ? dLbl(R.ongoing.len) : '0 días';
+  document.getElementById('dry-cur-s').textContent = R.ongoing
+    ? `desde ${R.ongoing.from.dia} hasta ${R.ongoing.to.dia} (último dato)`
+    : `llovió el ${D[D.length-1].dia} (último dato)`;
+  document.getElementById('dry-max').textContent = R.longest ? dLbl(R.longest.len) : '0 días';
+  document.getElementById('dry-max-s').textContent = R.longest
+    ? `${R.longest.from.dia} – ${R.longest.to.dia}${R.longest.ongoing?' · sigue en curso':''}`
+    : 'sin días secos';
+  document.getElementById('dry-n7').textContent = n7;
+  document.getElementById('dry-days').textContent = dryDays;
+  document.getElementById('dry-days-s').textContent = `de ${D.length} días con datos (${Math.round(dryDays/D.length*100)}%)`;
+
+  const colors = R.series.map(v => v>=15 ? '#E05A2B' : v>=7 ? '#E8A838' : 'rgba(46,134,171,.55)');
+  if(chartRefs['cDry']){ chartRefs['cDry'].destroy(); delete chartRefs['cDry']; }
+  chartRefs['cDry'] = new Chart('cDry', {type:'bar', data:{labels:D.map(d=>d.dia), datasets:[{
+      data:R.series, backgroundColor:colors, borderRadius:3, borderWidth:0,
+      categoryPercentage:1, barPercentage:0.9 }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const d = D[c.dataIndex];
+          return c.parsed.y>0
+            ? [` ${dLbl(c.parsed.y)} seguidos sin lluvia`, ` lluvia del día: ${d.rain} mm`]
+            : [` Llovió: ${d.rain} mm`];
+        }}}},
+      scales:{x:{grid:{display:false},ticks:XT},
+        y:{grid:{color:GC},min:0,ticks:{color:TC,font:{size:9},precision:0,callback:v=>v+' d'}}}
+  }});
+
+  const notes = [];
+  if(R.gaps) notes.push(`⚠ ${R.gaps} hueco(s) de días sin datos cortan la racha (no se sabe si llovió esos días), así que las rachas reales podrían ser más largas.`);
+  const lowDry = D.filter(d=>d.rain<thr && d.coverage<80).length;
+  if(lowDry) notes.push(`${lowDry} día(s) contados como secos tienen menos del 80% de registros: pudo haber lluvia en las horas faltantes.`);
+  document.getElementById('dry-note').textContent = notes.join(' ');
 }
 
 function renderGDD(D){
@@ -1506,6 +1616,7 @@ function buildCompareView() {
       gmax:(()=>{const g=D.map(d=>d.gmax).filter(v=>v!=null);return g.length?Math.max(...g).toFixed(1):null})(),
       havg:(D.reduce((a,d)=>a+d.havg,0)/D.length).toFixed(1),
       gdu:D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbaseCmp,ttopCmp),0).toFixed(1),
+      dry:computeDrySpells(D, (()=>{const t=parseFloat(document.getElementById('dry-thr')?.value);return isNaN(t)||t<0?1:t;})()),
       n: D.reduce((a,d)=>a+d.n,0),
       dias: D.length
     };
@@ -1537,6 +1648,8 @@ function buildCompareView() {
       ['Días con lluvia', s.diasRain+' de '+s.dias],
       ['Ráfaga máxima', s.gmax!=null ? s.gmax+' km/h' : '—'],
       ['Viento prom. máx', s.wmax+' km/h'],
+      ['Racha seca más larga', s.dry.longest ? `${s.dry.longest.len} días (${s.dry.longest.from.dia}–${s.dry.longest.to.dia})` : '0 días'],
+      ['Racha seca actual', s.dry.ongoing ? `${s.dry.ongoing.len} días` : '0 días'],
       ['GDU acumulados', s.gdu],
       ['Registros', s.n.toLocaleString()],
     ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
@@ -1746,6 +1859,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   document.getElementById('gdd-tbase').addEventListener('change', () => {
     if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
+  });
+  document.getElementById('dry-thr').addEventListener('change', () => {
+    if(LAST_RENDER_ROWS){ renderDrySpell(aggregateByDay(LAST_RENDER_ROWS)); }
+    if(CUR_STATION==='compare') buildCompareView();
   });
   document.getElementById('gdd-ttop').addEventListener('change', () => {
     if(LAST_RENDER_ROWS){ renderGDD(aggregateByDay(LAST_RENDER_ROWS)); }
