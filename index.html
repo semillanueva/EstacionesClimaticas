@@ -415,8 +415,13 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div><!-- /clima -->
     <div class="subtab-pane" data-pane="agua" style="display:none">
     <div class="panels r2">
-      <div class="panel"><div class="ph"><span class="pt">&#127783; Precipitaci&oacute;n diaria (mm)</span></div>
-        <div style="position:relative;height:220px"><canvas id="cR"></canvas></div></div>
+      <div class="panel"><div class="ph"><span class="pt">&#127783; Precipitaci&oacute;n diaria e intensidad m&aacute;xima</span>
+          <div class="leg">
+            <span class="li"><span class="ll" style="background:rgba(46,134,171,.8);height:8px"></span>Lluvia del d&iacute;a (mm)</span>
+            <span class="li"><span class="ll" style="background:#E05A2B"></span>Intensidad m&aacute;x. (mm/h)</span>
+          </div></div>
+        <div style="position:relative;height:220px"><canvas id="cR"></canvas></div>
+        <p id="rint-note" style="font-size:10px;color:var(--sub);margin-top:6px"></p></div>
       <div class="panel">
         <div class="ph">
           <span class="pt">&#127783; Precipitaci&oacute;n acumulada mensual (mm)</span>
@@ -518,11 +523,12 @@ footer{text-align:center;font-size:11px;color:var(--sub);
           <div class="dry-box"><div class="l">Floraci&oacute;n</div><div class="v" id="cr-flor" style="font-size:16px">&mdash;</div><div class="s" id="cr-flor-s">&mdash;</div></div>
           <div class="dry-box"><div class="l">Madurez</div><div class="v" id="cr-mad" style="font-size:16px">&mdash;</div><div class="s" id="cr-mad-s">&mdash;</div></div>
         </div>
-        <div class="dry-stats" style="grid-template-columns:repeat(4,1fr)">
+        <div class="dry-stats">
           <div class="dry-box"><div class="l">Lluvia desde siembra</div><div class="v" id="cr-rain" style="color:var(--steel)">&mdash;</div><div class="s">total</div></div>
           <div class="dry-box"><div class="l">Consumo del cultivo (ETc)</div><div class="v" id="cr-etc" style="color:#C98A1C">&mdash;</div><div class="s" id="cr-etc-s">&mdash;</div></div>
           <div class="dry-box"><div class="l">Balance del ciclo</div><div class="v" id="cr-bal">&mdash;</div><div class="s" id="cr-bal-s">&mdash;</div></div>
           <div class="dry-box"><div class="l">Balance en floraci&oacute;n / llenado</div><div class="v" id="cr-balmid">&mdash;</div><div class="s" id="cr-balmid-s">etapa m&aacute;s sensible al agua</div></div>
+          <div class="dry-box"><div class="l">Calor en floraci&oacute;n / llenado</div><div class="v" id="cr-hot">&mdash;</div><div class="s" id="cr-hot-s">horas sobre el umbral de estr&eacute;s</div></div>
         </div>
         <div class="panels r2" style="margin-bottom:0">
           <div>
@@ -557,6 +563,31 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <p id="crop-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
       </div>
     </div></div>
+
+    <div class="panels r2">
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#128293; Horas de estr&eacute;s por calor</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+            Umbral <input type="number" id="hot-thr" value="35" step="0.5" min="25" max="45" class="inl-num"> &deg;C
+          </span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px" id="hot-sum">&mdash;</div>
+        <div style="position:relative;height:190px"><canvas id="cHot"></canvas></div>
+        <p id="hot-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <span class="pt">&#128167; Horas de mojadura (humedad alta)</span>
+          <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+            HR &ge; <input type="number" id="wet-thr" value="90" step="1" min="70" max="100" class="inl-num"> %
+          </span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px" id="wet-sum">&mdash;</div>
+        <div style="position:relative;height:190px"><canvas id="cWet"></canvas></div>
+        <p id="wet-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
+      </div>
+    </div>
 
     <div class="panels r1">
       <div class="panel">
@@ -1071,6 +1102,19 @@ function aggregateByDay(rows) {
       : 10;
     const coverage = Math.min(100, Math.round(mins.length / (1440/step) * 100));
     const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+    // Intensidad máxima de lluvia (mm/h): suma móvil de la lluvia de los
+    // últimos 60 min, tomando la hora real de cada lectura. Así funciona
+    // igual con intervalos de 10 o 15 min.
+    const rainPts = recs.map(r=>{
+      const hp=(r['Hora']||'').substring(0,5).split(':');
+      return { m:(parseInt(hp[0],10)||0)*60+(parseInt(hp[1],10)||0), r:parseFloat(r['Lluvia (mm/10min)'])||0 };
+    }).sort((a,b)=>a.m-b.m);
+    let rmax60 = 0;
+    for(let i=0, j=0, sum=0; i<rainPts.length; i++){
+      sum += rainPts[i].r;
+      while(rainPts[j].m <= rainPts[i].m - 60){ sum -= rainPts[j].r; j++; }
+      if(sum > rmax60) rmax60 = sum;
+    }
     const heatVals = recs.map(r=>{
       const t=parseFloat(r['Temperatura (C)']), h=parseFloat(r['Humedad (%HR)']);
       return (!isNaN(t)&&!isNaN(h)) ? heatIndexC(t,h) : NaN;
@@ -1098,7 +1142,10 @@ function aggregateByDay(rows) {
       coverage,        // % de registros esperados que llegaron
       heatMax: heatVals.length?+Math.max(...heatVals).toFixed(1):0,
       altSource: fuentes.length>0,
-      fuente: fuentes.join(', ')
+      fuente: fuentes.join(', '),
+      tArr: tc,        // temperaturas del día (para horas sobre un umbral)
+      hArr: hm,        // humedades del día
+      rmax60: +rmax60.toFixed(1)
     };
   });
 }
@@ -1129,7 +1176,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU','cHot','cWet'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -1426,13 +1473,30 @@ function renderDashboard(rows, stationRowsRaw) {
     document.getElementById('tdaily-note').textContent = notes.join(' · ');
   }
 
-  chartRefs['cR']=new Chart('cR',{type:'bar',data:{labels:dL,datasets:[{data:D.map(d=>d.rain),
-    backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
-    borderRadius:5,borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:c=>` ${c.parsed.y} mm`}}},
+  chartRefs['cR']=new Chart('cR',{data:{labels:dL,datasets:[
+    {type:'bar',label:'Lluvia',yAxisID:'y',data:D.map(d=>d.rain),
+     backgroundColor:D.map(d=>d.rain>0?'rgba(46,134,171,.8)':'rgba(46,134,171,.12)'),
+     borderRadius:5,borderWidth:0,order:2},
+    {type:'line',label:'Intensidad',yAxisID:'yI',data:D.map(d=>d.rmax60>0?d.rmax60:null),
+     borderColor:'#E05A2B',backgroundColor:'#E05A2B',borderWidth:0,showLine:false,
+     pointRadius:D.map(d=>d.rmax60>=15?4.5:3),pointStyle:'circle',order:1}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+      tooltip:{filter:i=>i.parsed.y!=null,callbacks:{label:c=>c.datasetIndex===0
+        ? ` Lluvia del día: ${c.parsed.y} mm`
+        : ` Intensidad máx: ${c.parsed.y} mm/h (${rainIntensityClass(c.parsed.y)})`}}},
       scales:{x:{grid:{display:false},ticks:XT},
-        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0}}}});
+        y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+'mm'},min:0},
+        yI:{position:'right',grid:{drawOnChartArea:false},min:0,suggestedMax:20,
+            ticks:{color:'#E05A2B',font:{size:9},callback:v=>v+' mm/h'}}}}});
+  {
+    const strong = D.filter(d=>d.rmax60>=15);
+    const top = D.reduce((a,d)=>d.rmax60>(a?.rmax60||0)?d:a, null);
+    document.getElementById('rint-note').textContent = top && top.rmax60>0
+      ? `Mayor intensidad: ${top.rmax60} mm/h el ${top.dia} (${rainIntensityClass(top.rmax60)}). ${strong.length} día(s) con lluvia fuerte o más (≥15 mm/h): más riesgo de escorrentía, erosión y encharcamiento. Clasificación AEMET: débil ≤2 · moderada 2–15 · fuerte 15–30 · muy fuerte 30–60 · torrencial >60 mm/h.`
+      : 'Sin lluvia registrada en el período.';
+  }
 
   const MR = aggregateByMonth(D);
   document.getElementById('rmonth-total').textContent =
@@ -1597,6 +1661,10 @@ function renderDashboard(rows, stationRowsRaw) {
   // ── Ciclo de cultivo (desde la siembra, independiente del filtro) ──
   LAST_STATION_ROWS = stationRowsRaw;
   renderCropCycle(stationRowsRaw);
+
+  // ── Estrés por calor y horas de mojadura ─────────────────────────
+  renderHeatStress(D);
+  renderWetHours(D);
 
   // Tabla
   const tb=document.getElementById('tb'); tb.innerHTML='';
@@ -1948,7 +2016,8 @@ function renderCropCycle(stationRows){
   $('crop-empty').style.display = 'none'; $('crop-body').style.display = 'block';
 
   // Recorrido día por día desde la siembra (se detiene al llegar a madurez)
-  let cumG = 0, cumBal = 0, rainT = 0, etcT = 0, balMid = 0, midDays = 0, noTemp = 0;
+  let cumG = 0, cumBal = 0, rainT = 0, etcT = 0, balMid = 0, midDays = 0, noTemp = 0, midHot = 0, midHotDays = 0;
+  const hotThr = getHotThr();
   let florTS = null, madTS = null, gaps = 0, prevTS = sowTS - 864e5;
   const days = [];
   for(const d of D){
@@ -1970,6 +2039,7 @@ function renderCropCycle(stationRows){
       rainT += d.rain; etcT += etc; cumBal += d.rain - etc;
       if(K.idx===2){ balMid += d.rain - etc; midDays++; }
     }
+    if(K.idx===2){ const hh = hoursAbove(d.tArr, hotThr, d.step); midHot += hh; if(hh>0) midHotDays++; }
     days.push({ dia:d.dia, ts, rain:d.rain, etc: etc===null?null:+etc.toFixed(1),
       cumBal:+cumBal.toFixed(1), cumG:+cumG.toFixed(0), kc:+K.kc.toFixed(2), stage:K.stage, idx:K.idx });
     if(madTS!==null) break;
@@ -2020,6 +2090,15 @@ function renderCropCycle(stationRows){
   } else {
     $('cr-balmid').textContent = '—'; $('cr-balmid').style.color = '';
     $('cr-balmid-s').textContent = 'todavía no llega a esta etapa';
+  }
+
+  if(midDays){
+    $('cr-hot').innerHTML = `${midHot.toFixed(1)}<span style="font-size:12px;font-weight:500"> h</span>`;
+    $('cr-hot').style.color = midHot>=4 ? 'var(--coral)' : midHot>0 ? '#C98A1C' : 'var(--teal)';
+    $('cr-hot-s').textContent = `≥ ${hotThr}°C · ${midHotDays} día(s) con estrés en la etapa`;
+  } else {
+    $('cr-hot').textContent = '—'; $('cr-hot').style.color = '';
+    $('cr-hot-s').textContent = 'todavía no llega a esta etapa';
   }
 
   // Franjas de etapa de fondo
@@ -2096,6 +2175,76 @@ function renderCropCycle(stationRows){
   if(noTemp) notes.push(`⚠ ${noTemp} día(s) sin temperatura válida no sumaron GDU.`);
   if(sowTS < parseDiaKey(Dall[0].key)) notes.push(`⚠ La siembra es anterior al primer dato de la estación (${Dall[0].key}): los GDU y el consumo empiezan a contarse desde ese día.`);
   $('crop-note').textContent = notes.join(' ');
+}
+
+// ── Horas sobre/bajo un umbral, a partir de las lecturas del día ────
+function hoursAbove(arr, thr, step){
+  return Math.min(24, arr.filter(v=>v>=thr).length * step / 60);
+}
+function rainIntensityClass(v){
+  if(v<=2) return 'débil';
+  if(v<=15) return 'moderada';
+  if(v<=30) return 'fuerte';
+  if(v<=60) return 'muy fuerte';
+  return 'torrencial';
+}
+function getHotThr(){ const t=parseFloat(document.getElementById('hot-thr')?.value); return isNaN(t)?35:t; }
+function getWetThr(){ const t=parseFloat(document.getElementById('wet-thr')?.value); return isNaN(t)?90:t; }
+
+// ── Estrés por calor: horas por día con temperatura ≥ umbral ─────────
+// 35°C es el umbral usual de daño en floración del maíz (viabilidad del
+// polen). La temperatura es del aire a la altura del sensor, no del cultivo.
+function renderHeatStress(D){
+  const thr = getHotThr();
+  const hrs = D.map(d=>+hoursAbove(d.tArr, thr, d.step).toFixed(1));
+  const total = hrs.reduce((a,b)=>a+b,0);
+  const nDays = hrs.filter(h=>h>0).length;
+  const maxH = Math.max(0, ...hrs);
+  const maxDay = maxH>0 ? D[hrs.indexOf(maxH)].dia : null;
+  document.getElementById('hot-sum').innerHTML = nDays
+    ? `<strong style="color:var(--coral)">${total.toFixed(1)} h</strong> en total · ${nDays} de ${D.length} día(s) con estrés · máximo ${maxH} h el ${maxDay}`
+    : `Sin horas ≥ ${thr}°C en el período ✅`;
+  if(chartRefs['cHot']){ chartRefs['cHot'].destroy(); delete chartRefs['cHot']; }
+  chartRefs['cHot'] = new Chart('cHot', {type:'bar', data:{labels:D.map(d=>d.dia), datasets:[{
+      data:hrs, backgroundColor:hrs.map(h=>h>=4?'#E05A2B':h>0?'#E8A838':'rgba(0,0,0,.05)'),
+      borderRadius:3, borderWidth:0 }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>{
+        const d=D[c.dataIndex]; return [` ${c.parsed.y} h ≥ ${thr}°C`, ` T máx del día: ${d.tmax}°C`];
+      }}}},
+      scales:{x:{grid:{display:false},ticks:XT},
+        y:{grid:{color:GC},min:0,suggestedMax:4,ticks:{color:TC,font:{size:9},callback:v=>v+' h'}}}}
+  });
+  const low = D.filter((d,i)=>d.coverage<80).length;
+  document.getElementById('hot-note').textContent =
+    `Ámbar = alguna hora sobre ${thr}°C · coral = 4 h o más. En floración, varias horas sobre 35°C reducen la viabilidad del polen y el cuajado de grano; el panel "Ciclo de cultivo" suma estas horas solo dentro de esa etapa.`
+    + (low ? ` ${low} día(s) incompletos (<80% de registros) pueden tener horas sin contar.` : '');
+}
+
+// ── Horas de mojadura: horas por día con HR ≥ umbral ────────────────
+// HR ≥ 90% es la aproximación habitual de "hoja mojada" cuando no hay un
+// sensor de mojadura foliar. Muchas enfermedades foliares (manchas,
+// royas) necesitan varias horas seguidas de mojadura para infectar.
+function renderWetHours(D){
+  const thr = getWetThr();
+  const hrs = D.map(d=>+hoursAbove(d.hArr, thr, d.step).toFixed(1));
+  const avgH = hrs.length ? hrs.reduce((a,b)=>a+b,0)/hrs.length : 0;
+  const n10 = hrs.filter(h=>h>=10).length;
+  document.getElementById('wet-sum').innerHTML =
+    `Promedio <strong style="color:var(--steel)">${avgH.toFixed(1)} h/día</strong> · ${n10} de ${D.length} día(s) con 10 h o más`;
+  if(chartRefs['cWet']){ chartRefs['cWet'].destroy(); delete chartRefs['cWet']; }
+  chartRefs['cWet'] = new Chart('cWet', {type:'bar', data:{labels:D.map(d=>d.dia), datasets:[{
+      data:hrs, backgroundColor:hrs.map(h=>h>=10?'#E05A2B':h>=6?'#E8A838':'rgba(46,134,171,.6)'),
+      borderRadius:3, borderWidth:0 }]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>{
+        const d=D[c.dataIndex]; return [` ${c.parsed.y} h con HR ≥ ${thr}%`, ` HR prom. del día: ${d.havg}%`];
+      }}}},
+      scales:{x:{grid:{display:false},ticks:XT},
+        y:{grid:{color:GC},min:0,max:24,ticks:{color:TC,font:{size:9},stepSize:6,callback:v=>v+' h'}}}}
+  });
+  document.getElementById('wet-note').textContent =
+    `Azul < 6 h · ámbar 6–10 h · coral ≥ 10 h por día. HR ≥ ${thr}% se usa como aproximación de hoja mojada (no hay sensor de mojadura foliar). Varios días seguidos en coral favorecen enfermedades foliares; conviene leerlo junto con la etapa del cultivo y el monitoreo en campo.`;
 }
 
 function renderGDD(D){
@@ -2444,6 +2593,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   ['gdd-tbase','gdd-ttop'].forEach(id => document.getElementById(id).addEventListener('change', () => {
     if(LAST_STATION_ROWS && CUR_STATION!=='compare') renderCropCycle(LAST_STATION_ROWS);
   }));
+  document.getElementById('hot-thr').addEventListener('change', () => {
+    if(LAST_RENDER_ROWS && CUR_STATION!=='compare'){
+      renderHeatStress(aggregateByDay(LAST_RENDER_ROWS));
+      if(LAST_STATION_ROWS) renderCropCycle(LAST_STATION_ROWS);
+    }
+  });
+  document.getElementById('wet-thr').addEventListener('change', () => {
+    if(LAST_RENDER_ROWS && CUR_STATION!=='compare') renderWetHours(aggregateByDay(LAST_RENDER_ROWS));
+  });
   document.getElementById('wb-kc').addEventListener('change', () => {
     if(CUR_STATION==='compare') buildCompareView();
     else if(LAST_RENDER_ROWS){ renderWaterBalance(aggregateByDay(LAST_RENDER_ROWS)); }
