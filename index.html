@@ -440,6 +440,74 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <p id="wb-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
     </div></div>
 
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#127793; Ciclo de cultivo &mdash; desarrollo y consumo de agua desde la siembra</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);flex-wrap:wrap">
+          Siembra
+          <input type="date" id="crop-date" class="inl-sel">
+          Cultivo
+          <select id="crop-type" class="inl-sel">
+            <option value="maiz">Ma&iacute;z</option>
+            <option value="frijol">Frijol</option>
+          </select>
+          GDU a floraci&oacute;n
+          <input type="number" id="crop-flor" class="inl-num" style="width:58px" step="10" min="100">
+          GDU a madurez
+          <input type="number" id="crop-mad" class="inl-num" style="width:58px" step="10" min="200">
+        </span>
+      </div>
+      <p id="crop-empty" style="font-size:12px;color:var(--muted);text-align:center;padding:22px 10px">
+        Eleg&iacute; la fecha de siembra para ver el avance del cultivo y su consumo de agua.
+      </p>
+      <div id="crop-body" style="display:none">
+        <div class="dry-stats">
+          <div class="dry-box"><div class="l">D&iacute;as desde siembra</div><div class="v" id="cr-days">&mdash;</div><div class="s" id="cr-days-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">GDU acumulados</div><div class="v" id="cr-gdu">&mdash;</div><div class="s" id="cr-gdu-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Etapa actual</div><div class="v" id="cr-stage" style="font-size:16px">&mdash;</div><div class="s" id="cr-stage-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Floraci&oacute;n</div><div class="v" id="cr-flor" style="font-size:16px">&mdash;</div><div class="s" id="cr-flor-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Madurez</div><div class="v" id="cr-mad" style="font-size:16px">&mdash;</div><div class="s" id="cr-mad-s">&mdash;</div></div>
+        </div>
+        <div class="dry-stats" style="grid-template-columns:repeat(4,1fr)">
+          <div class="dry-box"><div class="l">Lluvia desde siembra</div><div class="v" id="cr-rain" style="color:var(--steel)">&mdash;</div><div class="s">total</div></div>
+          <div class="dry-box"><div class="l">Consumo del cultivo (ETc)</div><div class="v" id="cr-etc" style="color:#C98A1C">&mdash;</div><div class="s" id="cr-etc-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance del ciclo</div><div class="v" id="cr-bal">&mdash;</div><div class="s" id="cr-bal-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance en floraci&oacute;n / llenado</div><div class="v" id="cr-balmid">&mdash;</div><div class="s" id="cr-balmid-s">etapa m&aacute;s sensible al agua</div></div>
+        </div>
+        <div class="panels r2" style="margin-bottom:0">
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Agua: lluvia vs. consumo del cultivo</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:rgba(46,134,171,.8);height:8px"></span>Lluvia</span>
+                <span class="li"><span class="ll" style="background:rgba(232,168,56,.8);height:8px"></span>ETc</span>
+                <span class="li"><span class="ll" style="background:#1D3461"></span>Balance acum.</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="cCropWater"></canvas></div>
+          </div>
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Desarrollo: GDU acumulados y Kc</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:#1A9E72"></span>GDU</span>
+                <span class="li"><span class="ld" style="border-color:#1A9E72"></span>Proyecci&oacute;n</span>
+                <span class="li"><span class="ll" style="background:#E8A838"></span>Kc</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="cCropGDU"></canvas></div>
+          </div>
+        </div>
+        <div class="leg" style="margin-top:8px">
+          <span class="li"><span class="ll" style="background:rgba(46,134,171,.12);height:8px"></span>Inicial</span>
+          <span class="li"><span class="ll" style="background:rgba(26,158,114,.12);height:8px"></span>Desarrollo</span>
+          <span class="li"><span class="ll" style="background:rgba(232,168,56,.18);height:8px"></span>Floraci&oacute;n / llenado</span>
+          <span class="li"><span class="ll" style="background:rgba(224,90,43,.10);height:8px"></span>Maduraci&oacute;n</span>
+        </div>
+        <p id="crop-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
+      </div>
+    </div></div>
+
     <div class="panels r2">
       <div class="panel"><div class="ph"><span class="pt">&#128168; Viento diario (km/h)</span>
           <span class="leg" style="font-size:10px;color:var(--sub)">barras = r&aacute;faga m&aacute;x &middot; l&iacute;nea = viento prom. m&aacute;x</span></div>
@@ -934,6 +1002,7 @@ let CUR_TO   = '';
 let DETAIL_FROM = '';
 let DETAIL_TO   = '';
 let LAST_RENDER_ROWS = null;
+let LAST_STATION_ROWS = null;
 let refreshTimer = null;
 const chartRefs = {};
 
@@ -1034,7 +1103,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -1499,6 +1568,10 @@ function renderDashboard(rows, stationRowsRaw) {
   // ── Balance hídrico ──────────────────────────────────────────────
   renderWaterBalance(D);
 
+  // ── Ciclo de cultivo (desde la siembra, independiente del filtro) ──
+  LAST_STATION_ROWS = stationRowsRaw;
+  renderCropCycle(stationRowsRaw);
+
   // Tabla
   const tb=document.getElementById('tb'); tb.innerHTML='';
   D.forEach(d=>{
@@ -1756,6 +1829,247 @@ function renderWaterBalance(D){
   if(W.noEt) notes.push(`⚠ ${W.noEt} día(s) sin temperatura válida se excluyeron del cálculo.`);
   if(W.lowCov) notes.push(`${W.lowCov} día(s) con menos del 80% de registros: su mín/máx puede estar incompleto y el ET₀ de ese día es menos preciso.`);
   $('wb-note').textContent = notes.join(' ');
+}
+
+// ── Ciclo de cultivo: GDU desde siembra + Kc automático por etapa ──
+// Los GDU de floración y madurez son valores GENÉRICOS de referencia para
+// clima tropical (base 10°C, tope 30°C). Cada variedad tiene los suyos:
+// reemplazalos en los campos del panel o aquí si ya los conocen.
+// Kc por etapa: FAO-56 (maíz grano: 0.3 / 1.2 / 0.5; frijol seco: 0.4 / 1.15 / 0.35).
+const CROP_PRESETS = {
+  maiz:   { label:'Maíz',   flor:900, mad:1800, kc:{ ini:0.3, mid:1.2,  end:0.5  } },
+  frijol: { label:'Frijol', flor:650, mad:1300, kc:{ ini:0.4, mid:1.15, end:0.35 } }
+};
+// Límites de etapa en GDU (proporciones típicas de la curva de Kc de FAO-56):
+//   inicial      → hasta 20% de los GDU a madurez
+//   desarrollo   → hasta 90% de los GDU a floración (Kc sube en línea recta)
+//   floración/llenado → hasta la mitad entre floración y madurez (Kc máximo)
+//   maduración   → hasta madurez (Kc baja en línea recta)
+function cropStages(flor, mad){
+  const iniEnd = 0.2*mad;
+  const midStart = Math.max(iniEnd + 1, 0.9*flor);
+  const midEnd = Math.max(midStart + 1, flor + 0.5*(mad - flor));
+  return { iniEnd, midStart, midEnd, mad };
+}
+function kcAt(g, P, B){
+  const k = P.kc;
+  if(g <= B.iniEnd)   return { kc:k.ini, stage:'Inicial', idx:0 };
+  if(g <  B.midStart) return { kc:k.ini + (k.mid-k.ini)*(g-B.iniEnd)/(B.midStart-B.iniEnd), stage:'Desarrollo', idx:1 };
+  if(g <= B.midEnd)   return { kc:k.mid, stage:'Floración / llenado', idx:2 };
+  if(g <= B.mad)      return { kc:k.mid + (k.end-k.mid)*(g-B.midEnd)/(B.mad-B.midEnd), stage:'Maduración', idx:3 };
+  return { kc:null, stage:'Madurez alcanzada', idx:4 };
+}
+
+// Guarda/carga la configuración por estación en el navegador (cada quien
+// en su compu). Si el navegador bloquea el almacenamiento, simplemente no se recuerda.
+let CROP_LOADED_FOR = null;
+function cropStoreKey(st){ return 'sn_ciclo_' + st; }
+function loadCropInputs(st){
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem(cropStoreKey(st)) || 'null'); } catch(e){}
+  const type = (cfg && CROP_PRESETS[cfg.crop]) ? cfg.crop : 'maiz';
+  document.getElementById('crop-type').value = type;
+  document.getElementById('crop-date').value = cfg?.date || '';
+  document.getElementById('crop-flor').value = cfg?.flor || CROP_PRESETS[type].flor;
+  document.getElementById('crop-mad').value  = cfg?.mad  || CROP_PRESETS[type].mad;
+  CROP_LOADED_FOR = st;
+}
+function saveCropInputs(){
+  const cfg = {
+    date: document.getElementById('crop-date').value,
+    crop: document.getElementById('crop-type').value,
+    flor: parseFloat(document.getElementById('crop-flor').value) || null,
+    mad:  parseFloat(document.getElementById('crop-mad').value)  || null
+  };
+  try { localStorage.setItem(cropStoreKey(CUR_STATION), JSON.stringify(cfg)); } catch(e){}
+}
+
+function fmtDate(ts){
+  const d = new Date(ts);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+
+function renderCropCycle(stationRows){
+  const st = (CUR_STATION==='Ovejero') ? 'Ovejero' : 'CE';
+  if(CROP_LOADED_FOR !== CUR_STATION) loadCropInputs(CUR_STATION);
+  const $ = id => document.getElementById(id);
+  ['cCropWater','cCropGDU'].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
+
+  const sowISO = $('crop-date').value;
+  if(!sowISO || !stationRows || !stationRows.length){
+    $('crop-empty').style.display = 'block'; $('crop-body').style.display = 'none';
+    $('crop-empty').textContent = 'Elegí la fecha de siembra para ver el avance del cultivo y su consumo de agua.';
+    return;
+  }
+  const P0 = CROP_PRESETS[$('crop-type').value] || CROP_PRESETS.maiz;
+  let flor = parseFloat($('crop-flor').value) || P0.flor;
+  let mad  = parseFloat($('crop-mad').value)  || P0.mad;
+  if(mad <= flor) mad = flor + 100;
+  const P = { ...P0, flor, mad };
+  const B = cropStages(flor, mad);
+  const tbase = parseFloat($('gdd-tbase').value) || 10;
+  const ttop  = parseFloat($('gdd-ttop').value)  || 30;
+  const lat = STATION_LAT[st] ?? 14.3;
+
+  const sowTS = isoToTS(sowISO);
+  const Dall = aggregateByDay(stationRows);
+  const D = Dall.filter(d => parseDiaKey(d.key) >= sowTS);
+  if(!D.length){
+    $('crop-empty').style.display = 'block'; $('crop-body').style.display = 'none';
+    $('crop-empty').textContent = `No hay datos de esta estación desde el ${fmtDate(sowTS)}. El último registro es del ${Dall.length?Dall[Dall.length-1].key:'—'}.`;
+    return;
+  }
+  $('crop-empty').style.display = 'none'; $('crop-body').style.display = 'block';
+
+  // Recorrido día por día desde la siembra (se detiene al llegar a madurez)
+  let cumG = 0, cumBal = 0, rainT = 0, etcT = 0, balMid = 0, midDays = 0, noTemp = 0;
+  let florTS = null, madTS = null, gaps = 0, prevTS = sowTS - 864e5;
+  const days = [];
+  for(const d of D){
+    const ts = parseDiaKey(d.key);
+    const jump = Math.round((ts - prevTS)/864e5);
+    if(jump > 1) gaps += jump - 1;
+    prevTS = ts;
+    const hasT = d.tmax>0 && d.tmin>0;
+    if(!hasT) noTemp++;
+    const g = hasT ? gddDay(d.tmin, d.tmax, tbase, ttop) : 0;
+    const K = kcAt(Math.min(cumG + g/2, mad), P, B);   // Kc según el punto medio del día
+    cumG += g;
+    if(florTS===null && cumG >= flor) florTS = ts;
+    if(madTS===null && cumG >= mad) madTS = ts;
+    const p = parseDiaParts(d.key);
+    const et0 = hasT ? et0Hargreaves(d.tmin, d.tmax, lat, dayOfYear(p.y,p.m,p.d)) : null;
+    const etc = et0===null ? null : et0*K.kc;
+    if(etc!==null){
+      rainT += d.rain; etcT += etc; cumBal += d.rain - etc;
+      if(K.idx===2){ balMid += d.rain - etc; midDays++; }
+    }
+    days.push({ dia:d.dia, ts, rain:d.rain, etc: etc===null?null:+etc.toFixed(1),
+      cumBal:+cumBal.toFixed(1), cumG:+cumG.toFixed(0), kc:+K.kc.toFixed(2), stage:K.stage, idx:K.idx });
+    if(madTS!==null) break;
+  }
+
+  const last = days[days.length-1];
+  const lastTS = last.ts;
+  const daysSince = Math.round((lastTS - sowTS)/864e5) + 1;
+  const curK = madTS!==null ? { stage:'Madurez alcanzada', kc:null } : kcAt(cumG, P, B);
+
+  // Proyección: promedio de GDU diarios de los últimos 14 días con datos
+  const recent = days.slice(-14);
+  const gRecent = recent.length>1 ? (recent[recent.length-1].cumG - (days[days.length-recent.length-1]?.cumG ?? 0)) / recent.length : 0;
+  const project = target => (gRecent>0) ? lastTS + Math.ceil((target - cumG)/gRecent)*864e5 : null;
+
+  $('cr-days').textContent = daysSince;
+  $('cr-days-s').textContent = madTS!==null
+    ? `siembra ${fmtDate(sowTS)} · ciclo completo hasta madurez`
+    : `siembra ${fmtDate(sowTS)} · último dato ${last.dia}`;
+  $('cr-gdu').textContent = Math.round(cumG).toLocaleString('es-GT');
+  $('cr-gdu-s').textContent = `${Math.min(100,Math.round(cumG/mad*100))}% de ${mad} a madurez`;
+  $('cr-stage').textContent = curK.stage;
+  $('cr-stage-s').textContent = curK.kc!=null ? `Kc actual ${curK.kc.toFixed(2)}` : 'el cultivo ya no consume agua de forma activa';
+  const milestone = (ts, target, idV, idS) => {
+    if(ts!==null){
+      $(idV).textContent = `✓ ${fmtDate(ts).slice(0,5)}`;
+      $(idS).textContent = `alcanzada a los ${Math.round((ts-sowTS)/864e5)+1} días (${target} GDU)`;
+    } else {
+      const pr = project(target);
+      $(idV).textContent = pr ? `≈ ${fmtDate(pr).slice(0,5)}` : '—';
+      $(idS).textContent = pr ? `estimada · faltan ${Math.max(0,Math.round(target-cumG))} GDU (~${Math.round((pr-sowTS)/864e5)+1} días desde siembra)` : `faltan ${Math.round(target-cumG)} GDU`;
+    }
+  };
+  milestone(florTS, flor, 'cr-flor', 'cr-flor-s');
+  milestone(madTS, mad, 'cr-mad', 'cr-mad-s');
+
+  const sign = v => (v>0?'+':'') + v.toFixed(1);
+  $('cr-rain').innerHTML = `${rainT.toFixed(1)}<span style="font-size:12px;font-weight:500"> mm</span>`;
+  $('cr-etc').innerHTML  = `${etcT.toFixed(1)}<span style="font-size:12px;font-weight:500"> mm</span>`;
+  $('cr-etc-s').textContent = `${P.label} · Kc automático por etapa`;
+  $('cr-bal').innerHTML = `${sign(cumBal)}<span style="font-size:12px;font-weight:500"> mm</span>`;
+  $('cr-bal').style.color = cumBal>=0 ? 'var(--teal)' : 'var(--coral)';
+  $('cr-bal-s').textContent = cumBal>=0 ? 'excedente desde la siembra' : 'déficit desde la siembra';
+  if(midDays){
+    $('cr-balmid').innerHTML = `${sign(balMid)}<span style="font-size:12px;font-weight:500"> mm</span>`;
+    $('cr-balmid').style.color = balMid>=0 ? 'var(--teal)' : 'var(--coral)';
+    $('cr-balmid-s').textContent = `${midDays} día(s) en esta etapa${madTS===null && curK.stage==='Floración / llenado' ? ' · en curso' : ''}`;
+  } else {
+    $('cr-balmid').textContent = '—'; $('cr-balmid').style.color = '';
+    $('cr-balmid-s').textContent = 'todavía no llega a esta etapa';
+  }
+
+  // Franjas de etapa de fondo
+  const STAGE_FILL = ['rgba(46,134,171,.10)','rgba(26,158,114,.10)','rgba(232,168,56,.16)','rgba(224,90,43,.08)'];
+  const bands = (n) => ({ id:'stageBands', beforeDatasetsDraw(chart){
+    const {ctx, chartArea:a, scales:{x}} = chart;
+    if(!a) return;
+    const w = a.width / n;
+    ctx.save();
+    days.forEach((d,i)=>{
+      const f = STAGE_FILL[d.idx]; if(!f) return;
+      ctx.fillStyle = f;
+      ctx.fillRect(x.getPixelForValue(i) - w/2, a.top, w + 0.5, a.bottom - a.top);
+    });
+    ctx.restore();
+  }});
+  const labels = days.map(d=>d.dia);
+
+  chartRefs['cCropWater'] = new Chart('cCropWater', {data:{labels, datasets:[
+      {type:'bar', label:'Lluvia', yAxisID:'yD', data:days.map(d=>d.rain), backgroundColor:'rgba(46,134,171,.8)', borderRadius:3, borderWidth:0, order:2},
+      {type:'bar', label:'ETc', yAxisID:'yD', data:days.map(d=>d.etc), backgroundColor:'rgba(232,168,56,.8)', borderRadius:3, borderWidth:0, order:2},
+      {type:'line', label:'Balance acumulado', yAxisID:'yC', data:days.map(d=>d.cumBal), borderColor:'#1D3461', borderWidth:2.2, pointRadius:0, tension:0.15, order:1}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{
+        title:items=>{ const d=days[items[0].dataIndex]; return `${d.dia} · ${d.stage} (Kc ${d.kc})`; },
+        label:c=> c.parsed.y==null ? ` ${c.dataset.label}: sin dato` : ` ${c.dataset.label}: ${c.datasetIndex===2&&c.parsed.y>0?'+':''}${c.parsed.y} mm`}}},
+      scales:{x:{grid:{display:false},ticks:XT},
+        yD:{position:'left',min:0,grid:{color:GC},ticks:{color:TC,font:{size:9},callback:v=>v+' mm'}},
+        yC:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'#1D3461',font:{size:9},callback:v=>(v>0?'+':'')+v+' mm'}}}},
+    plugins:[bands(days.length)]
+  });
+
+  // GDU acumulados + proyección hasta madurez + metas + Kc
+  const projDays = [];
+  if(madTS===null && gRecent>0){
+    let g = cumG, t = lastTS;
+    while(g < mad && projDays.length < 200){ t += 864e5; g += gRecent; projDays.push({ dia:fmtDate(t).slice(0,5), g:+Math.min(g,mad).toFixed(0), kc:+(kcAt(g,P,B).kc ?? P.kc.end).toFixed(2) }); }
+  }
+  const allLabels = labels.concat(projDays.map(p=>p.dia));
+  const nAll = allLabels.length;
+  const realG = days.map(d=>d.cumG).concat(projDays.map(()=>null));
+  const projG = days.map((d,i)=> i===days.length-1 ? d.cumG : null).concat(projDays.map(p=>p.g));
+  const kcLine = days.map(d=>d.kc).concat(projDays.map(p=>p.kc));
+  chartRefs['cCropGDU'] = new Chart('cCropGDU', {type:'line', data:{labels:allLabels, datasets:[
+      {label:'GDU', yAxisID:'yG', data:realG, borderColor:'#1A9E72', borderWidth:2.5, pointRadius:0, tension:0.1},
+      {label:'Proyección', yAxisID:'yG', data:projG, borderColor:'#1A9E72', borderWidth:2, borderDash:[5,4], pointRadius:0, tension:0.1, spanGaps:false},
+      {label:`Floración (${flor})`, yAxisID:'yG', data:Array(nAll).fill(flor), borderColor:'rgba(232,168,56,.9)', borderWidth:1, borderDash:[2,3], pointRadius:0},
+      {label:`Madurez (${mad})`, yAxisID:'yG', data:Array(nAll).fill(mad), borderColor:'rgba(224,90,43,.9)', borderWidth:1, borderDash:[2,3], pointRadius:0},
+      {label:'Kc', yAxisID:'yK', data:kcLine, borderColor:'#E8A838', borderWidth:1.5, pointRadius:0, tension:0, stepped:false}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false}, tooltip:{filter:i=>i.parsed.y!=null, callbacks:{
+        label:c=> c.dataset.label==='Kc' ? ` Kc: ${c.parsed.y}` : ` ${c.dataset.label}${c.datasetIndex<2?':':''} ${c.datasetIndex<2?c.parsed.y+' GDU':''}`}}},
+      scales:{x:{grid:{display:false},ticks:XT},
+        yG:{position:'left',min:0,suggestedMax:mad*1.05,grid:{color:GC},ticks:{color:'#1A9E72',font:{size:9}}},
+        yK:{position:'right',min:0,max:1.5,grid:{drawOnChartArea:false},ticks:{color:'#C98A1C',font:{size:9}}}}},
+    plugins:[{ id:'stageBandsG', beforeDatasetsDraw(chart){
+      const {ctx, chartArea:a, scales:{x}} = chart; if(!a) return;
+      const w = a.width / nAll; ctx.save();
+      allLabels.forEach((_,i)=>{
+        const idx = i < days.length ? days[i].idx : kcAt(projDays[i-days.length].g, P, B).idx;
+        const f = STAGE_FILL[idx]; if(!f) return;
+        ctx.fillStyle = f; ctx.fillRect(x.getPixelForValue(i) - w/2, a.top, w + 0.5, a.bottom - a.top);
+      }); ctx.restore();
+    }}]
+  });
+
+  const notes = [];
+  notes.push(`Este panel usa todo el historial desde la siembra (no el filtro de fechas de arriba) y la misma temp. base (${tbase}°C) y tope (${ttop}°C) del panel de GDU.`);
+  notes.push(`Los GDU a floración y madurez vienen con valores genéricos de ${P.label.toLowerCase()} tropical: reemplazalos con los de cada variedad para que las etapas y las fechas sean precisas.`);
+  if(projDays.length) notes.push(`Las fechas estimadas (≈) proyectan el ritmo de los últimos ${recent.length} días (~${gRecent.toFixed(1)} GDU/día); se recalculan con cada dato nuevo.`);
+  if(gaps) notes.push(`⚠ Faltan ${gaps} día(s) de datos desde la siembra: esos días no suman GDU ni consumo, así que el avance real va un poco más adelante y el balance puede estar desfasado.`);
+  if(noTemp) notes.push(`⚠ ${noTemp} día(s) sin temperatura válida no sumaron GDU.`);
+  if(sowTS < parseDiaKey(Dall[0].key)) notes.push(`⚠ La siembra es anterior al primer dato de la estación (${Dall[0].key}): los GDU y el consumo empiezan a contarse desde ese día.`);
+  $('crop-note').textContent = notes.join(' ');
 }
 
 function renderGDD(D){
@@ -2065,6 +2379,17 @@ document.addEventListener('DOMContentLoaded',()=>{
       else if(LAST_RENDER_ROWS){ renderDrySpell(aggregateByDay(LAST_RENDER_ROWS)); }
     });
   });
+  const cropRerender = () => { saveCropInputs(); if(LAST_STATION_ROWS && CUR_STATION!=='compare') renderCropCycle(LAST_STATION_ROWS); };
+  document.getElementById('crop-type').addEventListener('change', e => {
+    const P = CROP_PRESETS[e.target.value];
+    document.getElementById('crop-flor').value = P.flor;
+    document.getElementById('crop-mad').value  = P.mad;
+    cropRerender();
+  });
+  ['crop-date','crop-flor','crop-mad'].forEach(id => document.getElementById(id).addEventListener('change', cropRerender));
+  ['gdd-tbase','gdd-ttop'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+    if(LAST_STATION_ROWS && CUR_STATION!=='compare') renderCropCycle(LAST_STATION_ROWS);
+  }));
   document.getElementById('wb-kc').addEventListener('change', () => {
     if(CUR_STATION==='compare') buildCompareView();
     else if(LAST_RENDER_ROWS){ renderWaterBalance(aggregateByDay(LAST_RENDER_ROWS)); }
