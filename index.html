@@ -229,6 +229,10 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 #page-cuartos table{width:100%;border-collapse:collapse}
 #page-cuartos thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;
   color:var(--muted);padding:6px 10px;border-bottom:2px solid var(--brd)}
+@media(min-width:901px){#cuartos-kpi-grid{grid-template-columns:repeat(6,1fr)}}
+#page-cuartos .fresh-ok{color:var(--teal)}
+#page-cuartos .fresh-warn{color:#C98A1C;font-weight:600}
+#page-cuartos .fresh-bad{color:var(--coral);font-weight:600}
 #page-cuartos .empty-alerts{text-align:center;padding:24px;color:var(--sub);font-size:12px}
 </style>
 </head>
@@ -851,7 +855,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="kpi-grid" id="cuartos-kpi-grid">
       <div class="kpi"><div class="kl">&Uacute;ltima lectura</div>
         <div class="kv" id="ck-last-temp" style="color:var(--coral)">—</div>
-        <div class="ks" id="ck-last-ts">—</div></div>
+        <div class="ks" id="ck-last-ts">—</div>
+        <div class="ks" id="ck-fresh" style="margin-top:2px">—</div></div>
       <div class="kpi"><div class="kl">Humedad actual</div>
         <div class="kv" id="ck-last-hum" style="color:var(--blue)">—</div>
         <div class="ks">&uacute;ltima lectura</div></div>
@@ -861,6 +866,9 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="kpi"><div class="kl">Temp. m&iacute;n / m&aacute;x</div>
         <div class="kv" id="ck-minmax-temp" style="color:var(--navy);font-size:18px">—</div>
         <div class="ks" id="ck-range">del per&iacute;odo mostrado</div></div>
+      <div class="kpi"><div class="kl">Humedad de equilibrio del grano</div>
+        <div class="kv" id="ck-emc" style="color:var(--teal)">—</div>
+        <div class="ks" id="ck-emc-s">meta 11–12.5%</div></div>
       <div class="kpi"><div class="kl">Alertas activas</div>
         <div class="kv" id="ck-alert-count" style="color:var(--coral)">—</div>
         <div class="ks" id="ck-alert-note">fuera de umbral</div></div>
@@ -894,7 +902,39 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     </div>
 
     <div class="panels r1"><div class="panel">
-      <div class="ph"><span class="pt">&#9888;&#65039; Registro de alertas (fuera de umbral)</span></div>
+      <div class="ph">
+        <span class="pt">&#127805; Humedad de equilibrio del grano &mdash; hacia d&oacute;nde tiende la semilla</span>
+        <div class="leg">
+          <span class="li"><span class="ll" style="background:rgba(26,158,114,.18);height:8px"></span>Meta de secado 11&ndash;12.5%</span>
+          <span class="li"><span class="ll" style="background:rgba(26,158,114,.35);height:8px"></span>Rango del d&iacute;a</span>
+          <span class="li"><span class="ll" style="background:#1A9E72"></span>Promedio del d&iacute;a</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px" id="emc-sum">&mdash;</div>
+      <div style="position:relative;height:220px"><canvas id="cCuartosEMC"></canvas></div>
+      <p style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6">
+        Es la humedad a la que tiende la semilla de ma&iacute;z si se queda en el aire de la casa, calculada con la temperatura y la humedad del aire
+        (ecuaci&oacute;n de Chung-Pfost modificada para ma&iacute;z, ASABE D245). No es una medici&oacute;n del grano: la semilla tarda horas o d&iacute;as en equilibrarse,
+        as&iacute; que importa m&aacute;s el promedio del d&iacute;a que una lectura suelta. Por encima de la franja verde la semilla seca tiende a rehumedecerse;
+        por debajo tiende a secarse de m&aacute;s. La medici&oacute;n real sigue siendo el medidor de humedad de grano.
+      </p>
+    </div></div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#9201;&#65039; Horas fuera de rango por d&iacute;a</span>
+        <div class="leg">
+          <span class="li"><span class="ll" style="background:#E05A2B;height:8px"></span>Aire h&uacute;medo (HR &gt; <span class="th-hmax">65</span>%) &middot; la semilla se rehumedece</span>
+          <span class="li"><span class="ll" style="background:#E8A838;height:8px"></span>Aire seco (HR &lt; <span class="th-hmin">50</span>%) &middot; la semilla se seca de m&aacute;s</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px" id="oor-sum">&mdash;</div>
+      <div style="position:relative;height:190px"><canvas id="cCuartosOOR"></canvas></div>
+    </div></div>
+
+    <div class="panels r1"><div class="panel">
+      <div class="ph"><span class="pt">&#9888;&#65039; Registro de alertas (fuera de umbral)</span>
+        <span style="font-size:10px;color:var(--sub)">&uacute;ltimas 100 lecturas fuera de rango</span></div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr><th>Fecha y hora</th><th>Variable</th><th>Valor</th><th>Umbral</th></tr></thead>
@@ -929,10 +969,31 @@ const AUTO_REFRESH_MIN = 10;
 // el sistema de Cuartos Fríos — esta página los ignora a propósito y solo muestra 'CE-Bodega'
 // (ese es el cuarto en el Centro Experimental; CF1/CF2 tienen su propio dashboard aparte).
 const SHEETS_URL_CUARTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=1317877305&single=true&output=csv';
-// Umbral de alerta para CE. Todavía no hay uno definido (igual que en el Apps Script de
-// Cuartos Fríos, donde "CE sin límites por el momento"). Poné los valores cuando los tengan:
-// { tempMin:.., tempMax:.., humMin:.., humMax:.. }
-const CE_THRESHOLD = null;
+// Umbral de alerta para CE (casa de limpieza, desgrane y secado de semilla).
+// Meta de secado de la semilla: humedad final entre 11% y 12.5% (rendimiento ajustado a 12.5%).
+// Según la humedad de equilibrio del maíz, a 25–30°C:
+//   · aire > ~65% HR → la semilla seca tiende a pasar de 12.5% (se rehumedece)
+//   · aire < ~50% HR → la semilla tiende a bajar de 11% (se seca de más)
+// Sin límites de temperatura por ahora (la temperatura ya entra en el cálculo
+// de la humedad de equilibrio). Valores provisionales: ajustar cuando el equipo los revise.
+// Formato: { tempMin:.., tempMax:.., humMin:.., humMax:.. }  (null = sin límite)
+const CE_THRESHOLD = { tempMin:null, tempMax:null, humMin:50, humMax:65 };
+const SEED_TARGET  = { min:11, max:12.5 };   // humedad final de secado del grano (%)
+// Días sin datos nuevos a partir de los cuales se avisa (el Govee se exporta a mano)
+const CUARTOS_FRESH_WARN_DAYS = 3, CUARTOS_FRESH_BAD_DAYS = 7;
+
+// Humedad de equilibrio del grano de maíz (% base húmeda) para una temperatura (°C)
+// y humedad relativa (%) del aire. Ecuación de Chung-Pfost modificada, ASABE D245
+// (maíz desgranado): A=374.34, B=0.18662, C=31.696; M en % base seca.
+function grainEMC(tempC, rh){
+  if (tempC == null || rh == null || isNaN(tempC) || isNaN(rh)) return null;
+  const r = Math.min(Math.max(rh, 5), 99) / 100;          // evita ln(0) y ln(1)
+  const x = -(tempC + 31.696) * Math.log(r) / 374.34;
+  if (x <= 0) return null;
+  const Mdb = -Math.log(x) / 0.18662;                     // % base seca
+  const Mwb = Mdb / (100 + Mdb) * 100;                     // % base húmeda
+  return +Mwb.toFixed(1);
+}
 let CUARTOS_LOADED = false;
 // ════════════════════════════════════════════════════════════════════
 
@@ -3196,15 +3257,17 @@ function parseCuartoTS(str) {
   return null;
 }
 
-function loadCuartos() {
+function loadCuartos(silent) {
   if (!SHEETS_URL_CUARTOS) {
     document.getElementById('cuartos-loading').style.display = 'none';
     document.getElementById('cuartos-error').style.display = 'block';
     return;
   }
-  document.getElementById('cuartos-loading').style.display = 'block';
-  document.getElementById('cuartos-error').style.display = 'none';
-  document.getElementById('cuartos-content').style.display = 'none';
+  if (!silent) {
+    document.getElementById('cuartos-loading').style.display = 'block';
+    document.getElementById('cuartos-error').style.display = 'none';
+    document.getElementById('cuartos-content').style.display = 'none';
+  }
 
   Papa.parse(SHEETS_URL_CUARTOS, { download:true, header:true, skipEmptyLines:true,
     complete: (res) => {
@@ -3216,12 +3279,22 @@ function loadCuartos() {
         `🔄 ${new Date().toLocaleString('es-GT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
     },
     error: () => {
+      if (silent) return;   // en un refresco automático fallido se dejan los datos que ya hay
       document.getElementById('cuartos-loading').style.display = 'none';
       document.getElementById('cuartos-error').style.display = 'block';
       document.getElementById('cuartos-error').querySelector('p').textContent =
         'No se pudo cargar la hoja "Datos_Cuartos". Revisá que la URL esté publicada como CSV y sea pública.';
     }
   });
+}
+
+// Refresco automático cada AUTO_REFRESH_MIN minutos, igual que el dashboard principal.
+// Solo se recarga si la página ya se abrió una vez; se hace sin spinner para no
+// borrar la vista, y conserva el filtro de fechas elegido.
+if (AUTO_REFRESH_MIN > 0) {
+  setInterval(() => {
+    if (CUARTOS_LOADED && SHEETS_URL_CUARTOS) loadCuartos(true);
+  }, AUTO_REFRESH_MIN * 60 * 1000);
 }
 
 // Agrupa por timestamp y promedia — cubre el caso de exportaciones del app Govee que se
@@ -3234,6 +3307,7 @@ function loadCuartos() {
 // Las filas de Cuarto Frío (CF1/CF2) NO cuentan como descartadas: es esperado que estén
 // en la misma hoja y se ignoren aquí.
 let CUARTOS_SKIPPED = { sinUbic:0, ubicDesconocida:0, invalidas:0, ubicNombres:new Set() };
+let CUARTOS_STEP_MIN = 30;
 function buildCuartosRows(rawRows) {
   const groups = {};
   CUARTOS_SKIPPED = { sinUbic:0, ubicDesconocida:0, invalidas:0, ubicNombres:new Set() };
@@ -3271,8 +3345,18 @@ function buildCuartosRows(rawRows) {
     }
     const temp1 = +temp.toFixed(1), hum1 = +hum.toFixed(1);
     const dew = dewPointC(temp1, hum1); // reutiliza la misma fórmula (Magnus-Tetens) del dashboard principal
-    return { ts:g.ts, temp:temp1, hum:hum1, dew: isNaN(dew) ? null : +dew.toFixed(1), alertTemp, alertHum };
+    return { ts:g.ts, temp:temp1, hum:hum1, dew: isNaN(dew) ? null : +dew.toFixed(1), emc: grainEMC(temp1, hum1), alertTemp, alertHum };
   }).sort((a,b) => a.ts - b.ts);
+
+  // Intervalo típico entre lecturas (mediana de los saltos ≤ 2 h), para pasar
+  // cantidad de lecturas a horas. Los huecos grandes no cuentan.
+  const gaps = [];
+  for (let i = 1; i < CUARTOS_ROWS_ALL.length; i++) {
+    const g = (CUARTOS_ROWS_ALL[i].ts - CUARTOS_ROWS_ALL[i-1].ts) / 60000;
+    if (g > 0 && g <= 120) gaps.push(g);
+  }
+  gaps.sort((a,b)=>a-b);
+  CUARTOS_STEP_MIN = gaps.length ? gaps[Math.floor(gaps.length/2)] : 30;
 
   renderCuartosDataWarn();
   setupCuartosDateFilter();
@@ -3354,9 +3438,10 @@ function aggregateCuartosByDay(rows) {
   rows.forEach(r => {
     const d = new Date(r.ts);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if (!map[key]) { map[key] = { temps:[], hums:[], d }; order.push(key); }
+    if (!map[key]) { map[key] = { temps:[], hums:[], emcs:[], d }; order.push(key); }
     map[key].temps.push(r.temp);
     map[key].hums.push(r.hum);
+    if (r.emc != null) map[key].emcs.push(r.emc);
   });
   return order.map(key => {
     const g = map[key];
@@ -3365,7 +3450,13 @@ function aggregateCuartosByDay(rows) {
       tmin: +Math.min(...g.temps).toFixed(1), tmax: +Math.max(...g.temps).toFixed(1),
       tavg: +(g.temps.reduce((a,b)=>a+b,0)/g.temps.length).toFixed(1),
       hmin: +Math.min(...g.hums).toFixed(1), hmax: +Math.max(...g.hums).toFixed(1),
-      havg: +(g.hums.reduce((a,b)=>a+b,0)/g.hums.length).toFixed(1)
+      havg: +(g.hums.reduce((a,b)=>a+b,0)/g.hums.length).toFixed(1),
+      emcMin: g.emcs.length ? Math.min(...g.emcs) : null,
+      emcMax: g.emcs.length ? Math.max(...g.emcs) : null,
+      emcAvg: g.emcs.length ? +(g.emcs.reduce((a,b)=>a+b,0)/g.emcs.length).toFixed(1) : null,
+      hHigh: (CE_THRESHOLD && CE_THRESHOLD.humMax != null) ? +Math.min(24, g.hums.filter(h=>h>CE_THRESHOLD.humMax).length*CUARTOS_STEP_MIN/60).toFixed(1) : 0,
+      hLow:  (CE_THRESHOLD && CE_THRESHOLD.humMin != null) ? +Math.min(24, g.hums.filter(h=>h<CE_THRESHOLD.humMin).length*CUARTOS_STEP_MIN/60).toFixed(1) : 0,
+      n: g.temps.length
     };
   });
 }
@@ -3390,13 +3481,37 @@ function renderCuartos() {
   else if (th && th.humMax != null) humText = `, humedad < ${th.humMax}%`;
   else if (th && th.humMin != null) humText = `, humedad > ${th.humMin}%`;
   document.getElementById('cuartos-threshold-note').textContent = th
-    ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C${humText}`
+    ? ((th.tempMin != null || th.tempMax != null) ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C${humText}`
+       : `Umbral configurado: humedad del aire ${th.humMin ?? '–'}–${th.humMax ?? '–'}% (mantiene la semilla seca en ${SEED_TARGET.min}–${SEED_TARGET.max}%) · sin límite de temperatura`)
     : 'Sin umbral de alerta definido todavía para esta ubicación.';
 
   const last = D[D.length - 1];
   document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;
   document.getElementById('ck-last-hum').textContent  = `${last.hum}%`;
   document.getElementById('ck-last-ts').textContent   = new Date(last.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  // Frescura: cuánto hace de la última lectura de TODA la hoja (no del filtro),
+  // porque los datos del Govee se exportan a mano y es fácil olvidarse.
+  {
+    const lastAll = CUARTOS_ROWS_ALL[CUARTOS_ROWS_ALL.length - 1];
+    const days = Math.floor((Date.now() - lastAll.ts) / 864e5);
+    const el = document.getElementById('ck-fresh');
+    const txt = days <= 0 ? 'hoy' : days === 1 ? 'hace 1 día' : `hace ${days} días`;
+    el.className = 'ks ' + (days >= CUARTOS_FRESH_BAD_DAYS ? 'fresh-bad' : days >= CUARTOS_FRESH_WARN_DAYS ? 'fresh-warn' : 'fresh-ok');
+    el.textContent = (days >= CUARTOS_FRESH_WARN_DAYS ? '⚠ ' : '● ') + `último dato ${txt}` +
+      (days >= CUARTOS_FRESH_WARN_DAYS ? ' · toca exportar del Govee' : '');
+  }
+
+  // Humedad de equilibrio del grano (última lectura)
+  {
+    const e = last.emc, el = document.getElementById('ck-emc');
+    el.textContent = e != null ? `${e}%` : '—';
+    el.style.color = e == null ? '' : e > SEED_TARGET.max ? 'var(--coral)' : e < SEED_TARGET.min ? '#C98A1C' : 'var(--teal)';
+    document.getElementById('ck-emc-s').textContent = e == null ? `meta ${SEED_TARGET.min}–${SEED_TARGET.max}%`
+      : e > SEED_TARGET.max ? `sobre la meta (${SEED_TARGET.min}–${SEED_TARGET.max}%): la semilla se rehumedece`
+      : e < SEED_TARGET.min ? `bajo la meta (${SEED_TARGET.min}–${SEED_TARGET.max}%): se seca de más`
+      : `dentro de la meta ${SEED_TARGET.min}–${SEED_TARGET.max}%`;
+  }
 
   const temps = D.map(r => r.temp);
   document.getElementById('ck-minmax-temp').textContent = `${Math.min(...temps).toFixed(1)} / ${Math.max(...temps).toFixed(1)}°C`;
@@ -3487,6 +3602,80 @@ function renderCuartos() {
       scales:{ x:{ ticks:{...XT,maxTicksLimit:10} }, y:{ grid:{color:GC}, ticks:{color:TC,font:{size:9},callback:v=>v+'%'}, min:0, max:100 } }
     }
   });
+
+  // ── Humedad de equilibrio del grano por día, con la meta de secado de fondo ──
+  if (chartRefs['cCuartosEMC']) { chartRefs['cCuartosEMC'].destroy(); delete chartRefs['cCuartosEMC']; }
+  const targetBand = { id:'seedTarget', beforeDatasetsDraw(chart){
+    const {ctx, chartArea:a, scales:{y}} = chart; if (!a) return;
+    const top = y.getPixelForValue(SEED_TARGET.max), bot = y.getPixelForValue(SEED_TARGET.min);
+    ctx.save(); ctx.fillStyle = 'rgba(26,158,114,.13)';
+    ctx.fillRect(a.left, top, a.right - a.left, bot - top);
+    ctx.strokeStyle = 'rgba(26,158,114,.55)'; ctx.setLineDash([4,3]); ctx.lineWidth = 1;
+    [top, bot].forEach(py => { ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke(); });
+    ctx.restore();
+  }};
+  const emcColor = v => v == null ? '#999' : v > SEED_TARGET.max ? '#E05A2B' : v < SEED_TARGET.min ? '#E8A838' : '#1A9E72';
+  const emcVals = DD.filter(d => d.emcMax != null);
+  chartRefs['cCuartosEMC'] = new Chart('cCuartosEMC', {
+    data: { labels:dL, datasets:[
+      { type:'bar', data:DD.map(d=>d.emcMin!=null?[d.emcMin,d.emcMax]:null), backgroundColor:'rgba(26,158,114,.22)',
+        borderColor:'rgba(26,158,114,.45)', borderWidth:1, borderRadius:4, order:2 },
+      { type:'line', data:DD.map(d=>d.emcAvg), borderColor:'#1A9E72', borderWidth:2.2,
+        pointRadius:3.5, pointBackgroundColor:DD.map(d=>emcColor(d.emcAvg)), pointBorderColor:DD.map(d=>emcColor(d.emcAvg)), tension:0, order:1 }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:c => {
+          const d = DD[c.dataIndex];
+          if (c.datasetIndex === 0) return ` Rango del día ${c.raw[0]}–${c.raw[1]}%`;
+          const st = c.parsed.y > SEED_TARGET.max ? 'sobre la meta' : c.parsed.y < SEED_TARGET.min ? 'bajo la meta' : 'en meta';
+          return [` Promedio ${c.parsed.y}% (${st})`, ` Aire prom.: ${d.tavg}°C · ${d.havg}% HR`];
+        } } } },
+      scales:{ x:{ ticks:{...XT,maxTicksLimit:10} },
+        y:{ grid:{color:GC}, suggestedMin:9, suggestedMax:16,
+            ticks:{color:TC,font:{size:9},callback:v=>v+'%'},
+            title:{display:true,text:'humedad del grano',font:{size:9},color:TC} } }
+    },
+    plugins:[targetBand]
+  });
+  {
+    const inT = DD.filter(d=>d.emcAvg!=null && d.emcAvg>=SEED_TARGET.min && d.emcAvg<=SEED_TARGET.max).length;
+    const hi  = DD.filter(d=>d.emcAvg!=null && d.emcAvg>SEED_TARGET.max).length;
+    const lo  = DD.filter(d=>d.emcAvg!=null && d.emcAvg<SEED_TARGET.min).length;
+    const all = D.filter(r=>r.emc!=null);
+    const avg = all.length ? (all.reduce((a,r)=>a+r.emc,0)/all.length).toFixed(1) : '—';
+    document.getElementById('emc-sum').innerHTML =
+      `Promedio del período <strong style="color:var(--teal)">${avg}%</strong> · ` +
+      `${inT} día(s) en meta · <span style="color:var(--coral)">${hi} sobre la meta</span> · <span style="color:#C98A1C">${lo} bajo la meta</span>`;
+  }
+
+  // ── Horas fuera de rango por día (aire húmedo / aire seco) ──
+  if (chartRefs['cCuartosOOR']) { chartRefs['cCuartosOOR'].destroy(); delete chartRefs['cCuartosOOR']; }
+  document.querySelectorAll('#page-cuartos .th-hmax').forEach(e=>e.textContent = th?.humMax ?? '—');
+  document.querySelectorAll('#page-cuartos .th-hmin').forEach(e=>e.textContent = th?.humMin ?? '—');
+  chartRefs['cCuartosOOR'] = new Chart('cCuartosOOR', {
+    type:'bar',
+    data: { labels:dL, datasets:[
+      { label:'Aire húmedo', data:DD.map(d=>d.hHigh), backgroundColor:'#E05A2B', borderRadius:3, borderWidth:0, stack:'h' },
+      { label:'Aire seco',   data:DD.map(d=>d.hLow),  backgroundColor:'#E8A838', borderRadius:3, borderWidth:0, stack:'h' }
+    ]},
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ filter:i=>i.parsed.y>0, callbacks:{ label:c => c.datasetIndex===0
+          ? ` ${c.parsed.y} h con HR > ${th?.humMax}% (se rehumedece)`
+          : ` ${c.parsed.y} h con HR < ${th?.humMin}% (se seca de más)` } } },
+      scales:{ x:{ stacked:true, grid:{display:false}, ticks:{...XT,maxTicksLimit:10} },
+        y:{ stacked:true, min:0, max:24, grid:{color:GC}, ticks:{color:TC,font:{size:9},stepSize:6,callback:v=>v+' h'} } }
+    }
+  });
+  {
+    const tH = DD.reduce((a,d)=>a+d.hHigh,0), tL = DD.reduce((a,d)=>a+d.hLow,0);
+    const dH = DD.filter(d=>d.hHigh>=12).length;
+    document.getElementById('oor-sum').innerHTML =
+      `<span style="color:var(--coral);font-weight:600">${tH.toFixed(1)} h</span> con aire húmedo · ` +
+      `<span style="color:#C98A1C;font-weight:600">${tL.toFixed(1)} h</span> con aire seco · ` +
+      `${dH} día(s) con 12 h o más de aire húmedo · lecturas cada ~${Math.round(CUARTOS_STEP_MIN)} min`;
+  }
 
   // Tabla de alertas (más recientes primero, máx. 100 filas)
   const tbody = document.getElementById('cuartos-alerts-body');
