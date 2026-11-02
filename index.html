@@ -2935,6 +2935,7 @@ function parseWD3(text) {
 // ── CSV exportado de SpecConnect (CE) ───────────────────────────────
 // Formato tal como se descarga de SpecConnect → Exportar:
 //   línea 1: "Wireless Weather Station: 54400111 Fechas: ..."
+//   (la fecha puede venir como 2026-08-05 00:00 o como 5/08/2026 00:00)
 //   línea 2: Fecha de registro, B1: Temperatura, A1: Precipitaciones,
 //            B2: Humedad relativa, C1: Dirección del viento,
 //            C3: Velocidad del viento, C2: Ráfaga de viento
@@ -2942,6 +2943,28 @@ function parseWD3(text) {
 // (igual que el WD3), así que se convierte km/h → mph.
 function isSpecConnectCSV(text) {
   return /Fecha de registro/i.test(text.slice(0, 2000));
+}
+// Fecha de SpecConnect. Acepta el formato original (2026-08-05 00:00) y también
+// D/M/AAAA H:MM (ej. "5/08/2026 00:00"), que aparece cuando el CSV se exporta con
+// configuración regional en español o se abre y guarda en Excel. Si el día y el mes
+// son ambiguos (ambos ≤ 12), se usa día/mes y se confirma con el rango de la línea 1.
+function parseSpecDate(raw, hdrRange) {
+  const s = String(raw || '').trim().replace(/^"|"$/g, '');
+  const p2 = n => String(n).padStart(2, '0');
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
+  if (m) return { y:m[1], mo:p2(m[2]), d:p2(m[3]), hh:p2(m[4]), mi:m[5] };
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  let a = +m[1], b = +m[2];                  // a = día, b = mes (formato en español)
+  const y = +m[3];
+  const inRange = (d, mo) => !hdrRange || (() => {
+    const t = new Date(y, mo - 1, d).getTime();
+    return t >= hdrRange.from && t <= hdrRange.to;
+  })();
+  if (a <= 12 && b <= 12 && !inRange(a, b) && inRange(b, a)) { const t = a; a = b; b = t; }
+  else if (b > 12 && a <= 12) { const t = a; a = b; b = t; }   // venía M/D/AAAA
+  if (b < 1 || b > 12 || a < 1 || a > 31) return null;
+  return { y:String(y), mo:p2(b), d:p2(a), hh:p2(m[4]), mi:m[5] };
 }
 function parseSpecConnectCSV(text) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
@@ -2956,14 +2979,19 @@ function parseSpecConnectCSV(text) {
   if (iT < 0 || iH < 0) return { rows: [], serial, skipped: 0, corrected: 0, discarded: 0 };
   const num = v => { const x = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(x) ? null : x; };
   const kmhToMph = k => +(k / 1.60934).toFixed(1);
+  // Rango de fechas de la línea 1 ("Fechas: 2026-08-05 hasta 2026-08-06"), para
+  // confirmar el orden día/mes cuando la fecha viene como D/M/AAAA.
+  const rm = lines[0].match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{4})-(\d{2})-(\d{2})/);
+  const hdrRange = rm ? { from: new Date(+rm[1], +rm[2]-1, +rm[3]).getTime(),
+                          to:   new Date(+rm[4], +rm[5]-1, +rm[6]).getTime() } : null;
   const rows = []; let skipped = 0;
   for (const line of lines.slice(hIdx + 1)) {
     if (!line.trim()) continue;
     const f = line.split(sep);
-    const m = (f[0] || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    const dt = parseSpecDate(f[0], hdrRange);
     const tC = num(f[iT]), hum = num(f[iH]);
-    if (!m || tC === null || hum === null) { skipped++; continue; }
-    const [, y, mo, d, hh, mi] = m;
+    if (!dt || tC === null || hum === null) { skipped++; continue; }
+    const { y, mo, d, hh, mi } = dt;
     const diaStr = `${d}/${mo}/${y}`, horaStr = `${hh}:${mi}`;
     const rainMm = iR >= 0 ? (num(f[iR]) ?? 0) : 0;
     const w = iW >= 0 ? num(f[iW]) : null, g = iG >= 0 ? num(f[iG]) : null, dir = iD >= 0 ? num(f[iD]) : null;
