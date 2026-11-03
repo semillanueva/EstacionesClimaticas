@@ -2757,6 +2757,17 @@ const STATION_MAP = { '54400111': 'CE', '54400110': 'Ovejero' };
 // Estaciones que deben remuestrearse a intervalos de 10 min antes de subir
 // (Ovejero registra cada 5 min; CE Suchitepéquez ya registra cada 10 min)
 const RESAMPLE_TO_10MIN = { 'Ovejero': true, 'CE': false };
+// Corrección del reloj de la estación (hora que marca la estación → hora de Guatemala).
+// Ovejero quedó con el reloj en UTC (6 h adelantado) desde la reconfiguración del
+// 23/06/2026 (verificado el 03/11/2026 comparando el ciclo diario de temperatura
+// contra el de antes del 23/06 y contra CE: desfase de 6 h exactas).
+//   from / to: rango en HORA DE LA ESTACIÓN al que se aplica ('AAAA-MM-DD HH:MM').
+//   Cuando se ajuste la zona horaria en campo, poné en 'to' la fecha y hora de ese
+//   ajuste (hora de la estación), para que los archivos nuevos no se corrijan dos veces.
+const CLOCK_FIX = {
+  '54400110': [ { from:'2026-06-23 12:00', to:null, hours:-6 } ]
+};
+let CLOCK_FIX_INFO = null; // { shifted:n, hours:h }
 // URL del Web App de Apps Script ya implementado (Alessandro, 2026-06-30).
 // Si en el futuro volvés a implementar el script y cambia la URL, actualizala aquí.
 const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyRyzejV5q6i67x4Xg8xpx2w4nAucxPhcXknNZ3ySVjOuhjqAOHpbFDV4Tk8zH15jIoSg/exec';
@@ -2849,6 +2860,7 @@ function resampleTo10Min(rows) {
 function parseWD3(text) {
   const lines = text.split(/\r?\n/);
   let serial = null, skipped = 0, corrected = 0, discarded = 0;
+  let clockShifted = 0, clockHours = 0;
   const rows = [];
 
   for (const raw of lines) {
@@ -2901,13 +2913,28 @@ function parseWD3(text) {
     const gustMph = parseFloat(f[9]);
     const windMph = parseFloat(f[10]);
     const battPct = parseFloat(f[3]);
-    const volt    = parseFloat(f[12]);
+    // Voltaje = el campo justo antes del código final (checksum). Desde el 23/06/2026
+    // los archivos traen un campo extra ("-----"), así que la posición fija f[12]
+    // pasó a leer un 0; tomarlo desde el final funciona con los dos formatos.
+    const volt    = parseFloat(f[f.length - 2]);
 
     if (isNaN(tempF) || isNaN(hum)) { skipped++; continue; }
 
     const tempC = +fToC(tempF).toFixed(1);
-    const diaStr = `${day}/${month}/${year}`;
-    const horaStr = `${hour}:${min}`;
+    // Corrección del reloj de la estación, si aplica (ver CLOCK_FIX)
+    let dt = new Date(+year, +month - 1, +day, +hour, +min);
+    const fixes = CLOCK_FIX[serial] || [];
+    for (const fx of fixes) {
+      const toTS = s => { const m = s.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/); return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime(); };
+      const t = dt.getTime();
+      if (t >= toTS(fx.from) && (!fx.to || t < toTS(fx.to))) {
+        dt = new Date(t + fx.hours * 3600 * 1000);
+        clockShifted++; clockHours = fx.hours;
+        break;
+      }
+    }
+    const diaStr = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()}`;
+    const horaStr = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 
     rows.push({
       'Estacion': STATION_MAP[serial] || serial || '??',
@@ -2929,6 +2956,7 @@ function parseWD3(text) {
     });
   }
 
+  CLOCK_FIX_INFO = clockShifted ? { shifted: clockShifted, hours: clockHours } : null;
   return { rows, serial, skipped, corrected, discarded };
 }
 
@@ -3042,6 +3070,7 @@ function wd3HandleFile(file) {
   reader.onload = e => {
     const text = e.target.result;
     const isSpec = isSpecConnectCSV(text);
+    CLOCK_FIX_INFO = null;
     let { rows, serial, skipped, corrected, discarded } = isSpec ? parseSpecConnectCSV(text) : parseWD3(text);
     if (!rows.length) {
       alert(isSpec
@@ -3111,9 +3140,15 @@ function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename)
   }
 
   const resampleNote = document.getElementById('wd3-resample-note');
+  const clockTxt = CLOCK_FIX_INFO
+    ? `🕒 Reloj corregido: ${CLOCK_FIX_INFO.shifted.toLocaleString()} registro(s) se ajustaron ${CLOCK_FIX_INFO.hours} h porque el reloj de la estación está en UTC (ver CLOCK_FIX). `
+    : '';
   if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
     resampleNote.style.display = 'block';
-    resampleNote.textContent = `⏱ Remuestreado de 5 min a 10 min: ${RESAMPLE_INFO.before.toLocaleString()} registros originales → ${RESAMPLE_INFO.after.toLocaleString()} registros de 10 min (temperatura/humedad/voltaje/viento promediados, lluvia sumada por bloque, dirección de viento con promedio circular).`;
+    resampleNote.textContent = clockTxt + `⏱ Remuestreado de 5 min a 10 min: ${RESAMPLE_INFO.before.toLocaleString()} registros originales → ${RESAMPLE_INFO.after.toLocaleString()} registros de 10 min (temperatura/humedad/voltaje/viento promediados, lluvia sumada por bloque, dirección de viento con promedio circular).`;
+  } else if (clockTxt) {
+    resampleNote.style.display = 'block';
+    resampleNote.textContent = clockTxt;
   } else {
     resampleNote.style.display = 'none';
   }
