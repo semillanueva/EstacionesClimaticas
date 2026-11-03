@@ -767,7 +767,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <h3>&#128193; Archivo de la estaci&oacute;n</h3>
     <p class="hint">Sub&iacute; el archivo <code>.WD3</code> exportado por USB desde el WatchDog 3000 (Ovejero), o el <code>.csv</code> tal como se descarga de SpecConnect con el bot&oacute;n Exportar (CE), sin modificarlo. La estaci&oacute;n se detecta autom&aacute;ticamente por el n&uacute;mero de serie. Los registros que ya est&aacute;n en la hoja se omiten antes de subir.</p>
     <label id="wd3-drop-zone">
-      <input type="file" id="wd3-file-input" accept=".wd3,.WD3,.csv,.CSV" style="display:none">
+      <input type="file" id="wd3-file-input" accept=".wd3,.WD3,.txt,.TXT,.csv,.CSV" style="display:none">
       <div class="ic">&#128196;</div>
       <div class="t1">Clic para seleccionar o arrastr&aacute; el archivo aqu&iacute;</div>
       <div class="t2">54400111 = CE Suchitep&eacute;quez &middot; 54400110 = Ovejero, Jutiapa</div>
@@ -3275,15 +3275,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btn = document.getElementById('wd3-btn-upload');
     btn.disabled = true;
-    wd3Log(`Enviando ${PARSED_ROWS.length} registros...`, 'info');
+    // Se envía por partes: un archivo con toda la memoria de la estación puede
+    // traer más de 14.000 registros, y un solo envío tan grande puede pasar el
+    // límite de tiempo del Apps Script y dejar la carga a medias.
+    const BATCH = 1500;
+    const total = PARSED_ROWS.length;
+    const nParts = Math.ceil(total / BATCH);
+    wd3Log(`Enviando ${total.toLocaleString()} registros${nParts > 1 ? ` en ${nParts} partes` : ''}...`, 'info');
 
+    let added = 0, skippedSrv = 0, sent = 0;
     try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS con Apps Script
-        body: JSON.stringify({ rows: PARSED_ROWS })
-      });
-      const data = await resp.json();
+      for (let i = 0; i < total; i += BATCH) {
+        const part = PARSED_ROWS.slice(i, i + BATCH);
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS con Apps Script
+          body: JSON.stringify({ rows: part })
+        });
+        const d = await resp.json();
+        if (d.status !== 'ok') {
+          wd3Log(`Error del servidor en la parte ${i / BATCH + 1} de ${nParts}: ${d.message}. Se subieron ${sent.toLocaleString()} de ${total.toLocaleString()} registros; volvé a cargar el archivo para subir el resto (lo ya subido se omite).`, 'err');
+          if (typeof ALL_ROWS !== 'undefined') ALL_ROWS.push(...PARSED_ROWS.slice(0, sent));
+          btn.disabled = false;
+          return;
+        }
+        added += d.added || 0; skippedSrv += d.skipped || 0; sent += part.length;
+        if (nParts > 1) wd3Log(`Parte ${i / BATCH + 1} de ${nParts}: ${sent.toLocaleString()} / ${total.toLocaleString()} registros enviados.`, 'info');
+      }
+      const data = { status: 'ok', added, skipped: skippedSrv };
       if (data.status === 'ok') {
         wd3Log(`Listo. ${data.added} registros nuevos agregados, ${data.skipped} ya existían (duplicados omitidos).`, 'ok');
         // Se agregan a los datos en memoria para que, si se vuelve a cargar el
@@ -3299,6 +3318,10 @@ document.addEventListener('DOMContentLoaded', () => {
         wd3Log(`Error del servidor: ${data.message}`, 'err');
       }
     } catch (err) {
+      if (sent > 0) {
+        wd3Log(`Se cortó la conexión después de subir ${sent.toLocaleString()} de ${total.toLocaleString()} registros. Volvé a cargar el archivo para subir el resto (lo ya subido se omite).`, 'err');
+        if (typeof ALL_ROWS !== 'undefined') ALL_ROWS.push(...PARSED_ROWS.slice(0, sent));
+      }
       wd3Log(`No se pudo conectar con el Web App: ${err.message}`, 'err');
       wd3Log('Verificá que la URL termine en /exec y que el despliegue tenga acceso "Cualquier usuario".', 'err');
     }
