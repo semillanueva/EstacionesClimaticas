@@ -229,7 +229,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 #page-cuartos table{width:100%;border-collapse:collapse}
 #page-cuartos thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;
   color:var(--muted);padding:6px 10px;border-bottom:2px solid var(--brd)}
-@media(min-width:901px){#cuartos-kpi-grid{grid-template-columns:repeat(6,1fr)}}
+@media(min-width:901px){#cuartos-kpi-grid{grid-template-columns:repeat(6,1fr)}#cuartos-kpi-grid.no-th{grid-template-columns:repeat(5,1fr)}}
+#page-cuartos.no-th .th-only{display:none!important}
 #page-cuartos .fresh-ok{color:var(--teal)}
 #page-cuartos .fresh-warn{color:#C98A1C;font-weight:600}
 #page-cuartos .fresh-bad{color:var(--coral);font-weight:600}
@@ -604,13 +605,13 @@ footer{text-align:center;font-size:11px;color:var(--sub);
             &deg;C
             <span style="color:var(--sub)">&middot;</span>
             Temp. m&aacute;x (tope)
-            <input type="number" id="gdd-ttop" value="30" step="0.5" min="20" max="45"
+            <input type="number" id="gdd-ttop" value="32" step="0.5" min="20" max="45"
               style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
             &deg;C
           </span>
         </div>
         <div style="position:relative;height:165px"><canvas id="cGDD"></canvas></div>
-        <p style="font-size:10px;color:var(--sub);margin-top:6px">Base 10&deg;C es un est&aacute;ndar usual para ma&iacute;z y frijol en clima tropical. El tope superior (30&deg;C por defecto) limita la temperatura m&aacute;xima usada en el c&aacute;lculo &mdash; cambialo a 32&deg;C si tu criterio agron&oacute;mico lo requiere; por encima del tope, el cultivo deja de acumular crecimiento adicional.</p>
+        <p style="font-size:10px;color:var(--sub);margin-top:6px">Base 10&deg;C es un est&aacute;ndar usual para ma&iacute;z y frijol en clima tropical. El tope superior (32&deg;C, el definido por el equipo para CE) limita la temperatura m&aacute;xima usada en el c&aacute;lculo; por encima del tope, el cultivo deja de acumular crecimiento adicional.</p>
       </div>
 
     </div>
@@ -714,7 +715,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
             <input type="number" id="cmp-gdd-tbase" value="10" step="0.5" min="0" max="20"
               style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
             &deg;C &middot; Tope
-            <input type="number" id="cmp-gdd-ttop" value="30" step="0.5" min="20" max="45"
+            <input type="number" id="cmp-gdd-ttop" value="32" step="0.5" min="20" max="45"
               style="width:46px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;text-align:center">
             &deg;C
           </span>
@@ -869,7 +870,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div class="kpi"><div class="kl">Humedad de equilibrio del grano</div>
         <div class="kv" id="ck-emc" style="color:var(--teal)">—</div>
         <div class="ks" id="ck-emc-s">meta 11–12.5%</div></div>
-      <div class="kpi"><div class="kl">Alertas activas</div>
+      <div class="kpi th-only"><div class="kl">Alertas activas</div>
         <div class="kv" id="ck-alert-count" style="color:var(--coral)">—</div>
         <div class="ks" id="ck-alert-note">fuera de umbral</div></div>
     </div>
@@ -920,7 +921,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </p>
     </div></div>
 
-    <div class="panels r1"><div class="panel">
+    <div class="panels r1 th-only"><div class="panel">
       <div class="ph">
         <span class="pt">&#9201;&#65039; Horas fuera de rango por d&iacute;a</span>
         <div class="leg">
@@ -932,7 +933,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <div style="position:relative;height:190px"><canvas id="cCuartosOOR"></canvas></div>
     </div></div>
 
-    <div class="panels r1"><div class="panel">
+    <div class="panels r1 th-only"><div class="panel">
       <div class="ph"><span class="pt">&#9888;&#65039; Registro de alertas (fuera de umbral)</span>
         <span style="font-size:10px;color:var(--sub)">&uacute;ltimas 100 lecturas fuera de rango</span></div>
       <div style="overflow-x:auto">
@@ -974,10 +975,12 @@ const SHEETS_URL_CUARTOS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpu
 // Según la humedad de equilibrio del maíz, a 25–30°C:
 //   · aire > ~65% HR → la semilla seca tiende a pasar de 12.5% (se rehumedece)
 //   · aire < ~50% HR → la semilla tiende a bajar de 11% (se seca de más)
-// Sin límites de temperatura por ahora (la temperatura ya entra en el cálculo
-// de la humedad de equilibrio). Valores provisionales: ajustar cuando el equipo los revise.
-// Formato: { tempMin:.., tempMax:.., humMin:.., humMax:.. }  (null = sin límite)
-const CE_THRESHOLD = { tempMin:null, tempMax:null, humMin:50, humMax:65 };
+// 03/11/2026: en la reunión NO se definieron umbrales de alerta de temp./humedad para CE
+// (el protocolo de umbrales es solo de los Cuartos Fríos; para CE lo principal son los GDU).
+// Por eso CE_THRESHOLD queda en null: se ocultan las alertas, el registro de alertas y las
+// horas fuera de rango. Si el equipo define umbrales, reemplazá null por, por ejemplo:
+//   { tempMin:null, tempMax:null, humMin:50, humMax:65 }   (null = sin límite)
+const CE_THRESHOLD = null;
 const SEED_TARGET  = { min:11, max:12.5 };   // humedad final de secado del grano (%)
 // Días sin datos nuevos a partir de los cuales se avisa (el Govee se exporta a mano)
 const CUARTOS_FRESH_WARN_DAYS = 3, CUARTOS_FRESH_BAD_DAYS = 7;
@@ -1988,7 +1991,7 @@ function renderWaterBalance(D){
 
 // ── Ciclo de cultivo: GDU desde siembra + Kc automático por etapa ──
 // Los GDU de floración y madurez son valores GENÉRICOS de referencia para
-// clima tropical (base 10°C, tope 30°C). Cada variedad tiene los suyos:
+// clima tropical (base 10°C, tope 32°C). Cada variedad tiene los suyos:
 // reemplazalos en los campos del panel o aquí si ya los conocen.
 // Kc por etapa: FAO-56 (maíz grano: 0.3 / 1.2 / 0.5; frijol seco: 0.4 / 1.15 / 0.35).
 const CROP_PRESETS = {
@@ -2063,7 +2066,7 @@ function renderCropCycle(stationRows){
   const P = { ...P0, flor, mad };
   const B = cropStages(flor, mad);
   const tbase = parseFloat($('gdd-tbase').value) || 10;
-  const ttop  = parseFloat($('gdd-ttop').value)  || 30;
+  const ttop  = parseFloat($('gdd-ttop').value)  || 32;
   const lat = STATION_LAT[st] ?? 14.3;
 
   const sowTS = isoToTS(sowISO);
@@ -2310,7 +2313,7 @@ function renderWetHours(D){
 
 function renderGDD(D){
   const tbase = parseFloat(document.getElementById('gdd-tbase').value) || 10;
-  const ttop  = parseFloat(document.getElementById('gdd-ttop').value) || 30;
+  const ttop  = parseFloat(document.getElementById('gdd-ttop').value) || 32;
   let cum = 0;
   const daily = D.map(d=>+gddDay(d.tmin,d.tmax,tbase,ttop).toFixed(1));
   const cumArr = daily.map(g=>{ cum += g; return +cum.toFixed(1); });
@@ -2347,7 +2350,7 @@ function buildCompareView() {
   // (independientes de los que se usan en la pestaña de cada estación,
   // para poder comparar con distintos criterios agronómicos si se quiere)
   const tbaseCmp = parseFloat(document.getElementById('cmp-gdd-tbase')?.value) || 10;
-  const ttopCmp  = parseFloat(document.getElementById('cmp-gdd-ttop')?.value)  || 30;
+  const ttopCmp  = parseFloat(document.getElementById('cmp-gdd-ttop')?.value)  || 32;
 
   // Stats por estación
   function stStats(D,station) {
@@ -3623,6 +3626,8 @@ function renderCuartos() {
   document.getElementById('cuartos-content').style.display = 'block';
 
   const th = CE_THRESHOLD;
+  document.getElementById('page-cuartos').classList.toggle('no-th', !th);
+  document.getElementById('cuartos-kpi-grid').classList.toggle('no-th', !th);
   let humText = '';
   if (th && th.humMin != null && th.humMax != null) humText = `, humedad ${th.humMin}–${th.humMax}%`;
   else if (th && th.humMax != null) humText = `, humedad < ${th.humMax}%`;
@@ -3630,7 +3635,7 @@ function renderCuartos() {
   document.getElementById('cuartos-threshold-note').textContent = th
     ? ((th.tempMin != null || th.tempMax != null) ? `Umbral configurado: ${th.tempMin ?? '–'}–${th.tempMax ?? '–'}°C${humText}`
        : `Umbral configurado: humedad del aire ${th.humMin ?? '–'}–${th.humMax ?? '–'}% (mantiene la semilla seca en ${SEED_TARGET.min}–${SEED_TARGET.max}%) · sin límite de temperatura`)
-    : 'Sin umbral de alerta definido todavía para esta ubicación.';
+    : 'Sin umbrales de alerta para CE (por ahora solo aplican a los Cuartos Fríos). La humedad de equilibrio del grano se muestra como referencia frente a la meta de secado.';
 
   const last = D[D.length - 1];
   document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;
