@@ -2856,11 +2856,70 @@ function resampleTo10Min(rows) {
   });
 }
 
+// ── Corrección del reloj (ver CLOCK_FIX) con detección automática ──
+// Decide, archivo por archivo, a qué lecturas aplicar la corrección:
+//  1. Rango configurado: solo lecturas entre 'from' y 'to' (hora de la estación).
+//  2. Salto del reloj: si dentro del archivo la hora retrocede de golpe (≥ 4 h),
+//     es que en campo se ajustó la zona horaria. Se corrige solo lo anterior al salto.
+//  3. Ciclo diario: si en las lecturas a corregir la temperatura máxima del día ya
+//     cae cerca del mediodía (mediana antes de las 16:00, con al menos 2 días
+//     completos), el reloj ya está bien y NO se corrige.
+// El resultado queda en CLOCK_FIX_INFO y se muestra en la vista previa.
+function applyClockFix(rows, serial) {
+  CLOCK_FIX_INFO = null;
+  const fixes = CLOCK_FIX[serial] || [];
+  if (!fixes.length || !rows.length) return;
+  const toTS = s => { const m = s.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/); return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime(); };
+
+  // 2. Salto hacia atrás del reloj (en el orden del archivo)
+  let jumpIdx = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i]._rawTS < rows[i-1]._rawTS - 4 * 3600 * 1000) jumpIdx = i;   // el último salto
+  }
+
+  const candidates = [];   // índices a corregir
+  let hours = 0;
+  rows.forEach((r, i) => {
+    if (jumpIdx >= 0 && i >= jumpIdx) return;                 // después del ajuste en campo
+    for (const fx of fixes) {
+      if (r._rawTS >= toTS(fx.from) && (!fx.to || r._rawTS < toTS(fx.to))) { candidates.push(i); hours = fx.hours; break; }
+    }
+  });
+  if (!candidates.length) {
+    if (jumpIdx >= 0) CLOCK_FIX_INFO = { shifted: 0, hours: 0, jump: rows[jumpIdx], skippedByCycle: false };
+    return;
+  }
+
+  // 3. Chequeo del ciclo diario sobre las lecturas candidatas (hora cruda)
+  const byDay = {};
+  candidates.forEach(i => {
+    const r = rows[i], d = new Date(r._rawTS);
+    const k = d.toDateString();
+    (byDay[k] = byDay[k] || []).push({ t: r['Temperatura (C)'], h: d.getHours() + d.getMinutes() / 60 });
+  });
+  const peakHours = Object.values(byDay).filter(a => a.length >= 40)          // días casi completos
+    .map(a => a.reduce((b, x) => x.t > b.t ? x : b).h).sort((a, b) => a - b);
+  const median = peakHours.length ? peakHours[Math.floor(peakHours.length / 2)] : null;
+  if (peakHours.length >= 2 && median < 16) {
+    CLOCK_FIX_INFO = { shifted: 0, hours, skippedByCycle: true, median, jump: jumpIdx >= 0 ? rows[jumpIdx] : null };
+    return;
+  }
+
+  candidates.forEach(i => {
+    const r = rows[i];
+    const dt = new Date(r._rawTS + hours * 3600 * 1000);
+    const dia = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()}`;
+    const hora = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    r['Fecha Hora'] = `${dia} ${hora}`; r['Fecha'] = dia; r['Dia'] = dia; r['Hora'] = hora;
+  });
+  CLOCK_FIX_INFO = { shifted: candidates.length, hours, skippedByCycle: false, median,
+                     jump: jumpIdx >= 0 ? rows[jumpIdx] : null, checkedDays: peakHours.length };
+}
+
 // ── Parseo del archivo WD3 ──────────────────────────────────────────
 function parseWD3(text) {
   const lines = text.split(/\r?\n/);
   let serial = null, skipped = 0, corrected = 0, discarded = 0;
-  let clockShifted = 0, clockHours = 0;
   const rows = [];
 
   for (const raw of lines) {
@@ -2921,20 +2980,9 @@ function parseWD3(text) {
     if (isNaN(tempF) || isNaN(hum)) { skipped++; continue; }
 
     const tempC = +fToC(tempF).toFixed(1);
-    // Corrección del reloj de la estación, si aplica (ver CLOCK_FIX)
-    let dt = new Date(+year, +month - 1, +day, +hour, +min);
-    const fixes = CLOCK_FIX[serial] || [];
-    for (const fx of fixes) {
-      const toTS = s => { const m = s.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})/); return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]).getTime(); };
-      const t = dt.getTime();
-      if (t >= toTS(fx.from) && (!fx.to || t < toTS(fx.to))) {
-        dt = new Date(t + fx.hours * 3600 * 1000);
-        clockShifted++; clockHours = fx.hours;
-        break;
-      }
-    }
-    const diaStr = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}/${dt.getFullYear()}`;
-    const horaStr = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    const diaStr = `${day}/${month}/${year}`;
+    const horaStr = `${hour}:${min}`;
+    const rawTS = new Date(+year, +month - 1, +day, +hour, +min).getTime();
 
     rows.push({
       'Estacion': STATION_MAP[serial] || serial || '??',
@@ -2952,11 +3000,13 @@ function parseWD3(text) {
       'Rafaga (mph)': isNaN(gustMph) ? '' : gustMph,
       'Voltaje (V)': isNaN(volt) ? '' : volt,
       'Bateria (%)': isNaN(battPct) ? '' : battPct,
-      'Punto de Rocio (C)': dewPointCSV(tempC, hum)
+      'Punto de Rocio (C)': dewPointCSV(tempC, hum),
+      _rawTS: rawTS
     });
   }
 
-  CLOCK_FIX_INFO = clockShifted ? { shifted: clockShifted, hours: clockHours } : null;
+  applyClockFix(rows, serial);
+  rows.forEach(r => delete r._rawTS);
   return { rows, serial, skipped, corrected, discarded };
 }
 
@@ -3140,9 +3190,20 @@ function wd3RenderPreview(rows, serial, skipped, corrected, discarded, filename)
   }
 
   const resampleNote = document.getElementById('wd3-resample-note');
-  const clockTxt = CLOCK_FIX_INFO
-    ? `🕒 Reloj corregido: ${CLOCK_FIX_INFO.shifted.toLocaleString()} registro(s) se ajustaron ${CLOCK_FIX_INFO.hours} h porque el reloj de la estación está en UTC (ver CLOCK_FIX). `
-    : '';
+  let clockTxt = '';
+  const CF = CLOCK_FIX_INFO;
+  if (CF) {
+    if (CF.shifted) {
+      clockTxt = `🕒 Reloj corregido: ${CF.shifted.toLocaleString()} registro(s) se ajustaron ${CF.hours} h porque el reloj de la estación estaba en UTC`
+        + (CF.median != null ? ` (la temp. máxima caía a las ~${Math.round(CF.median)}:00)` : '') + '. '
+        + (CF.checkedDays < 2 ? '⚠ El archivo tiene menos de 2 días completos y no se pudo confirmar con el ciclo diario: revisá que las horas se vean bien antes de subir. ' : '');
+    } else if (CF.skippedByCycle) {
+      clockTxt = `✅ Reloj ya correcto: la temp. máxima cae a las ~${Math.round(CF.median)}:00, así que no se aplicó la corrección de ${CF.hours} h. `;
+    }
+    if (CF.jump) {
+      clockTxt += `🔧 Se detectó el ajuste de hora en campo el ${CF.jump.Dia} ${CF.jump.Hora}: desde ahí no se corrige. Avisá para poner esa fecha como fin en CLOCK_FIX. `;
+    }
+  }
   if (RESAMPLE_INFO && RESAMPLE_INFO.applied) {
     resampleNote.style.display = 'block';
     resampleNote.textContent = clockTxt + `⏱ Remuestreado de 5 min a 10 min: ${RESAMPLE_INFO.before.toLocaleString()} registros originales → ${RESAMPLE_INFO.after.toLocaleString()} registros de 10 min (temperatura/humedad/voltaje/viento promediados, lluvia sumada por bloque, dirección de viento con promedio circular).`;
