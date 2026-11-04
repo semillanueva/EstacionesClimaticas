@@ -768,6 +768,27 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <input type="file" id="ext-file" accept=".xlsx,.xls,.csv" multiple style="display:none">
         &#128194; Cargar archivo de REDMET (.xlsx o .csv) para ver sin subir a la hoja
       </label>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center">
+        <strong style="color:var(--navy)">&#128752; NASA POWER &mdash; coordenadas de cada estaci&oacute;n</strong>
+        <span>CE: lat <input id="nasa-ce-lat" class="inl-sel" style="width:76px" type="number" step="0.0001"> lon <input id="nasa-ce-lon" class="inl-sel" style="width:82px" type="number" step="0.0001"></span>
+        <span>Ovejero: lat <input id="nasa-ov-lat" class="inl-sel" style="width:76px" type="number" step="0.0001"> lon <input id="nasa-ov-lon" class="inl-sel" style="width:82px" type="number" step="0.0001"></span>
+        <button id="nasa-save" class="inl-sel" style="cursor:pointer;font-weight:600">Aplicar</button>
+        <span style="font-size:10px;color:var(--sub)">Longitud en negativo (oeste), p. ej. &minus;89.9. Se guardan en este navegador; para dejarlas fijas para todos, van en NASA_POINTS del c&oacute;digo.</span>
+      </div>
+    </div>
+
+    <div class="panel" id="nasa-gap-panel" style="margin-bottom:16px">
+      <div class="ph"><span class="pt">&#128752; D&iacute;as sin datos de la estaci&oacute;n &mdash; estimaci&oacute;n NASA POWER</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:10px;color:var(--sub)" id="nasa-gap-sub"></span>
+          <button id="nasa-gap-csv" class="inl-sel" style="cursor:pointer;display:none">&#11015; Descargar CSV</button>
+        </span></div>
+      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:8px" id="nasa-gap-msg">&mdash;</p>
+      <div class="tw" id="nasa-gap-tw" style="display:none"><table>
+        <thead><tr><th>Fecha</th><th>Cobertura estaci&oacute;n</th><th>T M&aacute;x</th><th>T M&iacute;n</th><th>T Prom</th><th>HR Prom</th><th>Lluvia</th><th>Viento m&aacute;x</th></tr></thead>
+        <tbody id="nasa-gap-tb"></tbody>
+      </table></div>
+      <p style="font-size:10px;color:var(--sub);line-height:1.6;margin-top:8px">Valores <strong>estimados</strong> (modelo MERRA-2 / IMERG de NASA, celda de ~50 km), no mediciones. Se muestran aparte y no se mezclan con la hoja "Datos" ni con los c&aacute;lculos de las otras pesta&ntilde;as. La lluvia del modelo suele subestimar aguaceros locales fuertes.</p>
     </div>
 
     <div id="ext-empty" class="panel" style="display:none;text-align:center;padding:28px 20px;margin-bottom:16px">
@@ -821,6 +842,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <p style="font-size:10px;color:var(--sub);line-height:1.6;margin:0 4px 16px">
         Los datos externos vienen de otra institución, con sus propios sensores, altura de instalación y control de calidad: sirven como referencia regional, no reemplazan las mediciones de nuestras estaciones.
         El viento de REDMET se toma en km/h y se compara con el viento promedio máximo de nuestra estación (no con la ráfaga).
+        NASA POWER es un modelo (celda de ~50 km, datos diarios): sirve para ver tendencias y llenar huecos, no para comparar lluvia día a día con precisión.
       </p>
     </div>
   </div>
@@ -2720,6 +2742,105 @@ function inMainFilter(key){
   const ts = parseDiaKey(key); return ts>=f && ts<=t;
 }
 
+
+// ── NASA POWER (API diaria, se consulta desde el navegador) ──
+// Coordenadas fijas para todos los que abren el dashboard (null = usar las que se
+// ingresen en la pestaña Red regional, que quedan guardadas solo en ese navegador).
+const NASA_POINTS = {
+  CE:      { lat:null, lon:null },
+  Ovejero: { lat:null, lon:null }
+};
+const NASA_PARAMS = 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS2M_MAX';
+const NASA_CACHE = {};   // `${st}|${lat}|${lon}` → { status:'loading'|'ok'|'error', days:[], err }
+let NASA_GAP_ROWS = [];
+
+function nasaPoint(st){
+  try {
+    const s = JSON.parse(localStorage.getItem('nasa_pt_'+st) || 'null');
+    if (s && isFinite(s.lat) && isFinite(s.lon)) return s;
+  } catch(e) {}
+  const p = NASA_POINTS[st];
+  return (p && p.lat != null && p.lon != null) ? p : null;
+}
+const keyToYMD = k => { const p = parseDiaParts(k); return `${p.y}${String(p.m).padStart(2,'0')}${String(p.d).padStart(2,'0')}`; };
+
+function nasaGet(st){
+  const pt = nasaPoint(st); if (!pt) return null;
+  const ck = `${st}|${pt.lat}|${pt.lon}`;
+  if (NASA_CACHE[ck]) return NASA_CACHE[ck];
+  const ours = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===st));
+  const p2 = n => String(n).padStart(2,'0'), now = new Date();
+  const start = ours.length ? keyToYMD(ours[0].key) : `${now.getFullYear()}0101`;
+  const end = `${now.getFullYear()}${p2(now.getMonth()+1)}${p2(now.getDate())}`;
+  const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=${NASA_PARAMS}&community=AG`
+            + `&latitude=${pt.lat}&longitude=${pt.lon}&start=${start}&end=${end}&format=JSON`;
+  const c = NASA_CACHE[ck] = { status:'loading', days:[] };
+  fetch(url).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(j => {
+    const P = (j.properties && j.properties.parameter) || {};
+    const v = (prm, d) => { const x = P[prm] && P[prm][d]; return (x == null || x <= -998) ? null : x; };
+    c.days = Object.keys(P.T2M_MAX || {}).sort().map(d => {
+      const key = `${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, kp = parseDiaParts(key);
+      const ws = v('WS2M_MAX', d);
+      return { key, dia:formatDiaShort(key), y:kp.y, m:kp.m, n:1,
+        tmax:v('T2M_MAX',d), tmin:v('T2M_MIN',d), tavg:v('T2M',d), havg:v('RH2M',d),
+        rain:v('PRECTOTCORR',d), wmax: ws==null ? null : +(ws*3.6).toFixed(1) };   // m/s → km/h
+    }).filter(d => d.tmax != null && d.tmin != null && d.tavg != null)
+      .map(d => ({ ...d, rain: d.rain == null ? 0 : +d.rain.toFixed(1), havg: d.havg == null ? null : +d.havg.toFixed(1) }));
+    c.status = 'ok';
+  }).catch(err => { c.status = 'error'; c.err = err.message; })
+    .finally(() => { if (CUR_STATION === 'externas') renderExtView(); });
+  return c;
+}
+
+function renderNasaGap(st){
+  const $ = id => document.getElementById(id);
+  const msg = $('nasa-gap-msg'), tw = $('nasa-gap-tw'), btn = $('nasa-gap-csv');
+  tw.style.display = 'none'; btn.style.display = 'none'; NASA_GAP_ROWS = [];
+  const nm = st==='CE' ? 'CE' : 'Ovejero';
+  $('nasa-gap-sub').textContent = nm;
+  if (!nasaPoint(st)) { msg.textContent = `Ingresá arriba las coordenadas de ${nm} para consultar NASA POWER.`; return; }
+  const c = nasaGet(st);
+  if (c.status === 'loading') { msg.textContent = 'Consultando NASA POWER…'; return; }
+  if (c.status === 'error')   { msg.textContent = `No se pudo consultar NASA POWER (${c.err}). Revisá la conexión o probá más tarde.`; return; }
+
+  const ours = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===st));
+  if (!ours.length) { msg.textContent = `No hay datos de ${nm} en la hoja.`; return; }
+  const cov = {}; ours.forEach(d => cov[d.key] = d.coverage);
+  const nasa = {}; c.days.forEach(d => nasa[d.key] = d);
+  // Calendario completo entre el primer y el último día con datos de la estación
+  const p2 = n => String(n).padStart(2,'0');
+  const t0 = parseDiaKey(ours[0].key), t1 = parseDiaKey(ours[ours.length-1].key);
+  const gaps = [];
+  for (let t = t0; t <= t1; t += 864e5) {
+    const dt = new Date(t), key = `${p2(dt.getDate())}/${p2(dt.getMonth()+1)}/${dt.getFullYear()}`;
+    if (!inMainFilter(key)) continue;
+    const cv = cov[key] ?? 0;
+    if (cv < 50) gaps.push({ key, cov:cv, n:nasa[key] || null });
+  }
+  if (!gaps.length) { msg.textContent = `${nm} no tiene días sin datos (cobertura < 50%) en el período mostrado. ✅`; return; }
+  NASA_GAP_ROWS = gaps.map(g => ({ ...g, st:nm }));
+  const sinNasa = gaps.filter(g => !g.n).length;
+  msg.innerHTML = `${gaps.length} día(s) de ${nm} sin datos o con cobertura menor al 50%. Estos valores de NASA POWER son una <strong>referencia</strong> para esos días.`
+    + (sinNasa ? ` ${sinNasa} día(s) todavía no tienen dato en NASA POWER (publica con algunos días de atraso).` : '');
+  const f = (v,u) => v == null ? '<span style="color:#ccc">—</span>' : v + u;
+  $('nasa-gap-tb').innerHTML = gaps.map(g => `<tr><td>${formatDiaShort(g.key)}/${g.key.slice(-4)}</td><td>${g.cov}%</td>`
+    + `<td>${f(g.n?.tmax?.toFixed?.(1),'°C')}</td><td>${f(g.n?.tmin?.toFixed?.(1),'°C')}</td><td>${f(g.n?.tavg?.toFixed?.(1),'°C')}</td>`
+    + `<td>${f(g.n?.havg,'%')}</td><td>${f(g.n?.rain,' mm')}</td><td>${f(g.n?.wmax,' km/h')}</td></tr>`).join('');
+  tw.style.display = ''; btn.style.display = '';
+}
+
+function downloadNasaGapCsv(){
+  if (!NASA_GAP_ROWS.length) return;
+  const st = NASA_GAP_ROWS[0].st, pt = nasaPoint(st === 'CE' ? 'CE' : 'Ovejero');
+  const head = 'Estacion,Dia,Fuente,Latitud,Longitud,Cobertura estacion (%),Temp max (C),Temp min (C),Temp prom (C),Humedad prom (%HR),Lluvia (mm),Viento max (km/h)';
+  const cell = v => v == null ? '' : v;
+  const lines = NASA_GAP_ROWS.map(g => [st, g.key, 'NASA POWER (estimacion)', pt.lat, pt.lon, g.cov,
+    cell(g.n?.tmax), cell(g.n?.tmin), cell(g.n?.tavg), cell(g.n?.havg), cell(g.n?.rain), cell(g.n?.wmax)].join(','));
+  const blob = new Blob(['﻿' + [head, ...lines].join('\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `relleno_nasa_power_${st}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
 function showExtView(){
   if (SHEETS_URL_EXTERNOS && EXT_SOURCE!=='sheets') loadExternosFromSheets();
   renderExtView();
@@ -2736,25 +2857,39 @@ function renderExtView(){
         + (SHEETS_URL_EXTERNOS ? '' : ' Para que queden fijos, pegalos en una pestaña "Datos_Externos" de la hoja y publicala como CSV (ver SHEETS_URL_EXTERNOS).')
       : (SHEETS_URL_EXTERNOS ? 'Cargando la pestaña "Datos_Externos"…' : 'Todavía no hay datos externos conectados. Cargá un archivo de REDMET para verlo, o conectá la pestaña "Datos_Externos" en SHEETS_URL_EXTERNOS.');
 
-  // Selector de estación externa
-  const stations = [...new Set(EXT_ROWS.map(r=>r.est))].sort();
-  const sel = $('ext-st'), prev = sel.value;
-  sel.innerHTML = stations.length ? stations.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('') : '<option value="">—</option>';
-  if (stations.includes(prev)) sel.value = prev;
+  const ourSt = $('ext-our').value;
+  renderNasaGap(ourSt);
 
-  const ourSt = $('ext-our').value, extSt = sel.value;
+  // Selector de estación externa (REDMET + punto NASA POWER si hay coordenadas)
+  const stations = [...new Set(EXT_ROWS.map(r=>r.est))].sort();
+  const nasaOk = !!nasaPoint(ourSt);
+  const sel = $('ext-st'), prev = sel.value;
+  sel.innerHTML = stations.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('')
+    + (nasaOk ? `<option value="__NASA__">NASA POWER — punto ${ourSt} (modelo)</option>` : '')
+    || '<option value="">—</option>';
+  if (stations.includes(prev) || (prev==='__NASA__' && nasaOk)) sel.value = prev;
+
+  const extSt = sel.value, isNasa = extSt === '__NASA__';
+  const extLabel = isNasa ? 'NASA POWER' : extSt;
   const showEmpty = msg => { $('ext-body').style.display='none'; $('ext-empty').style.display='block'; $('ext-empty-msg').textContent = msg; };
-  if (!stations.length) return showEmpty('Sin datos externos todavía.');
+  if (!stations.length && !nasaOk) return showEmpty('Sin datos externos todavía. Cargá un archivo de REDMET o ingresá las coordenadas de la estación para usar NASA POWER.');
 
   const Dour = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===ourSt)).filter(d=>inMainFilter(d.key));
-  const Dext = aggregateExtByDay(EXT_ROWS.filter(r=>r.est===extSt)).filter(d=>inMainFilter(d.key));
+  let Dext;
+  if (isNasa) {
+    const c = nasaGet(ourSt);
+    if (!c || c.status !== 'ok') return showEmpty(c && c.status==='error' ? `No se pudo consultar NASA POWER (${c.err}).` : 'Consultando NASA POWER…');
+    Dext = c.days.filter(d=>inMainFilter(d.key));
+  } else {
+    Dext = aggregateExtByDay(EXT_ROWS.filter(r=>r.est===extSt)).filter(d=>inMainFilter(d.key));
+  }
   const extKeys = new Set(Dext.map(d=>d.key));
   const cOur = Dour.filter(d=>extKeys.has(d.key));
   const ourKeys = new Set(cOur.map(d=>d.key));
   const cExt = Dext.filter(d=>ourKeys.has(d.key));
   if (!cOur.length) {
     const rng = D => D.length ? `${D[0].key} – ${D[D.length-1].key}` : 'sin datos';
-    return showEmpty(`No hay días en común entre ${ourSt} (${rng(Dour)}) y ${extSt} (${rng(Dext)}) con el filtro de fechas actual.`);
+    return showEmpty(`No hay días en común entre ${ourSt} (${rng(Dour)}) y ${extLabel} (${rng(Dext)}) con el filtro de fechas actual.`);
   }
   $('ext-empty').style.display='none'; $('ext-body').style.display='block';
 
@@ -2762,7 +2897,7 @@ function renderExtView(){
   const ourNm = ourSt==='CE' ? 'CE — Suchitepéquez' : 'Ovejero — Jutiapa';
   $('ext-name-our').textContent = ourNm; $('ext-dot-our').style.background = ourClr;
   $('ext-card-our').className = 'cmp-card ' + (ourSt==='CE' ? 'sj' : 'ov');
-  $('ext-name-ext').textContent = `${extSt} — ICC REDMET`;
+  $('ext-name-ext').textContent = isNasa ? `NASA POWER — punto ${ourSt} (modelo ~50 km)` : `${extSt} — ICC REDMET`;
   $('ext-period').textContent = `Período común: ${cOur[0].key} – ${cOur[cOur.length-1].key} (${cOur.length} días)`;
 
   const tbase = parseFloat($('gdd-tbase')?.value) || 10, ttop = parseFloat($('gdd-ttop')?.value) || 32;
@@ -2794,13 +2929,13 @@ function renderExtView(){
   const dT = dif('tavg'), dX = dif('tmax'), dN = dif('tmin');
   const hPairs = cOur.map((d,i)=>[d.havg,cExt[i].havg]).filter(([a,b])=>a!=null&&b!=null);
   const dH = hPairs.length ? avg(hPairs.map(([a,b])=>b-a)) : null;
-  $('ext-diff').innerHTML = `<strong>${extSt} frente a ${ourSt}</strong> (promedio de diferencias diarias): `
+  $('ext-diff').innerHTML = `<strong>${extLabel} frente a ${ourSt}</strong> (promedio de diferencias diarias): `
     + `temp. promedio ${fmtDif(dT,'°C')} · máxima ${fmtDif(dX,'°C')} · mínima ${fmtDif(dN,'°C')}`
     + (dH!=null ? ` · humedad ${fmtDif(dH,' pts')}` : '')
-    + ` · lluvia total ${Se.rain} vs. ${So.rain} mm. Valores positivos = ${extSt} más alto.`;
+    + ` · lluvia total ${Se.rain} vs. ${So.rain} mm. Valores positivos = ${extLabel} más alto.`;
 
   const L = cOur.map(d=>d.dia);
-  const leg = (a,b,dash) => `<span class="li"><span class="ll" style="background:${ourClr}"></span>${ourSt}</span><span class="li"><span class="ll" style="background:${EXT_COLOR}"></span>${extSt}</span>`;
+  const leg = (a,b,dash) => `<span class="li"><span class="ll" style="background:${ourClr}"></span>${ourSt}</span><span class="li"><span class="ll" style="background:${EXT_COLOR}"></span>${extLabel}</span>`;
   ['t','r','g','h'].forEach(k=>$('ext-leg-'+k).innerHTML = leg());
   $('ext-leg-t').innerHTML += `<span class="li"><span class="ld" style="border-color:#999"></span>máxima</span>`;
   const baseOpt = (yfmt, extra={}) => ({ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
@@ -2808,29 +2943,29 @@ function renderExtView(){
 
   chartRefs['cExtT'] = new Chart('cExtT', { type:'line', data:{ labels:L, datasets:[
     { label:`${ourSt} prom.`, data:cOur.map(d=>d.tavg), borderColor:ourClr, borderWidth:2, pointRadius:2.5, pointBackgroundColor:ourClr, tension:0 },
-    { label:`${extSt} prom.`, data:cExt.map(d=>d.tavg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 },
+    { label:`${extLabel} prom.`, data:cExt.map(d=>d.tavg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 },
     { label:`${ourSt} máx.`, data:cOur.map(d=>d.tmax), borderColor:ourClr, borderWidth:1.2, borderDash:[4,3], pointRadius:0, tension:0 },
-    { label:`${extSt} máx.`, data:cExt.map(d=>d.tmax), borderColor:EXT_COLOR, borderWidth:1.2, borderDash:[4,3], pointRadius:0, tension:0 }
+    { label:`${extLabel} máx.`, data:cExt.map(d=>d.tmax), borderColor:EXT_COLOR, borderWidth:1.2, borderDash:[4,3], pointRadius:0, tension:0 }
   ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}; return o; })(baseOpt(v=>v+'°C',{suggestedMin:15,suggestedMax:40})) });
 
   chartRefs['cExtR'] = new Chart('cExtR', { type:'bar', data:{ labels:L, datasets:[
     { label:ourSt, data:cOur.map(d=>d.rain), backgroundColor:ourClr, borderRadius:3, categoryPercentage:0.7, barPercentage:0.9 },
-    { label:extSt, data:cExt.map(d=>d.rain), backgroundColor:EXT_COLOR, borderRadius:3, categoryPercentage:0.7, barPercentage:0.9 }
+    { label:extLabel, data:cExt.map(d=>d.rain), backgroundColor:EXT_COLOR, borderRadius:3, categoryPercentage:0.7, barPercentage:0.9 }
   ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} mm`}}; return o; })(baseOpt(v=>v+' mm',{min:0})) });
 
   let cg1=0, cg2=0;
   chartRefs['cExtG'] = new Chart('cExtG', { type:'line', data:{ labels:L, datasets:[
     { label:ourSt, data:cOur.map(d=>+(cg1+=gddDay(d.tmin,d.tmax,tbase,ttop)).toFixed(1)), borderColor:ourClr, borderWidth:2.5, pointRadius:0, tension:0.1 },
-    { label:extSt, data:cExt.map(d=>+(cg2+=gddDay(d.tmin,d.tmax,tbase,ttop)).toFixed(1)), borderColor:EXT_COLOR, borderWidth:2.5, pointRadius:0, tension:0.1 }
+    { label:extLabel, data:cExt.map(d=>+(cg2+=gddDay(d.tmin,d.tmax,tbase,ttop)).toFixed(1)), borderColor:EXT_COLOR, borderWidth:2.5, pointRadius:0, tension:0.1 }
   ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} GDU`}}; return o; })(baseOpt(v=>v)) });
   $('ext-gdd-note').textContent = `Misma temp. base (${tbase}°C) y tope (${ttop}°C) que el panel de GDU de la pestaña Cultivo.`;
 
   chartRefs['cExtH'] = new Chart('cExtH', { type:'line', data:{ labels:L, datasets:[
     { label:ourSt, data:cOur.map(d=>d.havg||null), borderColor:ourClr, borderWidth:2, pointRadius:2.5, pointBackgroundColor:ourClr, tension:0 },
-    { label:extSt, data:cExt.map(d=>d.havg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 }
+    { label:extLabel, data:cExt.map(d=>d.havg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 }
   ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}%`}}; return o; })(baseOpt(v=>v+'%',{suggestedMin:40,max:100})) });
 
-  const sO = ourSt==='CE'?'CE':'OV', sE = extSt.length>10 ? extSt.slice(0,10)+'…' : extSt;
+  const sO = ourSt==='CE'?'CE':'OV', sE = extLabel.length>10 ? extLabel.slice(0,10)+'…' : extLabel;
   $('ext-thead').innerHTML = `<th>Fecha</th><th>T Máx ${sO}</th><th>T Máx ${sE}</th><th>T Mín ${sO}</th><th>T Mín ${sE}</th><th>Lluvia ${sO}</th><th>Lluvia ${sE}</th><th>HR Prom ${sO}</th><th>HR Prom ${sE}</th>`;
   const rf = v => v>0 ? `<span class="rb">${v}</span>` : '<span style="color:#ccc">—</span>';
   $('ext-tb').innerHTML = cOur.map((d,i)=>{ const e=cExt[i];
@@ -2845,6 +2980,19 @@ document.addEventListener('DOMContentLoaded', () => {
   dz.addEventListener('dragleave', () => dz.classList.remove('over'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); loadExternosFromFiles(e.dataTransfer.files); });
   ['ext-our','ext-st'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
+  const nasaIds = { CE:['nasa-ce-lat','nasa-ce-lon'], Ovejero:['nasa-ov-lat','nasa-ov-lon'] };
+  Object.entries(nasaIds).forEach(([st,[la,lo]]) => { const p = nasaPoint(st); if (p) { document.getElementById(la).value = p.lat; document.getElementById(lo).value = p.lon; } });
+  document.getElementById('nasa-save').addEventListener('click', () => {
+    Object.entries(nasaIds).forEach(([st,[la,lo]]) => {
+      const lat = parseFloat(document.getElementById(la).value), lon = parseFloat(document.getElementById(lo).value);
+      try {
+        if (isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) localStorage.setItem('nasa_pt_'+st, JSON.stringify({ lat, lon }));
+        else localStorage.removeItem('nasa_pt_'+st);
+      } catch(e) {}
+    });
+    if (CUR_STATION==='externas') renderExtView();
+  });
+  document.getElementById('nasa-gap-csv').addEventListener('click', downloadNasaGapCsv);
   ['gdd-tbase','gdd-ttop'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
 });
 
