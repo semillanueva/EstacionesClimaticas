@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{--bg:#F0EEEA;--surf:#fff;--surf2:#F7F5F1;--brd:rgba(0,0,0,0.08);
   --shd:0 1px 4px rgba(0,0,0,0.08);--navy:#1D3461;--blue:#1F7FDF;
@@ -41,6 +43,18 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .cmp-card.ex{background:linear-gradient(135deg,#F5F1FB,#fff)}
 #ext-drop{border:2px dashed #CBD5E1;border-radius:var(--r);padding:14px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--navy);font-weight:600}
 #ext-drop:hover,#ext-drop.over{border-color:#7B5EA7;background:#F5F1FB}
+.pl-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:18px}
+@media(max-width:800px){.pl-grid{grid-template-columns:1fr}}
+.pl-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:11px;color:var(--muted)}
+.pl-row label{font-weight:600;color:var(--navy);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em}
+.pl-row .inl-sel{width:100%;box-sizing:border-box}
+.pl-quick{cursor:pointer;width:auto!important}
+#pl-map{height:380px;border-radius:var(--r);border:1px solid var(--line);z-index:0}
+.pl-sel{font-size:12px;color:var(--txt);background:#F5F1FB;border-radius:8px;padding:8px 10px;margin:4px 0 10px;line-height:1.5}
+.pl-go{width:100%;padding:10px;border:none;border-radius:8px;background:#7B5EA7;color:#fff;font-weight:600;font-size:13px;cursor:pointer}
+.pl-go:disabled{background:#CBD5E1;cursor:default}
+.pl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.pl-kpis .kpi{margin:0}
 
 /* FILTRO DE FECHA */
 .filter-bar{background:var(--surf2);border-bottom:1px solid var(--brd);
@@ -756,9 +770,74 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
   <!-- Vista "Red regional": estaciones de otras instituciones (ICC REDMET, INSIVUMEH, Anacafé…) -->
   <div id="ext-view" style="display:none">
+    <!-- ── Consultar un lugar (NASA POWER) ── -->
+    <div class="panel" style="margin-bottom:16px">
+      <div class="ph"><span class="pt">&#128752; Consultar un lugar de Guatemala &mdash; NASA POWER</span>
+        <span style="font-size:10px;color:var(--sub)">Eleg&iacute; un municipio, buscalo por nombre o hac&eacute; clic en el mapa</span></div>
+      <div class="pl-grid">
+        <div>
+          <div class="pl-row"><label>Departamento</label><select id="pl-depto" class="inl-sel"></select></div>
+          <div class="pl-row"><label>Municipio</label><select id="pl-muni" class="inl-sel"></select></div>
+          <div class="pl-row"><label>Buscar</label><input id="pl-search" class="inl-sel" list="pl-list" placeholder="Escrib&iacute; un municipio&hellip;"><datalist id="pl-list"></datalist></div>
+          <div class="pl-row"><label>Nuestras estaciones</label>
+            <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="inl-sel pl-quick" data-st="CE">&#128205; CE</button><button class="inl-sel pl-quick" data-st="Ovejero">&#128205; Ovejero</button></span></div>
+          <div class="pl-row"><label>Per&iacute;odo</label>
+            <select id="pl-period" class="inl-sel">
+              <option value="30">&Uacute;ltimos 30 d&iacute;as</option>
+              <option value="90" selected>&Uacute;ltimos 90 d&iacute;as</option>
+              <option value="season">Temporada de lluvias (desde 1 de mayo)</option>
+              <option value="year">Este a&ntilde;o (desde 1 de enero)</option>
+              <option value="custom">Personalizado&hellip;</option>
+            </select></div>
+          <div class="pl-row" id="pl-custom" style="display:none"><label>Desde / hasta</label>
+            <span style="display:flex;gap:6px;flex-wrap:wrap"><input type="date" id="pl-from" class="inl-sel"><input type="date" id="pl-to" class="inl-sel"></span></div>
+          <div class="pl-sel" id="pl-sel">Ning&uacute;n lugar seleccionado.</div>
+          <button id="pl-go" class="pl-go" disabled>Ver datos del lugar</button>
+        </div>
+        <div><div id="pl-map"></div></div>
+      </div>
+    </div>
+
+    <div id="pl-result" style="display:none">
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph"><span class="pt" id="pl-title">&mdash;</span>
+          <button id="pl-csv" class="inl-sel" style="cursor:pointer">&#11015; Descargar CSV</button></div>
+        <p style="font-size:11px;color:var(--muted);line-height:1.7" id="pl-meta">&mdash;</p>
+      </div>
+      <div class="pl-kpis" id="pl-kpis"></div>
+      <div class="panels r2">
+        <div class="panel"><div class="ph"><span class="pt">&#127777; Temperatura diaria</span>
+          <div class="leg"><span class="li"><span class="ll" style="background:#E05A2B"></span>m&aacute;xima</span><span class="li"><span class="ll" style="background:#7B5EA7"></span>promedio</span><span class="li"><span class="ll" style="background:#2E86AB"></span>m&iacute;nima</span></div></div>
+          <div style="position:relative;height:230px"><canvas id="cPlT"></canvas></div></div>
+        <div class="panel"><div class="ph"><span class="pt">&#127783; Lluvia diaria y acumulada</span>
+          <div class="leg"><span class="li"><span class="ll" style="background:#2E86AB;height:8px"></span>diaria</span><span class="li"><span class="ll" style="background:#1B3A5C"></span>acumulada</span></div></div>
+          <div style="position:relative;height:230px"><canvas id="cPlR"></canvas></div></div>
+      </div>
+      <div class="panels r2">
+        <div class="panel"><div class="ph"><span class="pt">&#128167; Humedad relativa promedio</span></div>
+          <div style="position:relative;height:210px"><canvas id="cPlH"></canvas></div></div>
+        <div class="panel"><div class="ph"><span class="pt">&#127793; GDU acumulados y balance h&iacute;drico</span>
+          <div class="leg"><span class="li"><span class="ll" style="background:#1A9E72"></span>GDU</span><span class="li"><span class="ll" style="background:#E8A838"></span>lluvia &minus; ET&#8320; acumulado</span></div></div>
+          <div style="position:relative;height:210px"><canvas id="cPlG"></canvas></div>
+          <p style="font-size:10px;color:var(--sub);margin-top:6px" id="pl-gdd-note"></p></div>
+      </div>
+      <div class="panel" style="margin-bottom:16px">
+        <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Datos diarios</span><span style="font-size:10px;color:var(--sub)">m&aacute;s reciente primero</span></div>
+        <div class="tw" style="max-height:420px;overflow-y:auto"><table>
+          <thead><tr><th>Fecha</th><th>T M&aacute;x</th><th>T M&iacute;n</th><th>T Prom</th><th>HR Prom</th><th>Lluvia</th><th>Radiaci&oacute;n</th><th>Viento m&aacute;x</th><th>GDU</th></tr></thead>
+          <tbody id="pl-tb"></tbody></table></div>
+      </div>
+      <p style="font-size:10px;color:var(--sub);line-height:1.6;margin:0 4px 20px">
+        Datos de <strong>NASA POWER</strong> (modelos MERRA-2 / CERES), estimados para una celda de ~50 km, no medidos en el lugar. NASA publica con 2&ndash;3 d&iacute;as de atraso.
+        Al validarlos contra Ovejero (jun&ndash;nov 2026): la temperatura promedio y la m&iacute;nima coinciden bien (&plusmn;1 &deg;C), la m&aacute;xima sale m&aacute;s baja en zonas bajas y calientes
+        (hasta 4 &deg;C en octubre) y <strong>la lluvia no es confiable d&iacute;a a d&iacute;a</strong> (en octubre NASA marc&oacute; 368 mm y la estaci&oacute;n 42 mm). &Uacute;sela como referencia de tendencias, no como medici&oacute;n.
+      </p>
+    </div>
+
+    <!-- ── Estaciones de otras instituciones (ICC REDMET) ── -->
     <div class="panel" style="margin-bottom:16px">
       <div class="ph">
-        <span class="pt">&#128225; Red regional &mdash; comparaci&oacute;n con estaciones de otras instituciones</span>
+        <span class="pt">&#128225; Estaciones de otras instituciones &mdash; comparaci&oacute;n con nuestras estaciones</span>
         <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);flex-wrap:wrap">
           Nuestra estaci&oacute;n
           <select id="ext-our" class="inl-sel"><option value="CE">CE &mdash; Suchitep&eacute;quez</option><option value="Ovejero">Ovejero &mdash; Jutiapa</option></select>
@@ -771,27 +850,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
         <input type="file" id="ext-file" accept=".xlsx,.xls,.csv" multiple style="display:none">
         &#128194; Cargar archivo de REDMET (.xlsx o .csv) para ver sin subir a la hoja
       </label>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center">
-        <strong style="color:var(--navy)">&#128752; NASA POWER &mdash; coordenadas de cada estaci&oacute;n</strong>
-        <span>CE: lat <input id="nasa-ce-lat" class="inl-sel" style="width:76px" type="number" step="0.0001"> lon <input id="nasa-ce-lon" class="inl-sel" style="width:82px" type="number" step="0.0001"></span>
-        <span>Ovejero: lat <input id="nasa-ov-lat" class="inl-sel" style="width:76px" type="number" step="0.0001"> lon <input id="nasa-ov-lon" class="inl-sel" style="width:82px" type="number" step="0.0001"></span>
-        <button id="nasa-save" class="inl-sel" style="cursor:pointer;font-weight:600">Aplicar</button>
-        <span style="font-size:10px;color:var(--sub)">Longitud en negativo (oeste), p. ej. &minus;89.9. Se guardan en este navegador; para dejarlas fijas para todos, van en NASA_POINTS del c&oacute;digo.</span>
-      </div>
-    </div>
-
-    <div class="panel" id="nasa-gap-panel" style="margin-bottom:16px">
-      <div class="ph"><span class="pt">&#128752; D&iacute;as sin datos de la estaci&oacute;n &mdash; estimaci&oacute;n NASA POWER</span>
-        <span style="display:flex;gap:8px;align-items:center">
-          <span style="font-size:10px;color:var(--sub)" id="nasa-gap-sub"></span>
-          <button id="nasa-gap-csv" class="inl-sel" style="cursor:pointer;display:none">&#11015; Descargar CSV</button>
-        </span></div>
-      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:8px" id="nasa-gap-msg">&mdash;</p>
-      <div class="tw" id="nasa-gap-tw" style="display:none"><table>
-        <thead><tr><th>Fecha</th><th>Cobertura estaci&oacute;n</th><th>T M&aacute;x</th><th>T M&iacute;n</th><th>T Prom</th><th>HR Prom</th><th>Lluvia</th><th>Viento m&aacute;x</th></tr></thead>
-        <tbody id="nasa-gap-tb"></tbody>
-      </table></div>
-      <p style="font-size:10px;color:var(--sub);line-height:1.6;margin-top:8px">Valores <strong>estimados</strong> (modelo MERRA-2 / IMERG de NASA, celda de ~50 km), no mediciones. Se muestran aparte y no se mezclan con la hoja "Datos" ni con los c&aacute;lculos de las otras pesta&ntilde;as. La lluvia del modelo suele subestimar aguaceros locales fuertes.</p>
     </div>
 
     <div id="ext-empty" class="panel" style="display:none;text-align:center;padding:28px 20px;margin-bottom:16px">
@@ -845,7 +903,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       <p style="font-size:10px;color:var(--sub);line-height:1.6;margin:0 4px 16px">
         Los datos externos vienen de otra institución, con sus propios sensores, altura de instalación y control de calidad: sirven como referencia regional, no reemplazan las mediciones de nuestras estaciones.
         El viento de REDMET se toma en km/h y se compara con el viento promedio máximo de nuestra estación (no con la ráfaga).
-        NASA POWER es un modelo (celda de ~50 km, datos diarios): sirve para ver tendencias y llenar huecos, no para comparar lluvia día a día con precisión.
       </p>
     </div>
   </div>
@@ -1354,7 +1411,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU','cHot','cWet','cExtT','cExtR','cExtG','cExtH'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU','cHot','cWet','cExtT','cExtR','cExtG','cExtH','cPlT','cPlR','cPlH','cPlG'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -2762,105 +2819,213 @@ function inMainFilter(key){
 }
 
 
-// ── NASA POWER (API diaria, se consulta desde el navegador) ──
-// Coordenadas fijas para todos los que abren el dashboard (null = usar las que se
-// ingresen en la pestaña Red regional, que quedan guardadas solo en ese navegador).
+// ════════════════════════════════════════════════════════════════════
+// CONSULTAR UN LUGAR — NASA POWER (API diaria, se consulta desde el navegador)
+// El usuario elige un municipio (lista de 340 municipios con su punto central,
+// tomado de los límites municipales de GeoQuetzal / MINFIN), lo busca por nombre
+// o hace clic en el mapa. No compara con nuestras estaciones: solo muestra el lugar.
+// ════════════════════════════════════════════════════════════════════
+// Coordenadas de nuestras estaciones (botones rápidos del mapa)
 const NASA_POINTS = {
-  CE:      { lat:14.364081, lon:-91.551595 },   // SpecConnect, S/N 54400111 (86 m)
-  Ovejero: { lat:14.4393,   lon:-89.868   }    // aproximadas (Google Maps), S/N 54400110
+  CE:      { lat:14.364081, lon:-91.551595, name:'CE — Centro Experimental (San José La Máquina)' },   // SpecConnect, S/N 54400111
+  Ovejero: { lat:14.4393,   lon:-89.868,    name:'Ovejero (Jutiapa)' }                               // aproximadas, S/N 54400110
 };
-const NASA_PARAMS = 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS2M_MAX';
-const NASA_CACHE = {};   // `${st}|${lat}|${lon}` → { status:'loading'|'ok'|'error', days:[], err }
-let NASA_GAP_ROWS = [];
+const GT_MUNIS = [["Alta Verapaz","Cahabón",15.6054,-89.7715],["Alta Verapaz","Chahal",15.7329,-89.5763],["Alta Verapaz","Chisec",15.892,-90.2939],["Alta Verapaz","Cobán",15.7108,-90.5403],["Alta Verapaz","Fray Bartolomé De Las Casas",15.8675,-89.7369],["Alta Verapaz","Lanquín",15.567,-89.9901],["Alta Verapaz","Panzós",15.3096,-89.6557],["Alta Verapaz","Raxruhá",15.8925,-90.081],["Alta Verapaz","San Cristóbal Verapaz",15.3973,-90.5651],["Alta Verapaz","San Juan Chamelco",15.3898,-90.2366],["Alta Verapaz","San Pedro Carchá",15.5789,-90.152],["Alta Verapaz","Santa Catalina La Tinta",15.2546,-89.834],["Alta Verapaz","Santa Cruz Verapaz",15.3395,-90.414],["Alta Verapaz","Senahú",15.4188,-89.8394],["Alta Verapaz","Tactic",15.2981,-90.3376],["Alta Verapaz","Tamahú",15.3032,-90.2417],["Alta Verapaz","Tucurú",15.3027,-90.081],["Baja Verapaz","Cubulco",15.1554,-90.6713],["Baja Verapaz","El Chol",14.9536,-90.4873],["Baja Verapaz","Granados",14.9363,-90.5754],["Baja Verapaz","Purulhá",15.2161,-90.0385],["Baja Verapaz","Rabinal",15.1133,-90.5071],["Baja Verapaz","Salamá",15.0124,-90.2493],["Baja Verapaz","San Jerónimo",15.0655,-90.1942],["Baja Verapaz","San Miguel Chicaj",15.1607,-90.4131],["Chimaltenango","Acatenango",14.5478,-90.9563],["Chimaltenango","Chimaltenango",14.6862,-90.8225],["Chimaltenango","Comalapa",14.7491,-90.8987],["Chimaltenango","El Tejar",14.6757,-90.7888],["Chimaltenango","Parramos",14.5902,-90.8225],["Chimaltenango","Patzicía",14.6368,-90.9414],["Chimaltenango","Patzún",14.6471,-91.0344],["Chimaltenango","Pochuta",14.5339,-91.0749],["Chimaltenango","San Andrés Itzapa",14.6081,-90.8649],["Chimaltenango","San José Poaquil",14.8569,-90.9083],["Chimaltenango","San Martín Jilotepeque",14.8405,-90.7816],["Chimaltenango","Santa Apolonia",14.8205,-90.9582],["Chimaltenango","Santa Cruz Balanyá",14.6955,-90.9336],["Chimaltenango","Tecpán Guatemala",14.8034,-91.0061],["Chimaltenango","Yepocapa",14.4638,-90.9853],["Chimaltenango","Zaragoza",14.6825,-90.8755],["Chiquimula","Camotán",14.8545,-89.2828],["Chiquimula","Chiquimula",14.803,-89.5791],["Chiquimula","Concepción Las Minas",14.4877,-89.4493],["Chiquimula","Esquipulas",14.6206,-89.2671],["Chiquimula","Ipala",14.5875,-89.6083],["Chiquimula","Jocotán",14.812,-89.3779],["Chiquimula","Olopa",14.7001,-89.3164],["Chiquimula","Quezaltepeque",14.6178,-89.4587],["Chiquimula","San Jacinto",14.6782,-89.513],["Chiquimula","San José La Arada",14.7162,-89.6084],["Chiquimula","San Juan Ermita",14.7347,-89.4269],["El Progreso","El Jícaro",14.8884,-89.916],["El Progreso","Guastatoya",14.8513,-90.0636],["El Progreso","Morazán",14.966,-90.1618],["El Progreso","San Agustín Acasaguastlán",15.0193,-89.9861],["El Progreso","San Antonio La Paz",14.7473,-90.2749],["El Progreso","San Cristóbal Acasaguastlán",15.004,-89.8728],["El Progreso","Sanarate",14.754,-90.099],["El Progreso","Sansare",14.8144,-90.2381],["Escuintla","Escuintla",14.2998,-90.7932],["Escuintla","Guanagazapa",14.1496,-90.6645],["Escuintla","Iztapa",13.9628,-90.699],["Escuintla","La Democracia",14.1335,-90.9497],["Escuintla","La Gomera",14.0784,-91.1125],["Escuintla","Masagua",14.0876,-90.8095],["Escuintla","Nueva Concepción",14.1223,-91.3007],["Escuintla","Palín",14.3957,-90.7039],["Escuintla","San José",13.9587,-90.8824],["Escuintla","San Vicente Pacaya",14.3325,-90.6454],["Escuintla","Santa Lucía Cotzumalguapa",14.2872,-91.0709],["Escuintla","Sipacate",13.9597,-91.143],["Escuintla","Siquinalá",14.3501,-90.9399],["Escuintla","Tiquisate",14.1856,-91.4041],["Guatemala","Amatitlán",14.4535,-90.6119],["Guatemala","Chinautla",14.7273,-90.4976],["Guatemala","Chuarrancho",14.8532,-90.4725],["Guatemala","Fraijanes",14.4693,-90.4418],["Guatemala","Guatemala",14.6354,-90.4794],["Guatemala","Mixco",14.6408,-90.5873],["Guatemala","Palencia",14.6656,-90.3195],["Guatemala","Petapa",14.5072,-90.5555],["Guatemala","San José Del Golfo",14.7932,-90.3725],["Guatemala","San José Pinula",14.5543,-90.3464],["Guatemala","San Juan Sacatepéquez",14.7695,-90.6502],["Guatemala","San Pedro Ayampuc",14.7723,-90.4421],["Guatemala","San Pedro Sacatepéquez",14.6795,-90.6216],["Guatemala","San Raymundo",14.7818,-90.5597],["Guatemala","Santa Catarina Pinula",14.5644,-90.4651],["Guatemala","Villa Canales",14.3906,-90.5323],["Guatemala","Villa Nueva",14.5409,-90.6064],["Huehuetenango","Aguacatán",15.3658,-91.2734],["Huehuetenango","Barillas",15.9317,-91.2211],["Huehuetenango","Chiantla",15.5031,-91.4079],["Huehuetenango","Colotenango",15.4452,-91.7113],["Huehuetenango","Concepción Huista",15.6541,-91.6473],["Huehuetenango","Cuilco",15.4651,-91.9624],["Huehuetenango","Huehuetenango",15.315,-91.3876],["Huehuetenango","Jacaltenango",15.7531,-91.7332],["Huehuetenango","La Democracia",15.6233,-91.8758],["Huehuetenango","La Libertad",15.5647,-91.9117],["Huehuetenango","Malacatancito",15.2444,-91.4835],["Huehuetenango","Nentón",15.946,-91.6778],["Huehuetenango","Petatán",15.6197,-91.7292],["Huehuetenango","San Antonio Huista",15.6646,-91.7737],["Huehuetenango","San Gaspar Ixchil",15.3779,-91.7165],["Huehuetenango","San Ildefonso Ixtahuacán",15.415,-91.8049],["Huehuetenango","San Juan Atitán",15.4726,-91.6263],["Huehuetenango","San Juan Ixcoy",15.6494,-91.3863],["Huehuetenango","San Mateo Ixtatán",15.933,-91.4392],["Huehuetenango","San Miguel Acatán",15.7432,-91.6242],["Huehuetenango","San Pedro Necta",15.5278,-91.7556],["Huehuetenango","San Rafael La Independencia",15.7297,-91.5223],["Huehuetenango","San Rafael Pétzal",15.4072,-91.6726],["Huehuetenango","San Sebastián Coatán",15.8133,-91.5848],["Huehuetenango","San Sebastián Huehuetenango",15.4292,-91.5583],["Huehuetenango","Santa Ana Huista",15.7435,-91.849],["Huehuetenango","Santa Bárbara",15.3414,-91.6254],["Huehuetenango","Santa Eulalia",15.7507,-91.3254],["Huehuetenango","Santiago Chimaltenango",15.5083,-91.6852],["Huehuetenango","Soloma",15.7007,-91.4317],["Huehuetenango","Tectitán",15.3645,-92.0396],["Huehuetenango","Todos Santos Cuchumatán",15.5725,-91.585],["Huehuetenango","Unión Cantinil",15.5891,-91.7386],["Izabal","El Estor",15.4531,-89.3982],["Izabal","Livingston",15.7547,-89.0513],["Izabal","Los Amates",15.2694,-89.0613],["Izabal","Morales",15.4463,-88.7725],["Izabal","Puerto Barrios",15.7043,-88.4906],["Jalapa","Jalapa",14.6303,-90.0312],["Jalapa","Mataquescuintla",14.555,-90.2038],["Jalapa","Monjas",14.5115,-89.8984],["Jalapa","San Carlos Alzatate",14.4785,-90.0766],["Jalapa","San Luis Jilotepeque",14.6535,-89.7151],["Jalapa","San Manuel Chaparrón",14.5264,-89.7612],["Jalapa","San Pedro Pinula",14.7035,-89.8544],["Jutiapa","Agua Blanca",14.4582,-89.6],["Jutiapa","Asunción Mita",14.2989,-89.6674],["Jutiapa","Atescatempa",14.1751,-89.7272],["Jutiapa","Comapa",14.1156,-89.9115],["Jutiapa","Conguaco",14.0099,-90.0163],["Jutiapa","El Adelanto",14.175,-89.8531],["Jutiapa","El Progreso",14.3788,-89.8502],["Jutiapa","Jalpatagua",14.1143,-90.0098],["Jutiapa","Jerez",14.0767,-89.7619],["Jutiapa","Jutiapa",14.3116,-89.931],["Jutiapa","Moyuta",13.9105,-90.1256],["Jutiapa","Pasaco",13.9335,-90.2259],["Jutiapa","Quesada",14.2857,-90.0595],["Jutiapa","San José Acatempa",14.272,-90.1456],["Jutiapa","Santa Catarina Mita",14.4412,-89.7706],["Jutiapa","Yupiltepeque",14.1767,-89.7863],["Jutiapa","Zapotitlán",14.116,-89.8213],["Petén","Dolores",16.5798,-89.3599],["Petén","El Chal",16.5257,-89.7338],["Petén","Flores",17.37,-89.5346],["Petén","La Libertad",17.0299,-90.6431],["Petén","Las Cruces",16.8601,-90.8017],["Petén","Melchor De Mencos",17.3226,-89.2449],["Petén","Poptún",16.3333,-89.5472],["Petén","San Andrés",17.4895,-90.4051],["Petén","San Benito",16.9309,-90.072],["Petén","San Francisco",16.6474,-89.9781],["Petén","San José",17.4045,-89.8097],["Petén","San Luis",16.0993,-89.6054],["Petén","Santa Ana",16.8247,-89.5769],["Petén","Sayaxché",16.3057,-90.2221],["Quetzaltenango","Almolonga",14.8117,-91.4845],["Quetzaltenango","Cabricán",15.104,-91.6492],["Quetzaltenango","Cajolá",14.9351,-91.613],["Quetzaltenango","Cantel",14.8167,-91.4397],["Quetzaltenango","Coatepeque",14.6414,-91.9792],["Quetzaltenango","Colomba",14.7077,-91.7542],["Quetzaltenango","Concepción Chiquirichapa",14.8448,-91.6197],["Quetzaltenango","El Palmar",14.6987,-91.6082],["Quetzaltenango","Flores Costa Cuca",14.6333,-91.8634],["Quetzaltenango","Génova",14.5665,-91.8452],["Quetzaltenango","Huitán",15.0462,-91.6277],["Quetzaltenango","La Esperanza",14.8784,-91.5772],["Quetzaltenango","Olintepeque",14.8936,-91.536],["Quetzaltenango","Palestina De los Altos",14.9332,-91.6759],["Quetzaltenango","Quetzaltenango",14.8164,-91.5334],["Quetzaltenango","Salcajá",14.8777,-91.4625],["Quetzaltenango","San Carlos Sija",15.0776,-91.5689],["Quetzaltenango","San Francisco La Unión",14.9258,-91.5464],["Quetzaltenango","San Juan Ostuncalco",14.8724,-91.6898],["Quetzaltenango","San Martín Sacatepéquez",14.7952,-91.6644],["Quetzaltenango","San Mateo",14.8445,-91.5855],["Quetzaltenango","San Miguel Sigüilá",14.9032,-91.6025],["Quetzaltenango","Sibilia",14.9893,-91.6413],["Quetzaltenango","Zunil",14.745,-91.4961],["Quiché","Canillá",15.1962,-90.8641],["Quiché","Chajul",15.5893,-90.9928],["Quiché","Chicamán",15.4344,-90.6657],["Quiché","Chiché",15.0113,-91.0449],["Quiché","Chichicastenango",14.8971,-91.0921],["Quiché","Chinique",15.0727,-91.0221],["Quiché","Cunén",15.3661,-91.0182],["Quiché","Ixcán",15.9279,-90.8673],["Quiché","Joyabaj",14.9864,-90.8211],["Quiché","Nebaj",15.5624,-91.1733],["Quiché","Pachalum",14.9189,-90.6545],["Quiché","Patzité",14.9716,-91.1968],["Quiché","Sacapulas",15.2641,-91.1129],["Quiché","San Andrés Sajcabajá",15.243,-90.9417],["Quiché","San Antonio Ilotenango",15.0494,-91.2145],["Quiché","San Bartolomé Jocotenango",15.1845,-91.0336],["Quiché","San Juan Cotzal",15.4255,-91.0221],["Quiché","San Pedro Jocopilas",15.1606,-91.1661],["Quiché","Santa Cruz Del Quiché",15.0413,-91.1236],["Quiché","Uspantán",15.5041,-90.8192],["Quiché","Zacualpa",15.0933,-90.8852],["Retalhuleu","Champerico",14.3489,-91.8841],["Retalhuleu","El Asintal",14.5697,-91.7499],["Retalhuleu","Nuevo San Carlos",14.6261,-91.6918],["Retalhuleu","Retalhuleu",14.4393,-91.8702],["Retalhuleu","San Andrés Villa Seca",14.318,-91.6567],["Retalhuleu","San Felipe",14.6373,-91.5898],["Retalhuleu","San Martín Zapotitlán",14.6137,-91.5939],["Retalhuleu","San Sebastián",14.5666,-91.6495],["Retalhuleu","Santa Cruz Muluá",14.464,-91.6545],["Sacatepéquez","Alotenango",14.4595,-90.8197],["Sacatepéquez","Antigua Guatemala",14.5455,-90.7254],["Sacatepéquez","Ciudad Vieja",14.5064,-90.7735],["Sacatepéquez","Jocotenango",14.5887,-90.7339],["Sacatepéquez","Magdalena Milpas Altas",14.5433,-90.6775],["Sacatepéquez","Pastores",14.5982,-90.7715],["Sacatepéquez","San Antonio Aguas Calientes",14.5549,-90.7839],["Sacatepéquez","San Bartolomé Milpas Altas",14.6018,-90.6858],["Sacatepéquez","San Lucas Sacatepéquez",14.5981,-90.6485],["Sacatepéquez","San Miguel Dueñas",14.5278,-90.8324],["Sacatepéquez","Santa Catarina Barahona",14.5554,-90.8062],["Sacatepéquez","Santa Lucía Milpas Altas",14.5684,-90.6755],["Sacatepéquez","Santa María De Jesús",14.4759,-90.6989],["Sacatepéquez","Santiago Sacatepéquez",14.6411,-90.6814],["Sacatepéquez","Santo Domingo Xenacoj",14.6793,-90.7013],["Sacatepéquez","Sumpango",14.6579,-90.7455],["San Marcos","Ayutla",14.7285,-92.1302],["San Marcos","Catarina",14.8468,-92.07],["San Marcos","Comitancillo",15.1111,-91.7464],["San Marcos","Concepción Tutuapa",15.2904,-91.869],["San Marcos","El Quetzal",14.7717,-91.822],["San Marcos","El Rodeo",14.888,-91.9985],["San Marcos","El Tumbador",14.8477,-91.9473],["San Marcos","Esquipulas Palo Gordo",14.9259,-91.8459],["San Marcos","Ixchiguán",15.1438,-91.9155],["San Marcos","La Blanca",14.5536,-92.1198],["San Marcos","La Reforma",14.8104,-91.8375],["San Marcos","Malacatán",14.9191,-92.1062],["San Marcos","Nuevo Progreso",14.7934,-91.9075],["San Marcos","Ocós",14.5539,-92.1808],["San Marcos","Pajapita",14.7357,-92.0556],["San Marcos","Río Blanco",15.0414,-91.685],["San Marcos","San Antonio Sacatepéquez",14.9626,-91.7096],["San Marcos","San Cristóbal Cucho",14.8886,-91.7689],["San Marcos","San José Ojetenam",15.232,-91.9603],["San Marcos","San Lorenzo",15.0268,-91.7441],["San Marcos","San Marcos",15.0017,-91.8348],["San Marcos","San Miguel Ixtahuacán",15.2629,-91.7345],["San Marcos","San Pablo",14.9773,-91.9605],["San Marcos","San Pedro Sacatepéquez",14.9665,-91.7605],["San Marcos","San Rafael Pie De La Cuesta",14.9281,-91.9117],["San Marcos","Sibinal",15.1366,-92.0562],["San Marcos","Sipacapa",15.193,-91.6576],["San Marcos","Tacaná",15.2637,-92.1009],["San Marcos","Tajumulco",15.0624,-91.9706],["San Marcos","Tejutla",15.1585,-91.8305],["Santa Rosa","Barberena",14.3056,-90.4147],["Santa Rosa","Casillas",14.3896,-90.1664],["Santa Rosa","Chiquimulilla",13.973,-90.3348],["Santa Rosa","Cuilapa",14.2491,-90.2847],["Santa Rosa","Guazacapán",14.024,-90.43],["Santa Rosa","Nueva Santa Rosa",14.3717,-90.2724],["Santa Rosa","Oratorio",14.121,-90.1577],["Santa Rosa","Pueblo Nuevo Viñas",14.2173,-90.4977],["Santa Rosa","San Juan Tecuaco",14.072,-90.2689],["Santa Rosa","San Rafael Las Flores",14.4508,-90.1624],["Santa Rosa","Santa Cruz Naranjo",14.3816,-90.3761],["Santa Rosa","Santa María Ixhuatán",14.1447,-90.2579],["Santa Rosa","Santa Rosa De Lima",14.4429,-90.3372],["Santa Rosa","Taxisco",14.0341,-90.5474],["Sololá","Concepción",14.7823,-91.1351],["Sololá","Nahualá",14.7354,-91.42],["Sololá","Panajachel",14.7483,-91.1465],["Sololá","San Andrés Semetabaj",14.7453,-91.1013],["Sololá","San Antonio Palopó",14.6648,-91.1082],["Sololá","San José Chacayá",14.7712,-91.2284],["Sololá","San Juan La Laguna",14.6676,-91.3147],["Sololá","San Lucas Tolimán",14.5956,-91.1466],["Sololá","San Marcos La Laguna",14.736,-91.2599],["Sololá","San Pablo La Laguna",14.7298,-91.2807],["Sololá","San Pedro La Laguna",14.6453,-91.2778],["Sololá","Santa Catarina Ixtahuacán",14.7205,-91.3814],["Sololá","Santa Catarina Palopó",14.7188,-91.1306],["Sololá","Santa Clara La Laguna",14.7235,-91.3057],["Sololá","Santa Cruz La Laguna",14.7437,-91.2238],["Sololá","Santa Lucía Utatlán",14.7794,-91.2749],["Sololá","Santa María Visitación",14.7018,-91.3316],["Sololá","Santiago Atitlán",14.604,-91.2277],["Sololá","Sololá",14.8232,-91.181],["Suchitepéquez","Chicacao",14.4865,-91.3457],["Suchitepéquez","Cuyotenango",14.4883,-91.5641],["Suchitepéquez","Mazatenango",14.5079,-91.5249],["Suchitepéquez","Patulul",14.3803,-91.1764],["Suchitepéquez","Pueblo Nuevo",14.6611,-91.5279],["Suchitepéquez","Río Bravo",14.3786,-91.3331],["Suchitepéquez","Samayac",14.5726,-91.4698],["Suchitepéquez","San Antonio Suchitepéquez",14.5173,-91.409],["Suchitepéquez","San Bernardino",14.5303,-91.4542],["Suchitepéquez","San Francisco Zapotitlán",14.6171,-91.5195],["Suchitepéquez","San Gabriel",14.5077,-91.5144],["Suchitepéquez","San José El Ídolo",14.3823,-91.4373],["Suchitepéquez","San José La Máquina",14.2837,-91.583],["Suchitepéquez","San Juan Bautista",14.4284,-91.1989],["Suchitepéquez","San Lorenzo",14.2194,-91.5565],["Suchitepéquez","San Miguel Panán",14.5061,-91.3596],["Suchitepéquez","San Pablo Jocopilas",14.5918,-91.4312],["Suchitepéquez","Santa Bárbara",14.4744,-91.2467],["Suchitepéquez","Santo Domingo Suchitepéquez",14.2968,-91.4931],["Suchitepéquez","Santo Tomás La Unión",14.6236,-91.4121],["Suchitepéquez","Zunilito",14.6312,-91.4986],["Totonicapán","Momostenango",15.0888,-91.4172],["Totonicapán","San Andrés Xecul",14.9106,-91.4974],["Totonicapán","San Bartolo Aguas Calientes",15.1171,-91.4609],["Totonicapán","San Cristóbal Totonicapán",14.9258,-91.4725],["Totonicapán","San Francisco El Alto",14.9698,-91.4774],["Totonicapán","Santa Lucía La Reforma",15.1512,-91.2785],["Totonicapán","Santa María Chiquimula",15.0135,-91.3172],["Totonicapán","Totonicapán",14.898,-91.3211],["Zacapa","Cabañas",14.8851,-89.7766],["Zacapa","Estanzuela",14.9792,-89.6128],["Zacapa","Gualán",15.1468,-89.3024],["Zacapa","Huité",14.9182,-89.6977],["Zacapa","La Unión",14.9552,-89.2781],["Zacapa","Río Hondo",15.0985,-89.6003],["Zacapa","San Diego",14.798,-89.7601],["Zacapa","San Jorge",14.9093,-89.6036],["Zacapa","Teculután",15.0796,-89.7826],["Zacapa","Usumatlán",14.9947,-89.8004],["Zacapa","Zacapa",14.9774,-89.4612]];   // [departamento, municipio, lat, lon]
+const PLACE_PARAMS = 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS2M_MAX,ALLSKY_SFC_SW_DWN';
+const PLACE_CACHE = {};
+let PLACE = null, PLACE_DATA = null, PLACE_UI_READY = false, placeMap = null, placeMarker = null;
 
-function nasaPoint(st){
-  try {
-    const s = JSON.parse(localStorage.getItem('nasa_pt_'+st) || 'null');
-    if (s && isFinite(s.lat) && isFinite(s.lon)) return s;
-  } catch(e) {}
-  const p = NASA_POINTS[st];
-  return (p && p.lat != null && p.lon != null) ? p : null;
+const _p2 = n => String(n).padStart(2,'0');
+const isoDay = d => `${d.getFullYear()}-${_p2(d.getMonth()+1)}-${_p2(d.getDate())}`;
+function nearestMuni(lat, lon){
+  let best = null, bd = Infinity;
+  GT_MUNIS.forEach(m => { const d = (m[2]-lat)**2 + ((m[3]-lon)*Math.cos(lat*Math.PI/180))**2; if (d < bd){ bd = d; best = m; } });
+  return { m: best, km: Math.sqrt(bd)*111 };
 }
-const keyToYMD = k => { const p = parseDiaParts(k); return `${p.y}${String(p.m).padStart(2,'0')}${String(p.d).padStart(2,'0')}`; };
+function placePeriod(){
+  const v = document.getElementById('pl-period').value, today = new Date();
+  if (v === 'custom') {
+    const f = document.getElementById('pl-from').value, t = document.getElementById('pl-to').value;
+    return (f && t) ? { from:f <= t ? f : t, to:f <= t ? t : f } : null;
+  }
+  let from;
+  if (v === 'season') from = new Date(today.getFullYear(), 4, 1);
+  else if (v === 'year') from = new Date(today.getFullYear(), 0, 1);
+  else from = new Date(today.getTime() - (+v) * 864e5);
+  return { from: isoDay(from), to: isoDay(today) };
+}
+function setPlace(name, lat, lon, opts = {}){
+  PLACE = { name, lat:+lat.toFixed(4), lon:+lon.toFixed(4) };
+  document.getElementById('pl-sel').innerHTML = `<strong>${name}</strong><br><span style="color:var(--muted);font-size:11px">${PLACE.lat}, ${PLACE.lon}</span>`;
+  document.getElementById('pl-go').disabled = false;
+  if (placeMap) {
+    if (placeMarker) placeMarker.setLatLng([lat, lon]); else placeMarker = L.circleMarker([lat, lon], { radius:9, color:'#fff', weight:3, fillColor:'#7B5EA7', fillOpacity:1 }).addTo(placeMap);
+    placeMarker.bindTooltip(name).openTooltip();
+    if (!opts.keepView) placeMap.setView([lat, lon], Math.max(placeMap.getZoom(), 9));
+  }
+  if (opts.go) loadPlace();
+}
+function fillMuniSelect(){
+  const dep = document.getElementById('pl-depto').value, sel = document.getElementById('pl-muni');
+  const list = GT_MUNIS.filter(m => m[0] === dep);
+  sel.innerHTML = '<option value="">— elegí un municipio —</option>' + list.map(m => `<option value="${m[1]}">${m[1]}</option>`).join('');
+}
+function initPlaceUI(){
+  if (PLACE_UI_READY) { if (placeMap) setTimeout(()=>placeMap.invalidateSize(), 50); return; }
+  PLACE_UI_READY = true;
+  const $ = id => document.getElementById(id);
+  const deps = [...new Set(GT_MUNIS.map(m=>m[0]))];
+  $('pl-depto').innerHTML = '<option value="">— elegí un departamento —</option>' + deps.map(d=>`<option>${d}</option>`).join('');
+  $('pl-muni').innerHTML = '<option value="">—</option>';
+  $('pl-list').innerHTML = GT_MUNIS.map(m=>`<option value="${m[1]}, ${m[0]}"></option>`).join('');
+  $('pl-depto').addEventListener('change', fillMuniSelect);
+  $('pl-muni').addEventListener('change', () => {
+    const m = GT_MUNIS.find(x => x[0] === $('pl-depto').value && x[1] === $('pl-muni').value);
+    if (m) setPlace(`${m[1]}, ${m[0]}`, m[2], m[3]);
+  });
+  $('pl-search').addEventListener('change', () => {
+    const q = normTxt($('pl-search').value);
+    const m = GT_MUNIS.find(x => normTxt(`${x[1]}, ${x[0]}`) === q) || GT_MUNIS.find(x => normTxt(x[1]) === q.split(',')[0].trim())
+           || GT_MUNIS.find(x => normTxt(x[1]).startsWith(q));
+    if (m) { $('pl-depto').value = m[0]; fillMuniSelect(); $('pl-muni').value = m[1]; setPlace(`${m[1]}, ${m[0]}`, m[2], m[3]); }
+  });
+  document.querySelectorAll('.pl-quick').forEach(b => b.addEventListener('click', () => {
+    const p = NASA_POINTS[b.dataset.st]; setPlace(p.name, p.lat, p.lon);
+  }));
+  $('pl-period').addEventListener('change', () => {
+    $('pl-custom').style.display = $('pl-period').value === 'custom' ? '' : 'none';
+    if ($('pl-period').value === 'custom' && !$('pl-from').value) {
+      const t = new Date(); $('pl-to').value = isoDay(t); $('pl-from').value = isoDay(new Date(t.getTime() - 60*864e5));
+    }
+  });
+  $('pl-go').addEventListener('click', loadPlace);
+  $('pl-csv').addEventListener('click', downloadPlaceCsv);
+  if (typeof L !== 'undefined') {
+    placeMap = L.map('pl-map', { scrollWheelZoom:false }).fitBounds([[13.7,-92.3],[17.85,-88.2]]);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:13, attribution:'© OpenStreetMap' }).addTo(placeMap);
+    Object.entries(NASA_POINTS).forEach(([k,p]) => L.circleMarker([p.lat,p.lon], { radius:6, color:'#fff', weight:2, fillColor: k==='CE' ? '#E05A2B' : '#1A9E72', fillOpacity:1 })
+      .addTo(placeMap).bindTooltip(k).on('click', () => setPlace(p.name, p.lat, p.lon, { keepView:true })));
+    placeMap.on('click', e => {
+      const { lat, lng } = e.latlng, n = nearestMuni(lat, lng);
+      setPlace(`Punto en el mapa — cerca de ${n.m[1]}, ${n.m[0]}`, lat, lng, { keepView:true });
+    });
+    setTimeout(()=>placeMap.invalidateSize(), 50);
+  } else {
+    $('pl-map').innerHTML = '<p style="padding:20px;font-size:12px;color:var(--muted)">No se pudo cargar el mapa. Podés elegir el lugar con las listas.</p>';
+  }
+}
 
-function nasaGet(st){
-  const pt = nasaPoint(st); if (!pt) return null;
-  const ck = `${st}|${pt.lat}|${pt.lon}`;
-  if (NASA_CACHE[ck]) return NASA_CACHE[ck];
-  const ours = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===st));
-  const p2 = n => String(n).padStart(2,'0'), now = new Date();
-  const start = ours.length ? keyToYMD(ours[0].key) : `${now.getFullYear()}0101`;
-  const end = `${now.getFullYear()}${p2(now.getMonth()+1)}${p2(now.getDate())}`;
-  const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=${NASA_PARAMS}&community=AG`
-            + `&latitude=${pt.lat}&longitude=${pt.lon}&start=${start}&end=${end}&format=JSON`;
-  const c = NASA_CACHE[ck] = { status:'loading', days:[] };
-  fetch(url).then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(j => {
+function loadPlace(){
+  const $ = id => document.getElementById(id);
+  if (!PLACE) return;
+  const per = placePeriod();
+  if (!per) { alert('Elegí las fechas desde y hasta.'); return; }
+  const ymd = s => s.replace(/-/g,'');
+  const url = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=${PLACE_PARAMS}&community=AG`
+            + `&latitude=${PLACE.lat}&longitude=${PLACE.lon}&start=${ymd(per.from)}&end=${ymd(per.to)}&format=JSON`;
+  const place = { ...PLACE }, btn = $('pl-go');
+  const show = data => { PLACE_DATA = { place, per, ...data }; renderPlace(); };
+  if (PLACE_CACHE[url]) return show(PLACE_CACHE[url]);
+  btn.disabled = true; btn.textContent = 'Consultando NASA POWER…';
+  fetch(url).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(j => {
     const P = (j.properties && j.properties.parameter) || {};
     const v = (prm, d) => { const x = P[prm] && P[prm][d]; return (x == null || x <= -998) ? null : x; };
-    c.days = Object.keys(P.T2M_MAX || {}).sort().map(d => {
-      const key = `${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, kp = parseDiaParts(key);
-      const ws = v('WS2M_MAX', d);
-      return { key, dia:formatDiaShort(key), y:kp.y, m:kp.m, n:1,
+    const days = Object.keys(P.T2M_MAX || {}).sort().map(d => {
+      const key = `${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, ws = v('WS2M_MAX', d);
+      return { key, y:+d.slice(0,4), m:+d.slice(4,6), d:+d.slice(6,8),
         tmax:v('T2M_MAX',d), tmin:v('T2M_MIN',d), tavg:v('T2M',d), havg:v('RH2M',d),
-        rain:v('PRECTOTCORR',d), wmax: ws==null ? null : +(ws*3.6).toFixed(1) };   // m/s → km/h
-    }).filter(d => d.tmax != null && d.tmin != null && d.tavg != null)
-      .map(d => ({ ...d, rain: d.rain == null ? 0 : +d.rain.toFixed(1), havg: d.havg == null ? null : +d.havg.toFixed(1) }));
-    c.status = 'ok';
-  }).catch(err => { c.status = 'error'; c.err = err.message; })
-    .finally(() => { if (CUR_STATION === 'externas') renderExtView(); });
-  return c;
+        rain:v('PRECTOTCORR',d), rad:v('ALLSKY_SFC_SW_DWN',d), wmax: ws==null ? null : +(ws*3.6).toFixed(1) };
+    }).filter(x => x.tmax != null && x.tmin != null);
+    const elev = j.geometry && j.geometry.coordinates ? j.geometry.coordinates[2] : null;
+    const data = { days, elev };
+    PLACE_CACHE[url] = data; show(data);
+  }).catch(err => alert('No se pudo consultar NASA POWER (' + err.message + '). Revisá la conexión o probá más tarde.'))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Ver datos del lugar'; });
 }
 
-function renderNasaGap(st){
+function renderPlace(){
   const $ = id => document.getElementById(id);
-  const msg = $('nasa-gap-msg'), tw = $('nasa-gap-tw'), btn = $('nasa-gap-csv');
-  tw.style.display = 'none'; btn.style.display = 'none'; NASA_GAP_ROWS = [];
-  const nm = st==='CE' ? 'CE' : 'Ovejero';
-  $('nasa-gap-sub').textContent = nm;
-  if (!nasaPoint(st)) { msg.textContent = `Ingresá arriba las coordenadas de ${nm} para consultar NASA POWER.`; return; }
-  const c = nasaGet(st);
-  if (c.status === 'loading') { msg.textContent = 'Consultando NASA POWER…'; return; }
-  if (c.status === 'error')   { msg.textContent = `No se pudo consultar NASA POWER (${c.err}). Revisá la conexión o probá más tarde.`; return; }
-
-  const ours = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===st));
-  if (!ours.length) { msg.textContent = `No hay datos de ${nm} en la hoja.`; return; }
-  const cov = {}; ours.forEach(d => cov[d.key] = d.coverage);
-  const nasa = {}; c.days.forEach(d => nasa[d.key] = d);
-  // Calendario completo entre el primer y el último día con datos de la estación
-  const p2 = n => String(n).padStart(2,'0');
-  const t0 = parseDiaKey(ours[0].key), t1 = parseDiaKey(ours[ours.length-1].key);
-  const gaps = [];
-  for (let t = t0; t <= t1; t += 864e5) {
-    const dt = new Date(t), key = `${p2(dt.getDate())}/${p2(dt.getMonth()+1)}/${dt.getFullYear()}`;
-    if (!inMainFilter(key)) continue;
-    const cv = cov[key] ?? 0;
-    if (cv < 50) gaps.push({ key, cov:cv, n:nasa[key] || null });
+  ['cPlT','cPlR','cPlH','cPlG'].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
+  if (!PLACE_DATA) return;
+  const { place, per, days, elev } = PLACE_DATA;
+  $('pl-result').style.display = 'block';
+  const fmtD = s => s.split('-').reverse().join('/');
+  $('pl-title').textContent = `📍 ${place.name}`;
+  if (!days.length) {
+    $('pl-meta').textContent = `NASA POWER todavía no tiene datos para ${fmtD(per.from)} – ${fmtD(per.to)}.`;
+    $('pl-kpis').innerHTML = ''; $('pl-tb').innerHTML = ''; return;
   }
-  if (!gaps.length) { msg.textContent = `${nm} no tiene días sin datos (cobertura < 50%) en el período mostrado. ✅`; return; }
-  NASA_GAP_ROWS = gaps.map(g => ({ ...g, st:nm }));
-  const sinNasa = gaps.filter(g => !g.n).length;
-  msg.innerHTML = `${gaps.length} día(s) de ${nm} sin datos o con cobertura menor al 50%. Estos valores de NASA POWER son una <strong>referencia</strong> para esos días.`
-    + (sinNasa ? ` ${sinNasa} día(s) todavía no tienen dato en NASA POWER (publica con algunos días de atraso).` : '');
-  const f = (v,u) => v == null ? '<span style="color:#ccc">—</span>' : v + u;
-  $('nasa-gap-tb').innerHTML = gaps.map(g => `<tr><td>${formatDiaShort(g.key)}/${g.key.slice(-4)}</td><td>${g.cov}%</td>`
-    + `<td>${f(g.n?.tmax?.toFixed?.(1),'°C')}</td><td>${f(g.n?.tmin?.toFixed?.(1),'°C')}</td><td>${f(g.n?.tavg?.toFixed?.(1),'°C')}</td>`
-    + `<td>${f(g.n?.havg,'%')}</td><td>${f(g.n?.rain,' mm')}</td><td>${f(g.n?.wmax,' km/h')}</td></tr>`).join('');
-  tw.style.display = ''; btn.style.display = '';
+  const last = days[days.length-1];
+  $('pl-meta').innerHTML = `Coordenadas ${place.lat}, ${place.lon}` + (elev!=null ? ` · altitud promedio de la celda del modelo: ${Math.round(elev)} m` : '')
+    + ` · ${days.length} días, del ${formatDiaShort(days[0].key)}/${days[0].y} al ${formatDiaShort(last.key)}/${last.y}`
+    + (last.key !== `${per.to.slice(8,10)}/${per.to.slice(5,7)}/${per.to.slice(0,4)}` ? ' (los días más recientes todavía no están publicados por NASA)' : '');
+
+  const tbase = parseFloat($('gdd-tbase')?.value) || 10, ttop = parseFloat($('gdd-ttop')?.value) || 32;
+  let gC = 0, bC = 0, rC = 0, etT = 0;
+  const rows = days.map(d => {
+    const g = gddDay(d.tmin, d.tmax, tbase, ttop), et = et0Hargreaves(d.tmin, d.tmax, place.lat, dayOfYear(d.y, d.m, d.d));
+    gC += g; rC += d.rain || 0; if (et != null) { etT += et; bC += (d.rain||0) - et; }
+    return { ...d, g:+g.toFixed(1), gC:+gC.toFixed(0), rC:+rC.toFixed(1), bC:+bC.toFixed(1) };
+  });
+  const avg = a => { a = a.filter(x=>x!=null); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; };
+  const tmaxD = rows.reduce((a,b)=>b.tmax>a.tmax?b:a), tminD = rows.reduce((a,b)=>b.tmin<a.tmin?b:a);
+  const rainDays = rows.filter(d=>(d.rain||0)>=1).length, hot = rows.filter(d=>d.tmax>=35).length;
+  const k = (lbl, val, unit, sub, clr) => `<div class="kpi"><div class="kl">${lbl}</div><div class="kv" style="color:${clr}">${val}<span style="font-size:13px;font-weight:500"> ${unit}</span></div><div class="ks">${sub}</div></div>`;
+  const rad = avg(rows.map(d=>d.rad));
+  $('pl-kpis').innerHTML =
+      k('Lluvia total', rC.toFixed(0), 'mm', `${rainDays} día(s) con ≥ 1 mm`, 'var(--steel)')
+    + k('Temp. máxima', tmaxD.tmax.toFixed(1), '°C', `pico el ${formatDiaShort(tmaxD.key)} · ${hot} día(s) ≥ 35 °C`, 'var(--coral)')
+    + k('Temp. mínima', tminD.tmin.toFixed(1), '°C', `el ${formatDiaShort(tminD.key)}`, '#2E86AB')
+    + k('Temp. promedio', avg(rows.map(d=>d.tavg)).toFixed(1), '°C', 'del período', '#7B5EA7')
+    + k('Humedad promedio', avg(rows.map(d=>d.havg)).toFixed(0), '%', 'humedad relativa', 'var(--teal)')
+    + k('GDU acumulados', gC.toFixed(0), '', `base ${tbase} °C · tope ${ttop} °C`, '#1A9E72')
+    + k('ET₀ acumulada', etT.toFixed(0), 'mm', `balance lluvia − ET₀: ${bC>0?'+':''}${bC.toFixed(0)} mm`, '#E8A838')
+    + (rad!=null ? k('Radiación solar', rad.toFixed(1), 'MJ/m²', 'promedio diario', '#C9A227') : '');
+
+  const L = rows.map(d => formatDiaShort(d.key));
+  const opt = (yfmt, extra={}, y2) => { const o = { responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false}}, scales:{ x:{grid:{color:GC},ticks:XT}, y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:yfmt}, ...extra} } };
+    if (y2) o.scales.y2 = y2; return o; };
+  const ln = (label, data, color, extra={}) => ({ label, data, borderColor:color, backgroundColor:color, borderWidth:2, pointRadius: rows.length>60?0:2, tension:0.15, ...extra });
+  chartRefs['cPlT'] = new Chart('cPlT', { type:'line', data:{ labels:L, datasets:[
+    ln('Máxima', rows.map(d=>d.tmax), '#E05A2B'), ln('Promedio', rows.map(d=>d.tavg), '#7B5EA7'), ln('Mínima', rows.map(d=>d.tmin), '#2E86AB') ]},
+    options:(o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}; return o; })(opt(v=>v+'°C')) });
+  chartRefs['cPlR'] = new Chart('cPlR', { data:{ labels:L, datasets:[
+    { type:'bar', label:'Lluvia del día', data:rows.map(d=>d.rain), backgroundColor:'rgba(46,134,171,.8)', borderRadius:2, yAxisID:'y' },
+    { type:'line', label:'Acumulada', data:rows.map(d=>d.rC), borderColor:'#1B3A5C', borderWidth:2, pointRadius:0, tension:0.1, yAxisID:'y2' } ]},
+    options:(o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} mm`}}; return o; })(
+      opt(v=>v+' mm',{min:0},{position:'right',min:0,grid:{display:false},ticks:{color:TC,font:{size:9},callback:v=>v+' mm'}})) });
+  chartRefs['cPlH'] = new Chart('cPlH', { type:'line', data:{ labels:L, datasets:[ ln('Humedad', rows.map(d=>d.havg), '#2E86AB') ]},
+    options:(o=>{ o.plugins.tooltip={callbacks:{label:c=>` Humedad: ${c.parsed.y}%`}}; return o; })(opt(v=>v+'%',{suggestedMin:40,max:100})) });
+  chartRefs['cPlG'] = new Chart('cPlG', { type:'line', data:{ labels:L, datasets:[
+    ln('GDU acumulados', rows.map(d=>d.gC), '#1A9E72', {pointRadius:0, yAxisID:'y'}),
+    ln('Lluvia − ET₀ acumulado', rows.map(d=>d.bC), '#E8A838', {pointRadius:0, yAxisID:'y2'}) ]},
+    options:(o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}${c.dataset.yAxisID==='y2'?' mm':''}`}}; return o; })(
+      opt(v=>v,{min:0},{position:'right',grid:{display:false},ticks:{color:TC,font:{size:9},callback:v=>v+' mm'}})) });
+  $('pl-gdd-note').textContent = `GDU con base ${tbase} °C y tope ${ttop} °C (los mismos del panel de GDU). ET₀ por Hargreaves; el balance usa la lluvia del modelo, así que tomalo como orientación.`;
+
+  const f = (v,u,dec=1) => v==null ? '<span style="color:#ccc">—</span>' : (+v).toFixed(dec)+u;
+  $('pl-tb').innerHTML = rows.slice().reverse().map(d => `<tr${(d.rain||0)>=1?' class="rn"':''}><td>${formatDiaShort(d.key)}/${d.y}</td>`
+    + `<td>${f(d.tmax,'°C')}</td><td>${f(d.tmin,'°C')}</td><td>${f(d.tavg,'°C')}</td><td>${f(d.havg,'%',0)}</td>`
+    + `<td>${(d.rain||0)>=0.1?`<span class="rb">${(+d.rain).toFixed(1)}</span>`:'<span style="color:#ccc">—</span>'}</td>`
+    + `<td>${f(d.rad,' MJ/m²')}</td><td>${f(d.wmax,' km/h')}</td><td>${d.g}</td></tr>`).join('');
 }
 
-function downloadNasaGapCsv(){
-  if (!NASA_GAP_ROWS.length) return;
-  const st = NASA_GAP_ROWS[0].st, pt = nasaPoint(st === 'CE' ? 'CE' : 'Ovejero');
-  const head = 'Estacion,Dia,Fuente,Latitud,Longitud,Cobertura estacion (%),Temp max (C),Temp min (C),Temp prom (C),Humedad prom (%HR),Lluvia (mm),Viento max (km/h)';
-  const cell = v => v == null ? '' : v;
-  const lines = NASA_GAP_ROWS.map(g => [st, g.key, 'NASA POWER (estimacion)', pt.lat, pt.lon, g.cov,
-    cell(g.n?.tmax), cell(g.n?.tmin), cell(g.n?.tavg), cell(g.n?.havg), cell(g.n?.rain), cell(g.n?.wmax)].join(','));
+function downloadPlaceCsv(){
+  if (!PLACE_DATA || !PLACE_DATA.days.length) return;
+  const { place, days } = PLACE_DATA, q = v => v==null ? '' : v;
+  const head = 'Lugar,Latitud,Longitud,Dia,Fuente,Temp max (C),Temp min (C),Temp prom (C),Humedad prom (%HR),Lluvia (mm),Radiacion (MJ/m2/dia),Viento max (km/h)';
+  const lines = days.map(d => [`"${place.name.replace(/"/g,'')}"`, place.lat, place.lon, d.key, 'NASA POWER (estimacion)',
+    q(d.tmax), q(d.tmin), q(d.tavg), q(d.havg), q(d.rain), q(d.rad), q(d.wmax)].join(','));
   const blob = new Blob(['﻿' + [head, ...lines].join('\n')], { type:'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = `relleno_nasa_power_${st}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+  a.download = `nasa_power_${normTxt(place.name).replace(/[^a-z0-9]+/g,'_').slice(0,40)}.csv`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
 }
 
 function showExtView(){
+  initPlaceUI();
+  if (PLACE_DATA) renderPlace();
   if (SHEETS_URL_EXTERNOS && EXT_SOURCE!=='sheets') loadExternosFromSheets();
   renderExtView();
 }
@@ -2877,31 +3042,20 @@ function renderExtView(){
       : (SHEETS_URL_EXTERNOS ? 'Cargando la pestaña "Datos_Externos"…' : 'Todavía no hay datos externos conectados. Cargá un archivo de REDMET para verlo, o conectá la pestaña "Datos_Externos" en SHEETS_URL_EXTERNOS.');
 
   const ourSt = $('ext-our').value;
-  renderNasaGap(ourSt);
 
-  // Selector de estación externa (REDMET + punto NASA POWER si hay coordenadas)
+  // Selector de estación externa (REDMET)
   const stations = [...new Set(EXT_ROWS.map(r=>r.est))].sort();
-  const nasaOk = !!nasaPoint(ourSt);
   const sel = $('ext-st'), prev = sel.value;
-  sel.innerHTML = stations.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('')
-    + (nasaOk ? `<option value="__NASA__">NASA POWER — punto ${ourSt} (modelo)</option>` : '')
-    || '<option value="">—</option>';
-  if (stations.includes(prev) || (prev==='__NASA__' && nasaOk)) sel.value = prev;
+  sel.innerHTML = stations.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('') || '<option value="">—</option>';
+  if (stations.includes(prev)) sel.value = prev;
 
-  const extSt = sel.value, isNasa = extSt === '__NASA__';
-  const extLabel = isNasa ? 'NASA POWER' : extSt;
+  const extSt = sel.value, isNasa = false;
+  const extLabel = extSt;
   const showEmpty = msg => { $('ext-body').style.display='none'; $('ext-empty').style.display='block'; $('ext-empty-msg').textContent = msg; };
-  if (!stations.length && !nasaOk) return showEmpty('Sin datos externos todavía. Cargá un archivo de REDMET o ingresá las coordenadas de la estación para usar NASA POWER.');
+  if (!stations.length) return showEmpty('Sin datos de estaciones de otras instituciones todavía. Cargá un archivo de REDMET para compararlo con CE u Ovejero.');
 
   const Dour = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===ourSt)).filter(d=>inMainFilter(d.key));
-  let Dext;
-  if (isNasa) {
-    const c = nasaGet(ourSt);
-    if (!c || c.status !== 'ok') return showEmpty(c && c.status==='error' ? `No se pudo consultar NASA POWER (${c.err}).` : 'Consultando NASA POWER…');
-    Dext = c.days.filter(d=>inMainFilter(d.key));
-  } else {
-    Dext = aggregateExtByDay(EXT_ROWS.filter(r=>r.est===extSt)).filter(d=>inMainFilter(d.key));
-  }
+  const Dext = aggregateExtByDay(EXT_ROWS.filter(r=>r.est===extSt)).filter(d=>inMainFilter(d.key));
   const extKeys = new Set(Dext.map(d=>d.key));
   const cOur = Dour.filter(d=>extKeys.has(d.key));
   const ourKeys = new Set(cOur.map(d=>d.key));
@@ -3006,19 +3160,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dz.addEventListener('dragleave', () => dz.classList.remove('over'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); loadExternosFromFiles(e.dataTransfer.files); });
   ['ext-our','ext-st'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
-  const nasaIds = { CE:['nasa-ce-lat','nasa-ce-lon'], Ovejero:['nasa-ov-lat','nasa-ov-lon'] };
-  Object.entries(nasaIds).forEach(([st,[la,lo]]) => { const p = nasaPoint(st); if (p) { document.getElementById(la).value = p.lat; document.getElementById(lo).value = p.lon; } });
-  document.getElementById('nasa-save').addEventListener('click', () => {
-    Object.entries(nasaIds).forEach(([st,[la,lo]]) => {
-      const lat = parseFloat(document.getElementById(la).value), lon = parseFloat(document.getElementById(lo).value);
-      try {
-        if (isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) localStorage.setItem('nasa_pt_'+st, JSON.stringify({ lat, lon }));
-        else localStorage.removeItem('nasa_pt_'+st);
-      } catch(e) {}
-    });
-    if (CUR_STATION==='externas') renderExtView();
-  });
-  document.getElementById('nasa-gap-csv').addEventListener('click', downloadNasaGapCsv);
+
   ['gdd-tbase','gdd-ttop'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
 });
 
