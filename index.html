@@ -2018,7 +2018,7 @@ function renderDrySpell(D){
 // (Ra), que depende de la latitud y del día del año. Las latitudes son
 // aproximadas: a ~14°N, un error de un par de décimas de grado cambia
 // el ET₀ en menos de 0.1%, así que no hace falta más precisión.
-const STATION_LAT = { 'CE': 14.3, 'Ovejero': 14.3 };   // °N, aproximadas — ajustar si se quiere
+const STATION_LAT = { 'CE': 14.364, 'Ovejero': 14.439 };   // °N (CE de SpecConnect; Ovejero aproximada)
 function dayOfYear(y,m,d){ return Math.round((new Date(y,m-1,d) - new Date(y,0,0)) / 864e5); }
 function raMmDay(latDeg, J){
   const phi = latDeg*Math.PI/180;
@@ -2747,8 +2747,8 @@ function inMainFilter(key){
 // Coordenadas fijas para todos los que abren el dashboard (null = usar las que se
 // ingresen en la pestaña Red regional, que quedan guardadas solo en ese navegador).
 const NASA_POINTS = {
-  CE:      { lat:null, lon:null },
-  Ovejero: { lat:null, lon:null }
+  CE:      { lat:14.364081, lon:-91.551595 },   // SpecConnect, S/N 54400111 (86 m)
+  Ovejero: { lat:14.4393,   lon:-89.868   }    // aproximadas (Google Maps), S/N 54400110
 };
 const NASA_PARAMS = 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS2M_MAX';
 const NASA_CACHE = {};   // `${st}|${lat}|${lon}` → { status:'loading'|'ok'|'error', days:[], err }
