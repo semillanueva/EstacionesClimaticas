@@ -40,9 +40,6 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .tab.ov.active{border-bottom-color:#1A9E72;color:#1A9E72}
 .tab.cmp.active{border-bottom-color:var(--navy);color:var(--navy)}
 .tab.ext.active{border-bottom-color:#7B5EA7;color:#7B5EA7}
-.cmp-card.ex{background:linear-gradient(135deg,#F5F1FB,#fff)}
-#ext-drop{border:2px dashed #CBD5E1;border-radius:var(--r);padding:14px 18px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--navy);font-weight:600}
-#ext-drop:hover,#ext-drop.over{border-color:#7B5EA7;background:#F5F1FB}
 .pl-grid{display:grid;grid-template-columns:minmax(260px,340px) 1fr;gap:18px}
 @media(max-width:800px){.pl-grid{grid-template-columns:1fr}}
 .pl-row{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:11px;color:var(--muted)}
@@ -328,7 +325,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="chips" id="banner-chips">
       <span class="chip">&#127303; Temporada de lluvias</span>
       <span class="chip" id="chip-dias"></span>
-      <span class="chip" id="chip-altsource" style="display:none;background:rgba(31,127,223,.35)"></span>
     </div>
   </div>
 
@@ -762,7 +758,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
 
 
-  <!-- Vista "Red regional": estaciones de otras instituciones (ICC REDMET, INSIVUMEH, Anacafé…) -->
+  <!-- Vista "Red regional": consulta de cualquier lugar de Guatemala con NASA POWER -->
   <div id="ext-view" style="display:none">
     <!-- ── Consultar un lugar (NASA POWER) ── -->
     <div class="panel" style="margin-bottom:16px">
@@ -828,77 +824,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
       </p>
     </div>
 
-    <!-- ── Estaciones de otras instituciones (ICC REDMET) ── -->
-    <div class="panel" style="margin-bottom:16px">
-      <div class="ph">
-        <span class="pt">&#128225; Estaciones de otras instituciones &mdash; comparaci&oacute;n con nuestras estaciones</span>
-        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);flex-wrap:wrap">
-          Nuestra estaci&oacute;n
-          <select id="ext-our" class="inl-sel"><option value="CE">CE &mdash; Suchitep&eacute;quez</option><option value="Ovejero">Ovejero &mdash; Jutiapa</option></select>
-          vs.
-          <select id="ext-st" class="inl-sel"></select>
-        </span>
-      </div>
-      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:10px" id="ext-src">&mdash;</p>
-      <label id="ext-drop">
-        <input type="file" id="ext-file" accept=".xlsx,.xls,.csv" multiple style="display:none">
-        &#128194; Cargar archivo de REDMET (.xlsx o .csv) para ver sin subir a la hoja
-      </label>
-    </div>
-
-    <div id="ext-empty" class="panel" style="display:none;text-align:center;padding:28px 20px;margin-bottom:16px">
-      <p style="color:var(--muted);font-size:13px" id="ext-empty-msg"></p>
-    </div>
-
-    <div id="ext-body" style="display:none">
-      <div class="cmp-grid">
-        <div class="cmp-card sj" id="ext-card-our">
-          <div class="cmp-hdr"><span class="cmp-dot" id="ext-dot-our"></span><span id="ext-name-our"></span></div>
-          <div id="ext-stats-our"></div>
-        </div>
-        <div class="cmp-card ex">
-          <div class="cmp-hdr"><span class="cmp-dot" style="background:#7B5EA7"></span><span id="ext-name-ext"></span></div>
-          <div id="ext-stats-ext"></div>
-        </div>
-      </div>
-      <p id="ext-diff" style="font-size:11.5px;color:var(--txt);margin:-4px 4px 14px;line-height:1.7"></p>
-
-      <div class="panels r2">
-        <div class="panel">
-          <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; promedio y m&aacute;xima</span>
-            <div class="leg" id="ext-leg-t"></div></div>
-          <div style="position:relative;height:220px"><canvas id="cExtT"></canvas></div>
-        </div>
-        <div class="panel">
-          <div class="ph"><span class="pt">&#127783; Lluvia diaria</span><div class="leg" id="ext-leg-r"></div></div>
-          <div style="position:relative;height:220px"><canvas id="cExtR"></canvas></div>
-        </div>
-      </div>
-      <div class="panels r2">
-        <div class="panel">
-          <div class="ph"><span class="pt">&#127793; GDU acumulados (per&iacute;odo com&uacute;n)</span><div class="leg" id="ext-leg-g"></div></div>
-          <div style="position:relative;height:210px"><canvas id="cExtG"></canvas></div>
-          <p style="font-size:10px;color:var(--sub);margin-top:6px" id="ext-gdd-note"></p>
-        </div>
-        <div class="panel">
-          <div class="ph"><span class="pt">&#128167; Humedad relativa promedio diaria</span><div class="leg" id="ext-leg-h"></div></div>
-          <div style="position:relative;height:210px"><canvas id="cExtH"></canvas></div>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-bottom:16px">
-        <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Resumen diario comparativo</span>
-          <span style="font-size:10px;color:var(--sub)" id="ext-period"></span></div>
-        <div class="tw"><table>
-          <thead><tr id="ext-thead"></tr></thead>
-          <tbody id="ext-tb"></tbody>
-        </table></div>
-      </div>
-      <p style="font-size:10px;color:var(--sub);line-height:1.6;margin:0 4px 16px">
-        Los datos externos vienen de otra institución, con sus propios sensores, altura de instalación y control de calidad: sirven como referencia regional, no reemplazan las mediciones de nuestras estaciones.
-        El viento de REDMET se toma en km/h y se compara con el viento promedio máximo de nuestra estación (no con la ráfaga).
-      </p>
-    </div>
   </div>
 
   <footer id="ft">WatchDog 3000 &bull; Suchitep&eacute;quez (54400111) &amp; Ovejero-Jutiapa (54400110) &bull; Guatemala</footer>
@@ -1405,7 +1330,7 @@ function aggregateByMonth(D) {
 
 // ── Destruye charts ────────────────────────────────────────────────
 function destroyCharts() {
-  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU','cHot','cWet','cExtT','cExtR','cExtG','cExtH','cPlT','cPlR','cPlH','cPlG'].forEach(id => {
+  ['cS','cT','cR','cW','cH','cRMonth','cCmpT','cCmpR','cCmpRMonth','cCmpGDD','cWindRose','cDew','cHeat','cGDD','cDry','cWB','cCropWater','cCropGDU','cHot','cWet','cPlT','cPlR','cPlH','cPlG'].forEach(id => {
     if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id];}
   });
 }
@@ -1623,12 +1548,6 @@ function renderDashboard(rows, stationRowsRaw) {
   document.getElementById('banner-title').textContent = stNm+' — Dashboard Climático';
   document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${fi} al ${ff}`;
   document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
-  const altDays = D.filter(d=>d.altSource).length;
-  const chipAlt = document.getElementById('chip-altsource');
-  const unkRain = D.filter(d=>d.rainUnknown).length;
-  if(altDays>0){ chipAlt.style.display='inline-block'; chipAlt.textContent = `📡 ${altDays} día(s) de fuente alterna` + (unkRain ? ` · lluvia sin dato en ${unkRain}` : '');
-    chipAlt.title = 'Temperatura y humedad estimadas (NASA POWER corregido con la estación). La lluvia de esos días no se midió: cuenta como 0 en los totales y no se usa en la racha seca.'; }
-  else { chipAlt.style.display='none'; }
   document.getElementById('nav-ts').textContent       = `🔄 ${now}`;
   document.getElementById('kv1').innerHTML  = `${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
   document.getElementById('ks1').textContent= `${dias} día(s) con lluvia`;
@@ -2702,115 +2621,8 @@ function buildCompareView() {
 
 
 
-// ════════════════════════════════════════════════════════════════════
-// RED REGIONAL — estaciones de otras instituciones (ICC REDMET, etc.)
-// Los datos viven en una pestaña aparte de la hoja ("Datos_Externos"), NO en
-// "Datos", para no mezclarlos con nuestras mediciones. Basta con pegar ahí la
-// exportación de REDMET tal como viene (con o sin las filas de título y de
-// Mínimo/Máximo/Suma: se ignoran solas) y publicar esa pestaña como CSV.
-// Columnas reconocidas: Estacion · Fecha · temperatura · humedad relativa ·
-// precipitacion · velocidad viento (km/h). Se pueden pegar varias estaciones una debajo de otra.
-// ════════════════════════════════════════════════════════════════════
-const SHEETS_URL_EXTERNOS = '';   // ← URL CSV publicada de la pestaña "Datos_Externos"
-const EXT_COLOR = '#7B5EA7';
-let EXT_ROWS = [];          // { est, key:'DD/MM/YYYY', min, t, h, p, w }
-let EXT_SOURCE = '';        // 'sheets' | 'local' | ''
-let EXT_LOADING = false;
-
-const normTxt = v => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
-function extNum(v){
-  if (v === null || v === undefined || v === '') return null;
-  const x = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
-  return isNaN(x) ? null : x;
-}
-// Fecha REDMET: "2026-10-15 00:15" (también acepta D/M/AAAA H:MM y fechas de Excel)
-function extParseDate(v){
-  const p2 = n => String(n).padStart(2,'0');
-  if (v instanceof Date && !isNaN(v)) return { key:`${p2(v.getDate())}/${p2(v.getMonth()+1)}/${v.getFullYear()}`, min:v.getHours()*60+v.getMinutes() };
-  const s = String(v ?? '').trim();
-  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
-  if (m) return { key:`${p2(m[3])}/${p2(m[2])}/${m[1]}`, min:(+m[4])*60+(+m[5]) };
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
-  if (m) return { key:`${p2(m[1])}/${p2(m[2])}/${m[3]}`, min:(+m[4])*60+(+m[5]) };
-  return null;
-}
-// Recibe la hoja como matriz (filas × celdas), busca la fila de encabezado y devuelve registros
-function parseExternalTable(aoa){
-  const hIdx = aoa.findIndex(r => r && r.some(c => normTxt(c)==='estacion') && r.some(c => normTxt(c)==='fecha'));
-  if (hIdx < 0) return [];
-  const H = aoa[hIdx].map(normTxt);
-  const col = re => H.findIndex(h => re.test(h));
-  const iE = H.indexOf('estacion'), iF = H.indexOf('fecha'),
-        iT = col(/^temp/), iH = col(/humedad/), iP = col(/precip|lluvia/), iW = col(/veloc|viento/);
-  const out = [];
-  for (const r of aoa.slice(hIdx + 1)) {
-    if (!r) continue;
-    const est = String(r[iE] ?? '').trim();
-    if (!est || normTxt(est)==='estacion') continue;        // filas de Mínimo/Máximo/Suma o encabezados repetidos
-    const d = extParseDate(r[iF]);
-    const t = iT>=0 ? extNum(r[iT]) : null;
-    if (!d || t === null) continue;
-    out.push({ est, key:d.key, min:d.min, t,
-      h: iH>=0 ? extNum(r[iH]) : null, p: iP>=0 ? (extNum(r[iP]) ?? 0) : 0, w: iW>=0 ? extNum(r[iW]) : null });
-  }
-  return out;
-}
-function extMerge(rows){
-  const seen = new Set(EXT_ROWS.map(r=>`${r.est}|${r.key}|${r.min}`));
-  rows.forEach(r=>{ const k=`${r.est}|${r.key}|${r.min}`; if(!seen.has(k)){ seen.add(k); EXT_ROWS.push(r); } });
-  EXT_ROWS.sort((a,b)=> parseDiaKey(a.key)-parseDiaKey(b.key) || a.min-b.min);
-}
-
-function loadExternosFromSheets(){
-  if (!SHEETS_URL_EXTERNOS || EXT_LOADING) return;
-  EXT_LOADING = true;
-  Papa.parse(SHEETS_URL_EXTERNOS, { download:true, header:false, skipEmptyLines:true,
-    complete: r => { EXT_LOADING = false; EXT_ROWS = []; extMerge(parseExternalTable(r.data)); EXT_SOURCE = 'sheets'; if (CUR_STATION==='externas') renderExtView(); },
-    error: () => { EXT_LOADING = false; if (CUR_STATION==='externas') renderExtView(); }
-  });
-}
-function loadExternosFromFiles(files){
-  const list = [...files]; if (!list.length) return;
-  let pending = list.length;
-  const done = rows => { extMerge(rows); if (--pending === 0){ if(EXT_SOURCE!=='sheets') EXT_SOURCE='local'; renderExtView(); } };
-  list.forEach(file => {
-    if (/\.csv$/i.test(file.name)) {
-      Papa.parse(file, { header:false, skipEmptyLines:true, complete:r=>done(parseExternalTable(r.data)), error:()=>done([]) });
-    } else {
-      const fr = new FileReader();
-      fr.onload = e => {
-        try {
-          const wb = XLSX.read(e.target.result, { type:'array', cellDates:true });
-          let rows = [];
-          wb.SheetNames.forEach(n => { rows = rows.concat(parseExternalTable(XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:true, defval:'' }))); });
-          done(rows);
-        } catch(err){ alert('No se pudo leer el archivo: '+err.message); done([]); }
-      };
-      fr.readAsArrayBuffer(file);
-    }
-  });
-}
-
-function aggregateExtByDay(rows){
-  const map = {};
-  rows.forEach(r => { (map[r.key] = map[r.key] || []).push(r); });
-  return Object.keys(map).sort((a,b)=>parseDiaKey(a)-parseDiaKey(b)).map(k=>{
-    const rs = map[k], t = rs.map(r=>r.t), h = rs.map(r=>r.h).filter(v=>v!=null), w = rs.map(r=>r.w).filter(v=>v!=null);
-    const kp = parseDiaParts(k);
-    return { key:k, dia:formatDiaShort(k), y:kp.y, m:kp.m, n:rs.length,
-      tmin:+Math.min(...t).toFixed(1), tmax:+Math.max(...t).toFixed(1), tavg:+(t.reduce((a,b)=>a+b,0)/t.length).toFixed(1),
-      havg: h.length ? +(h.reduce((a,b)=>a+b,0)/h.length).toFixed(1) : null,
-      rain: +rs.reduce((a,r)=>a+(r.p||0),0).toFixed(1),
-      wmax: w.length ? +Math.max(...w).toFixed(1) : null };
-  });
-}
-function inMainFilter(key){
-  if (!CUR_FROM && !CUR_TO) return true;
-  let f = isoToTS(CUR_FROM), t = isoToTS(CUR_TO);
-  if (f===null) f=-Infinity; if (t===null) t=Infinity; if (f>t){ const x=f; f=t; t=x; }
-  const ts = parseDiaKey(key); return ts>=f && ts<=t;
-}
-
+// RED REGIONAL — solo NASA POWER (la comparación con REDMET se quitó el 04/11/2026)
+const normTxt = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 
 // ════════════════════════════════════════════════════════════════════
 // CONSULTAR UN LUGAR — NASA POWER (API diaria, se consulta desde el navegador)
@@ -3019,137 +2831,7 @@ function downloadPlaceCsv(){
 function showExtView(){
   initPlaceUI();
   if (PLACE_DATA) renderPlace();
-  if (SHEETS_URL_EXTERNOS && EXT_SOURCE!=='sheets') loadExternosFromSheets();
-  renderExtView();
 }
-
-function renderExtView(){
-  const $ = id => document.getElementById(id);
-  ['cExtT','cExtR','cExtG','cExtH'].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
-
-  $('ext-src').innerHTML = EXT_SOURCE==='sheets'
-    ? `<span class="dot"></span>&nbsp; Leyendo la pestaña <strong>"Datos_Externos"</strong> de la hoja (${EXT_ROWS.length.toLocaleString('es-GT')} registros). Para agregar datos, pegá la exportación de REDMET al final de esa pestaña.`
-    : EXT_SOURCE==='local'
-      ? `Mostrando archivo(s) cargado(s) en este navegador (${EXT_ROWS.length.toLocaleString('es-GT')} registros). <strong>No se guardan en la hoja</strong>: al recargar la página hay que volver a cargarlos.`
-        + (SHEETS_URL_EXTERNOS ? '' : ' Para que queden fijos, pegalos en una pestaña "Datos_Externos" de la hoja y publicala como CSV (ver SHEETS_URL_EXTERNOS).')
-      : (SHEETS_URL_EXTERNOS ? 'Cargando la pestaña "Datos_Externos"…' : 'Todavía no hay datos externos conectados. Cargá un archivo de REDMET para verlo, o conectá la pestaña "Datos_Externos" en SHEETS_URL_EXTERNOS.');
-
-  const ourSt = $('ext-our').value;
-
-  // Selector de estación externa (REDMET)
-  const stations = [...new Set(EXT_ROWS.map(r=>r.est))].sort();
-  const sel = $('ext-st'), prev = sel.value;
-  sel.innerHTML = stations.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('') || '<option value="">—</option>';
-  if (stations.includes(prev)) sel.value = prev;
-
-  const extSt = sel.value, isNasa = false;
-  const extLabel = extSt;
-  const showEmpty = msg => { $('ext-body').style.display='none'; $('ext-empty').style.display='block'; $('ext-empty-msg').textContent = msg; };
-  if (!stations.length) return showEmpty('Sin datos de estaciones de otras instituciones todavía. Cargá un archivo de REDMET para compararlo con CE u Ovejero.');
-
-  const Dour = aggregateByDay(ALL_ROWS.filter(r=>r['Estacion']===ourSt)).filter(d=>inMainFilter(d.key));
-  const Dext = aggregateExtByDay(EXT_ROWS.filter(r=>r.est===extSt)).filter(d=>inMainFilter(d.key));
-  const extKeys = new Set(Dext.map(d=>d.key));
-  const cOur = Dour.filter(d=>extKeys.has(d.key));
-  const ourKeys = new Set(cOur.map(d=>d.key));
-  const cExt = Dext.filter(d=>ourKeys.has(d.key));
-  if (!cOur.length) {
-    const rng = D => D.length ? `${D[0].key} – ${D[D.length-1].key}` : 'sin datos';
-    return showEmpty(`No hay días en común entre ${ourSt} (${rng(Dour)}) y ${extLabel} (${rng(Dext)}) con el filtro de fechas actual.`);
-  }
-  $('ext-empty').style.display='none'; $('ext-body').style.display='block';
-
-  const ourClr = (CLR[ourSt]||CLR.all).main;
-  const ourNm = ourSt==='CE' ? 'CE — Suchitepéquez' : 'Ovejero — Jutiapa';
-  $('ext-name-our').textContent = ourNm; $('ext-dot-our').style.background = ourClr;
-  $('ext-card-our').className = 'cmp-card ' + (ourSt==='CE' ? 'sj' : 'ov');
-  $('ext-name-ext').textContent = isNasa ? `NASA POWER — punto ${ourSt} (modelo ~50 km)` : `${extSt} — ICC REDMET`;
-  $('ext-period').textContent = `Período común: ${cOur[0].key} – ${cOur[cOur.length-1].key} (${cOur.length} días)`;
-
-  const tbase = parseFloat($('gdd-tbase')?.value) || 10, ttop = parseFloat($('gdd-ttop')?.value) || 32;
-  const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : null;
-  const stats = (D, ours) => {
-    const hv = D.map(d=>d.havg).filter(v=>v!=null), wv = D.map(d=>d.wmax).filter(v=>v!=null);
-    return {
-      tmax: Math.max(...D.map(d=>d.tmax)).toFixed(1), tmin: Math.min(...D.map(d=>d.tmin)).toFixed(1),
-      tavg: avg(D.map(d=>d.tavg)).toFixed(1), havg: hv.length ? avg(hv).toFixed(1) : '—',
-      rain: D.reduce((a,d)=>a+d.rain,0).toFixed(1), dRain: D.filter(d=>d.rain>0).length,
-      wmax: wv.length ? Math.max(...wv).toFixed(1) : '—',
-      gdu: D.reduce((a,d)=>a+gddDay(d.tmin,d.tmax,tbase,ttop),0).toFixed(0),
-      hot: D.filter(d=>d.tmax>=35).length, n: D.reduce((a,d)=>a+d.n,0)
-    };
-  };
-  const So = stats(cOur, true), Se = stats(cExt, false);
-  const card = s => [
-    ['Temp. máxima', s.tmax+'°C'], ['Temp. promedio', s.tavg+'°C'], ['Temp. mínima', s.tmin+'°C'],
-    ['Días con T máx ≥ 35°C', s.hot], ['Humedad promedio', s.havg+(s.havg==='—'?'':'%')],
-    ['Lluvia total', s.rain+' mm'], ['Días con lluvia', `${s.dRain} de ${cOur.length}`],
-    ['Viento prom. máx', s.wmax+(s.wmax==='—'?'':' km/h')], [`GDU acumulados (base ${tbase}, tope ${ttop}°C)`, s.gdu]
-  ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
-  $('ext-stats-our').innerHTML = card(So); $('ext-stats-ext').innerHTML = card(Se);
-
-  // Diferencias promedio día a día (externa − nuestra)
-  const dif = f => avg(cOur.map((d,i)=>cExt[i][f]-d[f]));
-  const fmtDif = (v,u) => `${v>0?'+':''}${v.toFixed(1)}${u}`;
-  const dT = dif('tavg'), dX = dif('tmax'), dN = dif('tmin');
-  const hPairs = cOur.map((d,i)=>[d.havg,cExt[i].havg]).filter(([a,b])=>a!=null&&b!=null);
-  const dH = hPairs.length ? avg(hPairs.map(([a,b])=>b-a)) : null;
-  $('ext-diff').innerHTML = `<strong>${extLabel} frente a ${ourSt}</strong> (promedio de diferencias diarias): `
-    + `temp. promedio ${fmtDif(dT,'°C')} · máxima ${fmtDif(dX,'°C')} · mínima ${fmtDif(dN,'°C')}`
-    + (dH!=null ? ` · humedad ${fmtDif(dH,' pts')}` : '')
-    + ` · lluvia total ${Se.rain} vs. ${So.rain} mm. Valores positivos = ${extLabel} más alto.`;
-
-  const L = cOur.map(d=>d.dia);
-  const leg = (a,b,dash) => `<span class="li"><span class="ll" style="background:${ourClr}"></span>${ourSt}</span><span class="li"><span class="ll" style="background:${EXT_COLOR}"></span>${extLabel}</span>`;
-  ['t','r','g','h'].forEach(k=>$('ext-leg-'+k).innerHTML = leg());
-  $('ext-leg-t').innerHTML += `<span class="li"><span class="ld" style="border-color:#999"></span>máxima</span>`;
-  const baseOpt = (yfmt, extra={}) => ({ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
-    plugins:{legend:{display:false}}, scales:{ x:{grid:{color:GC},ticks:XT}, y:{grid:{color:GC},ticks:{color:TC,font:{size:9},callback:yfmt}, ...extra} } });
-
-  chartRefs['cExtT'] = new Chart('cExtT', { type:'line', data:{ labels:L, datasets:[
-    { label:`${ourSt} prom.`, data:cOur.map(d=>d.tavg), borderColor:ourClr, borderWidth:2, pointRadius:2.5, pointBackgroundColor:ourClr, tension:0 },
-    { label:`${extLabel} prom.`, data:cExt.map(d=>d.tavg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 },
-    { label:`${ourSt} máx.`, data:cOur.map(d=>d.tmax), borderColor:ourClr, borderWidth:1.2, borderDash:[4,3], pointRadius:0, tension:0 },
-    { label:`${extLabel} máx.`, data:cExt.map(d=>d.tmax), borderColor:EXT_COLOR, borderWidth:1.2, borderDash:[4,3], pointRadius:0, tension:0 }
-  ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}°C`}}; return o; })(baseOpt(v=>v+'°C',{suggestedMin:15,suggestedMax:40})) });
-
-  chartRefs['cExtR'] = new Chart('cExtR', { type:'bar', data:{ labels:L, datasets:[
-    { label:ourSt, data:cOur.map(d=>d.rain), backgroundColor:ourClr, borderRadius:3, categoryPercentage:0.7, barPercentage:0.9 },
-    { label:extLabel, data:cExt.map(d=>d.rain), backgroundColor:EXT_COLOR, borderRadius:3, categoryPercentage:0.7, barPercentage:0.9 }
-  ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} mm`}}; return o; })(baseOpt(v=>v+' mm',{min:0})) });
-
-  let cg1=0, cg2=0;
-  chartRefs['cExtG'] = new Chart('cExtG', { type:'line', data:{ labels:L, datasets:[
-    { label:ourSt, data:cOur.map(d=>+(cg1+=gddDay(d.tmin,d.tmax,tbase,ttop)).toFixed(1)), borderColor:ourClr, borderWidth:2.5, pointRadius:0, tension:0.1 },
-    { label:extLabel, data:cExt.map(d=>+(cg2+=gddDay(d.tmin,d.tmax,tbase,ttop)).toFixed(1)), borderColor:EXT_COLOR, borderWidth:2.5, pointRadius:0, tension:0.1 }
-  ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y} GDU`}}; return o; })(baseOpt(v=>v)) });
-  $('ext-gdd-note').textContent = `Misma temp. base (${tbase}°C) y tope (${ttop}°C) que el panel de GDU de la pestaña Cultivo.`;
-
-  chartRefs['cExtH'] = new Chart('cExtH', { type:'line', data:{ labels:L, datasets:[
-    { label:ourSt, data:cOur.map(d=>d.havg||null), borderColor:ourClr, borderWidth:2, pointRadius:2.5, pointBackgroundColor:ourClr, tension:0 },
-    { label:extLabel, data:cExt.map(d=>d.havg), borderColor:EXT_COLOR, borderWidth:2, pointRadius:2.5, pointBackgroundColor:EXT_COLOR, tension:0 }
-  ]}, options: (o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}%`}}; return o; })(baseOpt(v=>v+'%',{suggestedMin:40,max:100})) });
-
-  const sO = ourSt==='CE'?'CE':'OV', sE = extLabel.length>10 ? extLabel.slice(0,10)+'…' : extLabel;
-  $('ext-thead').innerHTML = `<th>Fecha</th><th>T Máx ${sO}</th><th>T Máx ${sE}</th><th>T Mín ${sO}</th><th>T Mín ${sE}</th><th>Lluvia ${sO}</th><th>Lluvia ${sE}</th><th>HR Prom ${sO}</th><th>HR Prom ${sE}</th>`;
-  const rf = v => v>0 ? `<span class="rb">${v}</span>` : '<span style="color:#ccc">—</span>';
-  $('ext-tb').innerHTML = cOur.map((d,i)=>{ const e=cExt[i];
-    return `<tr${(d.rain>0||e.rain>0)?' class="rn"':''}><td>${d.dia}</td><td>${d.tmax}°C</td><td>${e.tmax}°C</td><td>${d.tmin}°C</td><td>${e.tmin}°C</td>`
-      + `<td>${rf(d.rain)}</td><td>${rf(e.rain)}</td><td>${d.havg||'—'}%</td><td>${e.havg??'—'}%</td></tr>`; }).join('');
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-});
-document.addEventListener('DOMContentLoaded', () => {
-  const dz = document.getElementById('ext-drop'), fi = document.getElementById('ext-file');
-  fi.addEventListener('change', () => { loadExternosFromFiles(fi.files); fi.value=''; });
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('over'));
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); loadExternosFromFiles(e.dataTransfer.files); });
-  ['ext-our','ext-st'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
-
-  ['gdd-tbase','gdd-ttop'].forEach(id => document.getElementById(id).addEventListener('change', () => { if(CUR_STATION==='externas') renderExtView(); }));
-});
 
 // ── Pestañas internas de la vista de estación (Clima / Agua / Cultivo / Tabla) ──
 // La pestaña elegida queda en la URL (#clima, #agua, #cultivo, #tabla) para
