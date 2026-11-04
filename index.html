@@ -281,6 +281,9 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <span class="fl">Hasta</span>
   <input type="date" id="filter-to">
   <button class="filter-clear" id="filter-clear">Quitar filtro</button>
+  <label id="relleno-wrap" style="display:none;margin-left:auto;font-size:11px;color:var(--muted);cursor:pointer;align-items:center;gap:6px" title="Horas estimadas con NASA POWER (corregido con la propia estación) para los huecos sin datos. Vienen de la pestaña Relleno_Ovejero, no de Datos.">
+    <input type="checkbox" id="relleno-toggle" checked><span>Incluir relleno estimado (<span id="relleno-n">0</span> h)</span>
+  </label>
 </div>
 
 <!-- Loading / Picker -->
@@ -1062,7 +1065,11 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 <script>
 // ════════════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
-const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';
+// Pestaña "Relleno_Ovejero": horas estimadas (NASA POWER corregido) para huecos sin datos.
+// Se mantiene aparte de "Datos"; el dashboard la suma solo si está activado "Incluir relleno estimado".
+// Sus filas traen la columna "Fuente" y la lluvia vacía (= sin dato, no cero).
+const SHEETS_URL_RELLENO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=1932439603&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
 const AUTO_REFRESH_MIN = 10;
 
 // Hoja "Datos_Cuartos" (sensor Govee interno en CE), publicada como CSV aparte.
@@ -1290,7 +1297,12 @@ function aggregateByDay(rows) {
     // rellenó un hueco a mano), se marca el día para poder señalarlo en el
     // dashboard. Si la columna no existe o está vacía, no cambia nada.
     const fuentes = [...new Set(recs.map(r=>(r['Fuente']||'').trim()).filter(Boolean))];
+    // Horas de relleno sin lluvia medida: si son 12 o más, la lluvia del día es
+    // "desconocida" (no cero) y la racha seca no cuenta ese día como seco.
+    const rainUnknownH = recs.filter(r=>r['_relleno'] && String(r['Lluvia (mm/10min)']??'').trim()==='').length;
     return {
+      rainUnknown: rainUnknownH >= 12,
+      relleno: recs.some(r=>r['_relleno']),
       dia: multiYear ? `${dd}/${mm}/${String(kp.y).slice(-2)}` : `${dd}/${mm}`,
       y: kp.y, m: kp.m,
       tmin: tc.length?+Math.min(...tc).toFixed(1):0,
@@ -1562,7 +1574,9 @@ function renderDashboard(rows, stationRowsRaw) {
   document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
   const altDays = D.filter(d=>d.altSource).length;
   const chipAlt = document.getElementById('chip-altsource');
-  if(altDays>0){ chipAlt.style.display='inline-block'; chipAlt.textContent = `📡 ${altDays} día(s) de fuente alterna`; }
+  const unkRain = D.filter(d=>d.rainUnknown).length;
+  if(altDays>0){ chipAlt.style.display='inline-block'; chipAlt.textContent = `📡 ${altDays} día(s) de fuente alterna` + (unkRain ? ` · lluvia sin dato en ${unkRain}` : '');
+    chipAlt.title = 'Temperatura y humedad estimadas (NASA POWER corregido con la estación). La lluvia de esos días no se midió: cuenta como 0 en los totales y no se usa en la racha seca.'; }
   else { chipAlt.style.display='none'; }
   document.getElementById('nav-ts').textContent       = `🔄 ${now}`;
   document.getElementById('kv1').innerHTML  = `${totR}<span style="font-size:13px;font-weight:500"> mm</span>`;
@@ -1912,6 +1926,11 @@ function computeDrySpells(D, thr, S){
     const ts = parseDiaKey(d.key);
     if(prevTS!==null && Math.round((ts-prevTS)/864e5) > 1){
       gaps++; close(prev, true); cncReset();
+    }
+    if(d.rainUnknown){
+      // Día rellenado sin lluvia medida: no se sabe si llovió → corta la racha como un hueco
+      gaps++; close(prev, true); cncReset();
+      series.push(null); prev = d; prevTS = ts; return;
     }
     const dry = d.rain < thr;
     if(dry){ if(cur===0) start = d; cur++; } else { close(prev, false); }
@@ -2974,6 +2993,13 @@ function renderExtView(){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('relleno-toggle').addEventListener('change', () => {
+    if (!MAIN_ROWS_RAW.length) return;
+    KEEP_STATION = CUR_STATION;
+    buildFromRows(mergedRows(), 'sheets');
+  });
+});
+document.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('ext-drop'), fi = document.getElementById('ext-file');
   fi.addEventListener('change', () => { loadExternosFromFiles(fi.files); fi.value=''; });
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
@@ -3025,6 +3051,7 @@ window.addEventListener('hashchange', ()=>{
 
 // ── Carga y entrada de datos ───────────────────────────────────────
 let DUP_REMOVED = 0;
+let KEEP_STATION = null;   // al reconstruir (p. ej. al cambiar el relleno) se queda en la misma pestaña
 let HAS_STATION_COL = true;
 function buildFromRows(rows, source) {
   ALL_ROWS = rows.filter(r=>r['Temperatura (C)'] && parseDiaParts(r['Dia']));
@@ -3050,8 +3077,10 @@ function buildFromRows(rows, source) {
 
   // Mostrar por defecto la primera estación disponible (ya no existe la
   // vista combinada "Todas" — con la pestaña de cada estación alcanza).
-  if(stations.length===1) setStation(stations[0]);
+  if(KEEP_STATION && (stations.includes(KEEP_STATION) || ['compare','externas'].includes(KEEP_STATION))) setStation(KEEP_STATION);
+  else if(stations.length===1) setStation(stations[0]);
   else setStation(stations.includes('CE') ? 'CE' : stations[0]);
+  KEEP_STATION = null;
 
   document.getElementById('loading').style.display  ='none';
   document.getElementById('picker').style.display   ='none';
@@ -3080,9 +3109,34 @@ function hideNoData(){
   document.getElementById('single-view').style.display='block';
 }
 
+let MAIN_ROWS_RAW = [], RELLENO_ROWS = [];
+function rellenoOn(){ const t = document.getElementById('relleno-toggle'); return !t || t.checked; }
+function mergedRows(){ return rellenoOn() ? MAIN_ROWS_RAW.concat(RELLENO_ROWS) : MAIN_ROWS_RAW; }
+function updateRellenoUI(){
+  const w = document.getElementById('relleno-wrap');
+  w.style.display = RELLENO_ROWS.length ? 'inline-flex' : 'none';
+  document.getElementById('relleno-n').textContent = RELLENO_ROWS.length;
+}
 function loadFromSheets(){
+  // Primero "Datos"; después (sin bloquear) la pestaña de relleno.
+  let main = null, rell = null, done = false;
+  const finish = () => {
+    if (done || main === null || rell === null) return;
+    done = true;
+    MAIN_ROWS_RAW = main;
+    RELLENO_ROWS = rell.filter(r => r['Temperatura (C)'] && parseDiaParts(r['Dia']))
+                       .map(r => ({ ...r, 'Fuente': (r['Fuente']||'').trim() || 'Relleno estimado', '_relleno': true }));
+    updateRellenoUI();
+    buildFromRows(mergedRows(), 'sheets');
+  };
   Papa.parse(SHEETS_URL,{download:true,header:true,skipEmptyLines:true,
-    complete:r=>buildFromRows(r.data,'sheets'),error:()=>showPicker()});
+    complete:r=>{ main = r.data; finish(); }, error:()=>showPicker()});
+  if (SHEETS_URL_RELLENO) {
+    Papa.parse(SHEETS_URL_RELLENO,{download:true,header:true,skipEmptyLines:true,
+      complete:r=>{ rell = r.data; finish(); }, error:()=>{ rell = []; finish(); }});
+    // Si la pestaña de relleno tarda demasiado, se sigue sin ella
+    setTimeout(()=>{ if (rell === null) { rell = []; finish(); } }, 15000);
+  } else rell = [];
 }
 
 function loadFromFile(file){
