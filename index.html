@@ -91,7 +91,7 @@ main{max-width:1600px;margin:0 auto;padding:20px 28px 40px}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{background:rgba(255,255,255,.15);border-radius:20px;padding:4px 12px;
   font-size:11px;font-weight:500;color:rgba(255,255,255,.9)}
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .kpi{background:var(--surf);border-radius:var(--r);border:.5px solid var(--brd);
   padding:14px 16px;box-shadow:var(--shd)}
 .kl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;
@@ -153,7 +153,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   padding:24px 0 8px;border-top:.5px solid var(--brd);margin-top:8px}
 
 @media(max-width:900px){
-  .kpi-grid{grid-template-columns:repeat(3,1fr)}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
   .r2,.r3,.cmp-grid{grid-template-columns:1fr}
   .nav-r,.tabs-bar{display:none}}
 @media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
@@ -295,9 +295,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <span class="fl">Hasta</span>
   <input type="date" id="filter-to">
   <button class="filter-clear" id="filter-clear">Quitar filtro</button>
-  <label id="relleno-wrap" style="display:none;margin-left:auto;font-size:11px;color:var(--muted);cursor:pointer;align-items:center;gap:6px" title="Horas estimadas con NASA POWER (corregido con la propia estación) para los huecos sin datos. Vienen de la pestaña Relleno_Ovejero, no de Datos.">
-    <input type="checkbox" id="relleno-toggle" checked><span>Incluir relleno estimado (<span id="relleno-n">0</span> h)</span>
-  </label>
 </div>
 
 <!-- Loading / Picker -->
@@ -349,9 +346,6 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div class="kpi"><div class="kl">Viento m&aacute;ximo</div>
       <div class="kv" id="kv4" style="color:var(--teal)">—</div>
       <div class="ks" id="ks4">km/h &bull; r&aacute;faga m&aacute;xima</div></div>
-    <div class="kpi"><div class="kl">Registros</div>
-      <div class="kv" id="kv5" style="color:var(--navy)">—</div>
-      <div class="ks" id="ks5">—</div></div>
   </div>
 
   <!-- Sin datos para el filtro/estación actual -->
@@ -1124,7 +1118,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 // CONFIGURACIÓN
 const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=586032497&single=true&output=csv';
 // Pestaña "Relleno_Ovejero": horas estimadas (NASA POWER corregido) para huecos sin datos.
-// Se mantiene aparte de "Datos"; el dashboard la suma solo si está activado "Incluir relleno estimado".
+// Se mantiene aparte de "Datos"; el dashboard la suma siempre (marcada como fuente alterna).
 // Sus filas traen la columna "Fuente" y la lluvia vacía (= sin dato, no cero).
 const SHEETS_URL_RELLENO = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSpuXjgyj3h8aNO_y0EogyU_n142v6vc0bEA_3fSYhMkLzoBJK21qi27DqmnUqPNlB5tlgI9yn7v5u-/pub?gid=1932439603&single=true&output=csv';   // ← Hoja "Datos" publicada como CSV
 const AUTO_REFRESH_MIN = 10;
@@ -1627,7 +1621,7 @@ function renderDashboard(rows, stationRowsRaw) {
   const stNm = st==='all'?'Todas las estaciones': st==='CE'?'CE — Suchitepéquez':st==='Ovejero'?'Ovejero – Jutiapa':st;
 
   document.getElementById('banner-title').textContent = stNm+' — Dashboard Climático';
-  document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${rows.length} registros • ${fi} al ${ff}`;
+  document.getElementById('banner-sub').textContent   = `WatchDog 3000 Wireless • Firmware 00.01.75 • ${fi} al ${ff}`;
   document.getElementById('chip-dias').textContent    = `📅 ${D.length} días registrados`;
   const altDays = D.filter(d=>d.altSource).length;
   const chipAlt = document.getElementById('chip-altsource');
@@ -1644,9 +1638,9 @@ function renderDashboard(rows, stationRowsRaw) {
   document.getElementById('ks4').textContent = gMax
     ? `ráfaga máxima • viento prom. máx ${wMax} km/h`
     : 'km/h • viento prom. máx (sin datos de ráfaga)';
-  document.getElementById('kv5').textContent= rows.length.toLocaleString('es-GT');
-  document.getElementById('ks5').textContent= `${D.length} días • cada ${steps.join('/')} min • cobertura ${avgCov}%`
-    + (DUP_REMOVED ? ` • ${DUP_REMOVED} fila(s) duplicada(s) en la hoja omitida(s)` : '');
+  // (El cuadro de "Registros" se quitó de la vista pública; DUP_REMOVED y la cobertura siguen
+  //  disponibles para revisión interna en la consola del navegador.)
+  if (DUP_REMOVED) console.info(`${DUP_REMOVED} fila(s) duplicada(s) en la hoja omitida(s)`);
 
   // Leyenda de la serie temporal (una línea por estación en la vista "Todas")
 
@@ -2094,7 +2088,7 @@ function renderDrySpell(D){
 // (Ra), que depende de la latitud y del día del año. Las latitudes son
 // aproximadas: a ~14°N, un error de un par de décimas de grado cambia
 // el ET₀ en menos de 0.1%, así que no hace falta más precisión.
-const STATION_LAT = { 'CE': 14.364, 'Ovejero': 14.439 };   // °N (CE de SpecConnect; Ovejero aproximada)
+const STATION_LAT = { 'CE': 14.364, 'Ovejero': 14.470 };   // °N (CE de SpecConnect; Ovejero de Google Maps)
 function dayOfYear(y,m,d){ return Math.round((new Date(y,m-1,d) - new Date(y,0,0)) / 864e5); }
 function raMmDay(latDeg, J){
   const phi = latDeg*Math.PI/180;
@@ -2591,7 +2585,6 @@ function buildCompareView() {
       [getKc()===1 ? 'ET₀ total' : `ETc total (Kc ${getKc()})`, s.wb.et+' mm'],
       ['Balance hídrico', `<span style="color:${s.wb.bal>=0?'var(--teal)':'var(--coral)'}">${s.wb.bal>0?'+':''}${s.wb.bal} mm</span>`],
       ['GDU acumulados', s.gdu],
-      ['Registros', s.n.toLocaleString()],
     ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
   }
   renderStats('cmp-sj-stats', sS);
@@ -2828,7 +2821,7 @@ function inMainFilter(key){
 // Coordenadas de nuestras estaciones (botones rápidos del mapa)
 const NASA_POINTS = {
   CE:      { lat:14.364081, lon:-91.551595, name:'CE — Centro Experimental (San José La Máquina)' },   // SpecConnect, S/N 54400111
-  Ovejero: { lat:14.4393,   lon:-89.868,    name:'Ovejero (Jutiapa)' }                               // aproximadas, S/N 54400110
+  Ovejero: { lat:14.470176, lon:-89.858674, name:'Ovejero (Jutiapa)' }                             // Google Maps (F4CR+3GG El Ovejero), S/N 54400110
 };
 const GT_MUNIS = [["Alta Verapaz","Cahabón",15.6054,-89.7715],["Alta Verapaz","Chahal",15.7329,-89.5763],["Alta Verapaz","Chisec",15.892,-90.2939],["Alta Verapaz","Cobán",15.7108,-90.5403],["Alta Verapaz","Fray Bartolomé De Las Casas",15.8675,-89.7369],["Alta Verapaz","Lanquín",15.567,-89.9901],["Alta Verapaz","Panzós",15.3096,-89.6557],["Alta Verapaz","Raxruhá",15.8925,-90.081],["Alta Verapaz","San Cristóbal Verapaz",15.3973,-90.5651],["Alta Verapaz","San Juan Chamelco",15.3898,-90.2366],["Alta Verapaz","San Pedro Carchá",15.5789,-90.152],["Alta Verapaz","Santa Catalina La Tinta",15.2546,-89.834],["Alta Verapaz","Santa Cruz Verapaz",15.3395,-90.414],["Alta Verapaz","Senahú",15.4188,-89.8394],["Alta Verapaz","Tactic",15.2981,-90.3376],["Alta Verapaz","Tamahú",15.3032,-90.2417],["Alta Verapaz","Tucurú",15.3027,-90.081],["Baja Verapaz","Cubulco",15.1554,-90.6713],["Baja Verapaz","El Chol",14.9536,-90.4873],["Baja Verapaz","Granados",14.9363,-90.5754],["Baja Verapaz","Purulhá",15.2161,-90.0385],["Baja Verapaz","Rabinal",15.1133,-90.5071],["Baja Verapaz","Salamá",15.0124,-90.2493],["Baja Verapaz","San Jerónimo",15.0655,-90.1942],["Baja Verapaz","San Miguel Chicaj",15.1607,-90.4131],["Chimaltenango","Acatenango",14.5478,-90.9563],["Chimaltenango","Chimaltenango",14.6862,-90.8225],["Chimaltenango","Comalapa",14.7491,-90.8987],["Chimaltenango","El Tejar",14.6757,-90.7888],["Chimaltenango","Parramos",14.5902,-90.8225],["Chimaltenango","Patzicía",14.6368,-90.9414],["Chimaltenango","Patzún",14.6471,-91.0344],["Chimaltenango","Pochuta",14.5339,-91.0749],["Chimaltenango","San Andrés Itzapa",14.6081,-90.8649],["Chimaltenango","San José Poaquil",14.8569,-90.9083],["Chimaltenango","San Martín Jilotepeque",14.8405,-90.7816],["Chimaltenango","Santa Apolonia",14.8205,-90.9582],["Chimaltenango","Santa Cruz Balanyá",14.6955,-90.9336],["Chimaltenango","Tecpán Guatemala",14.8034,-91.0061],["Chimaltenango","Yepocapa",14.4638,-90.9853],["Chimaltenango","Zaragoza",14.6825,-90.8755],["Chiquimula","Camotán",14.8545,-89.2828],["Chiquimula","Chiquimula",14.803,-89.5791],["Chiquimula","Concepción Las Minas",14.4877,-89.4493],["Chiquimula","Esquipulas",14.6206,-89.2671],["Chiquimula","Ipala",14.5875,-89.6083],["Chiquimula","Jocotán",14.812,-89.3779],["Chiquimula","Olopa",14.7001,-89.3164],["Chiquimula","Quezaltepeque",14.6178,-89.4587],["Chiquimula","San Jacinto",14.6782,-89.513],["Chiquimula","San José La Arada",14.7162,-89.6084],["Chiquimula","San Juan Ermita",14.7347,-89.4269],["El Progreso","El Jícaro",14.8884,-89.916],["El Progreso","Guastatoya",14.8513,-90.0636],["El Progreso","Morazán",14.966,-90.1618],["El Progreso","San Agustín Acasaguastlán",15.0193,-89.9861],["El Progreso","San Antonio La Paz",14.7473,-90.2749],["El Progreso","San Cristóbal Acasaguastlán",15.004,-89.8728],["El Progreso","Sanarate",14.754,-90.099],["El Progreso","Sansare",14.8144,-90.2381],["Escuintla","Escuintla",14.2998,-90.7932],["Escuintla","Guanagazapa",14.1496,-90.6645],["Escuintla","Iztapa",13.9628,-90.699],["Escuintla","La Democracia",14.1335,-90.9497],["Escuintla","La Gomera",14.0784,-91.1125],["Escuintla","Masagua",14.0876,-90.8095],["Escuintla","Nueva Concepción",14.1223,-91.3007],["Escuintla","Palín",14.3957,-90.7039],["Escuintla","San José",13.9587,-90.8824],["Escuintla","San Vicente Pacaya",14.3325,-90.6454],["Escuintla","Santa Lucía Cotzumalguapa",14.2872,-91.0709],["Escuintla","Sipacate",13.9597,-91.143],["Escuintla","Siquinalá",14.3501,-90.9399],["Escuintla","Tiquisate",14.1856,-91.4041],["Guatemala","Amatitlán",14.4535,-90.6119],["Guatemala","Chinautla",14.7273,-90.4976],["Guatemala","Chuarrancho",14.8532,-90.4725],["Guatemala","Fraijanes",14.4693,-90.4418],["Guatemala","Guatemala",14.6354,-90.4794],["Guatemala","Mixco",14.6408,-90.5873],["Guatemala","Palencia",14.6656,-90.3195],["Guatemala","Petapa",14.5072,-90.5555],["Guatemala","San José Del Golfo",14.7932,-90.3725],["Guatemala","San José Pinula",14.5543,-90.3464],["Guatemala","San Juan Sacatepéquez",14.7695,-90.6502],["Guatemala","San Pedro Ayampuc",14.7723,-90.4421],["Guatemala","San Pedro Sacatepéquez",14.6795,-90.6216],["Guatemala","San Raymundo",14.7818,-90.5597],["Guatemala","Santa Catarina Pinula",14.5644,-90.4651],["Guatemala","Villa Canales",14.3906,-90.5323],["Guatemala","Villa Nueva",14.5409,-90.6064],["Huehuetenango","Aguacatán",15.3658,-91.2734],["Huehuetenango","Barillas",15.9317,-91.2211],["Huehuetenango","Chiantla",15.5031,-91.4079],["Huehuetenango","Colotenango",15.4452,-91.7113],["Huehuetenango","Concepción Huista",15.6541,-91.6473],["Huehuetenango","Cuilco",15.4651,-91.9624],["Huehuetenango","Huehuetenango",15.315,-91.3876],["Huehuetenango","Jacaltenango",15.7531,-91.7332],["Huehuetenango","La Democracia",15.6233,-91.8758],["Huehuetenango","La Libertad",15.5647,-91.9117],["Huehuetenango","Malacatancito",15.2444,-91.4835],["Huehuetenango","Nentón",15.946,-91.6778],["Huehuetenango","Petatán",15.6197,-91.7292],["Huehuetenango","San Antonio Huista",15.6646,-91.7737],["Huehuetenango","San Gaspar Ixchil",15.3779,-91.7165],["Huehuetenango","San Ildefonso Ixtahuacán",15.415,-91.8049],["Huehuetenango","San Juan Atitán",15.4726,-91.6263],["Huehuetenango","San Juan Ixcoy",15.6494,-91.3863],["Huehuetenango","San Mateo Ixtatán",15.933,-91.4392],["Huehuetenango","San Miguel Acatán",15.7432,-91.6242],["Huehuetenango","San Pedro Necta",15.5278,-91.7556],["Huehuetenango","San Rafael La Independencia",15.7297,-91.5223],["Huehuetenango","San Rafael Pétzal",15.4072,-91.6726],["Huehuetenango","San Sebastián Coatán",15.8133,-91.5848],["Huehuetenango","San Sebastián Huehuetenango",15.4292,-91.5583],["Huehuetenango","Santa Ana Huista",15.7435,-91.849],["Huehuetenango","Santa Bárbara",15.3414,-91.6254],["Huehuetenango","Santa Eulalia",15.7507,-91.3254],["Huehuetenango","Santiago Chimaltenango",15.5083,-91.6852],["Huehuetenango","Soloma",15.7007,-91.4317],["Huehuetenango","Tectitán",15.3645,-92.0396],["Huehuetenango","Todos Santos Cuchumatán",15.5725,-91.585],["Huehuetenango","Unión Cantinil",15.5891,-91.7386],["Izabal","El Estor",15.4531,-89.3982],["Izabal","Livingston",15.7547,-89.0513],["Izabal","Los Amates",15.2694,-89.0613],["Izabal","Morales",15.4463,-88.7725],["Izabal","Puerto Barrios",15.7043,-88.4906],["Jalapa","Jalapa",14.6303,-90.0312],["Jalapa","Mataquescuintla",14.555,-90.2038],["Jalapa","Monjas",14.5115,-89.8984],["Jalapa","San Carlos Alzatate",14.4785,-90.0766],["Jalapa","San Luis Jilotepeque",14.6535,-89.7151],["Jalapa","San Manuel Chaparrón",14.5264,-89.7612],["Jalapa","San Pedro Pinula",14.7035,-89.8544],["Jutiapa","Agua Blanca",14.4582,-89.6],["Jutiapa","Asunción Mita",14.2989,-89.6674],["Jutiapa","Atescatempa",14.1751,-89.7272],["Jutiapa","Comapa",14.1156,-89.9115],["Jutiapa","Conguaco",14.0099,-90.0163],["Jutiapa","El Adelanto",14.175,-89.8531],["Jutiapa","El Progreso",14.3788,-89.8502],["Jutiapa","Jalpatagua",14.1143,-90.0098],["Jutiapa","Jerez",14.0767,-89.7619],["Jutiapa","Jutiapa",14.3116,-89.931],["Jutiapa","Moyuta",13.9105,-90.1256],["Jutiapa","Pasaco",13.9335,-90.2259],["Jutiapa","Quesada",14.2857,-90.0595],["Jutiapa","San José Acatempa",14.272,-90.1456],["Jutiapa","Santa Catarina Mita",14.4412,-89.7706],["Jutiapa","Yupiltepeque",14.1767,-89.7863],["Jutiapa","Zapotitlán",14.116,-89.8213],["Petén","Dolores",16.5798,-89.3599],["Petén","El Chal",16.5257,-89.7338],["Petén","Flores",17.37,-89.5346],["Petén","La Libertad",17.0299,-90.6431],["Petén","Las Cruces",16.8601,-90.8017],["Petén","Melchor De Mencos",17.3226,-89.2449],["Petén","Poptún",16.3333,-89.5472],["Petén","San Andrés",17.4895,-90.4051],["Petén","San Benito",16.9309,-90.072],["Petén","San Francisco",16.6474,-89.9781],["Petén","San José",17.4045,-89.8097],["Petén","San Luis",16.0993,-89.6054],["Petén","Santa Ana",16.8247,-89.5769],["Petén","Sayaxché",16.3057,-90.2221],["Quetzaltenango","Almolonga",14.8117,-91.4845],["Quetzaltenango","Cabricán",15.104,-91.6492],["Quetzaltenango","Cajolá",14.9351,-91.613],["Quetzaltenango","Cantel",14.8167,-91.4397],["Quetzaltenango","Coatepeque",14.6414,-91.9792],["Quetzaltenango","Colomba",14.7077,-91.7542],["Quetzaltenango","Concepción Chiquirichapa",14.8448,-91.6197],["Quetzaltenango","El Palmar",14.6987,-91.6082],["Quetzaltenango","Flores Costa Cuca",14.6333,-91.8634],["Quetzaltenango","Génova",14.5665,-91.8452],["Quetzaltenango","Huitán",15.0462,-91.6277],["Quetzaltenango","La Esperanza",14.8784,-91.5772],["Quetzaltenango","Olintepeque",14.8936,-91.536],["Quetzaltenango","Palestina De los Altos",14.9332,-91.6759],["Quetzaltenango","Quetzaltenango",14.8164,-91.5334],["Quetzaltenango","Salcajá",14.8777,-91.4625],["Quetzaltenango","San Carlos Sija",15.0776,-91.5689],["Quetzaltenango","San Francisco La Unión",14.9258,-91.5464],["Quetzaltenango","San Juan Ostuncalco",14.8724,-91.6898],["Quetzaltenango","San Martín Sacatepéquez",14.7952,-91.6644],["Quetzaltenango","San Mateo",14.8445,-91.5855],["Quetzaltenango","San Miguel Sigüilá",14.9032,-91.6025],["Quetzaltenango","Sibilia",14.9893,-91.6413],["Quetzaltenango","Zunil",14.745,-91.4961],["Quiché","Canillá",15.1962,-90.8641],["Quiché","Chajul",15.5893,-90.9928],["Quiché","Chicamán",15.4344,-90.6657],["Quiché","Chiché",15.0113,-91.0449],["Quiché","Chichicastenango",14.8971,-91.0921],["Quiché","Chinique",15.0727,-91.0221],["Quiché","Cunén",15.3661,-91.0182],["Quiché","Ixcán",15.9279,-90.8673],["Quiché","Joyabaj",14.9864,-90.8211],["Quiché","Nebaj",15.5624,-91.1733],["Quiché","Pachalum",14.9189,-90.6545],["Quiché","Patzité",14.9716,-91.1968],["Quiché","Sacapulas",15.2641,-91.1129],["Quiché","San Andrés Sajcabajá",15.243,-90.9417],["Quiché","San Antonio Ilotenango",15.0494,-91.2145],["Quiché","San Bartolomé Jocotenango",15.1845,-91.0336],["Quiché","San Juan Cotzal",15.4255,-91.0221],["Quiché","San Pedro Jocopilas",15.1606,-91.1661],["Quiché","Santa Cruz Del Quiché",15.0413,-91.1236],["Quiché","Uspantán",15.5041,-90.8192],["Quiché","Zacualpa",15.0933,-90.8852],["Retalhuleu","Champerico",14.3489,-91.8841],["Retalhuleu","El Asintal",14.5697,-91.7499],["Retalhuleu","Nuevo San Carlos",14.6261,-91.6918],["Retalhuleu","Retalhuleu",14.4393,-91.8702],["Retalhuleu","San Andrés Villa Seca",14.318,-91.6567],["Retalhuleu","San Felipe",14.6373,-91.5898],["Retalhuleu","San Martín Zapotitlán",14.6137,-91.5939],["Retalhuleu","San Sebastián",14.5666,-91.6495],["Retalhuleu","Santa Cruz Muluá",14.464,-91.6545],["Sacatepéquez","Alotenango",14.4595,-90.8197],["Sacatepéquez","Antigua Guatemala",14.5455,-90.7254],["Sacatepéquez","Ciudad Vieja",14.5064,-90.7735],["Sacatepéquez","Jocotenango",14.5887,-90.7339],["Sacatepéquez","Magdalena Milpas Altas",14.5433,-90.6775],["Sacatepéquez","Pastores",14.5982,-90.7715],["Sacatepéquez","San Antonio Aguas Calientes",14.5549,-90.7839],["Sacatepéquez","San Bartolomé Milpas Altas",14.6018,-90.6858],["Sacatepéquez","San Lucas Sacatepéquez",14.5981,-90.6485],["Sacatepéquez","San Miguel Dueñas",14.5278,-90.8324],["Sacatepéquez","Santa Catarina Barahona",14.5554,-90.8062],["Sacatepéquez","Santa Lucía Milpas Altas",14.5684,-90.6755],["Sacatepéquez","Santa María De Jesús",14.4759,-90.6989],["Sacatepéquez","Santiago Sacatepéquez",14.6411,-90.6814],["Sacatepéquez","Santo Domingo Xenacoj",14.6793,-90.7013],["Sacatepéquez","Sumpango",14.6579,-90.7455],["San Marcos","Ayutla",14.7285,-92.1302],["San Marcos","Catarina",14.8468,-92.07],["San Marcos","Comitancillo",15.1111,-91.7464],["San Marcos","Concepción Tutuapa",15.2904,-91.869],["San Marcos","El Quetzal",14.7717,-91.822],["San Marcos","El Rodeo",14.888,-91.9985],["San Marcos","El Tumbador",14.8477,-91.9473],["San Marcos","Esquipulas Palo Gordo",14.9259,-91.8459],["San Marcos","Ixchiguán",15.1438,-91.9155],["San Marcos","La Blanca",14.5536,-92.1198],["San Marcos","La Reforma",14.8104,-91.8375],["San Marcos","Malacatán",14.9191,-92.1062],["San Marcos","Nuevo Progreso",14.7934,-91.9075],["San Marcos","Ocós",14.5539,-92.1808],["San Marcos","Pajapita",14.7357,-92.0556],["San Marcos","Río Blanco",15.0414,-91.685],["San Marcos","San Antonio Sacatepéquez",14.9626,-91.7096],["San Marcos","San Cristóbal Cucho",14.8886,-91.7689],["San Marcos","San José Ojetenam",15.232,-91.9603],["San Marcos","San Lorenzo",15.0268,-91.7441],["San Marcos","San Marcos",15.0017,-91.8348],["San Marcos","San Miguel Ixtahuacán",15.2629,-91.7345],["San Marcos","San Pablo",14.9773,-91.9605],["San Marcos","San Pedro Sacatepéquez",14.9665,-91.7605],["San Marcos","San Rafael Pie De La Cuesta",14.9281,-91.9117],["San Marcos","Sibinal",15.1366,-92.0562],["San Marcos","Sipacapa",15.193,-91.6576],["San Marcos","Tacaná",15.2637,-92.1009],["San Marcos","Tajumulco",15.0624,-91.9706],["San Marcos","Tejutla",15.1585,-91.8305],["Santa Rosa","Barberena",14.3056,-90.4147],["Santa Rosa","Casillas",14.3896,-90.1664],["Santa Rosa","Chiquimulilla",13.973,-90.3348],["Santa Rosa","Cuilapa",14.2491,-90.2847],["Santa Rosa","Guazacapán",14.024,-90.43],["Santa Rosa","Nueva Santa Rosa",14.3717,-90.2724],["Santa Rosa","Oratorio",14.121,-90.1577],["Santa Rosa","Pueblo Nuevo Viñas",14.2173,-90.4977],["Santa Rosa","San Juan Tecuaco",14.072,-90.2689],["Santa Rosa","San Rafael Las Flores",14.4508,-90.1624],["Santa Rosa","Santa Cruz Naranjo",14.3816,-90.3761],["Santa Rosa","Santa María Ixhuatán",14.1447,-90.2579],["Santa Rosa","Santa Rosa De Lima",14.4429,-90.3372],["Santa Rosa","Taxisco",14.0341,-90.5474],["Sololá","Concepción",14.7823,-91.1351],["Sololá","Nahualá",14.7354,-91.42],["Sololá","Panajachel",14.7483,-91.1465],["Sololá","San Andrés Semetabaj",14.7453,-91.1013],["Sololá","San Antonio Palopó",14.6648,-91.1082],["Sololá","San José Chacayá",14.7712,-91.2284],["Sololá","San Juan La Laguna",14.6676,-91.3147],["Sololá","San Lucas Tolimán",14.5956,-91.1466],["Sololá","San Marcos La Laguna",14.736,-91.2599],["Sololá","San Pablo La Laguna",14.7298,-91.2807],["Sololá","San Pedro La Laguna",14.6453,-91.2778],["Sololá","Santa Catarina Ixtahuacán",14.7205,-91.3814],["Sololá","Santa Catarina Palopó",14.7188,-91.1306],["Sololá","Santa Clara La Laguna",14.7235,-91.3057],["Sololá","Santa Cruz La Laguna",14.7437,-91.2238],["Sololá","Santa Lucía Utatlán",14.7794,-91.2749],["Sololá","Santa María Visitación",14.7018,-91.3316],["Sololá","Santiago Atitlán",14.604,-91.2277],["Sololá","Sololá",14.8232,-91.181],["Suchitepéquez","Chicacao",14.4865,-91.3457],["Suchitepéquez","Cuyotenango",14.4883,-91.5641],["Suchitepéquez","Mazatenango",14.5079,-91.5249],["Suchitepéquez","Patulul",14.3803,-91.1764],["Suchitepéquez","Pueblo Nuevo",14.6611,-91.5279],["Suchitepéquez","Río Bravo",14.3786,-91.3331],["Suchitepéquez","Samayac",14.5726,-91.4698],["Suchitepéquez","San Antonio Suchitepéquez",14.5173,-91.409],["Suchitepéquez","San Bernardino",14.5303,-91.4542],["Suchitepéquez","San Francisco Zapotitlán",14.6171,-91.5195],["Suchitepéquez","San Gabriel",14.5077,-91.5144],["Suchitepéquez","San José El Ídolo",14.3823,-91.4373],["Suchitepéquez","San José La Máquina",14.2837,-91.583],["Suchitepéquez","San Juan Bautista",14.4284,-91.1989],["Suchitepéquez","San Lorenzo",14.2194,-91.5565],["Suchitepéquez","San Miguel Panán",14.5061,-91.3596],["Suchitepéquez","San Pablo Jocopilas",14.5918,-91.4312],["Suchitepéquez","Santa Bárbara",14.4744,-91.2467],["Suchitepéquez","Santo Domingo Suchitepéquez",14.2968,-91.4931],["Suchitepéquez","Santo Tomás La Unión",14.6236,-91.4121],["Suchitepéquez","Zunilito",14.6312,-91.4986],["Totonicapán","Momostenango",15.0888,-91.4172],["Totonicapán","San Andrés Xecul",14.9106,-91.4974],["Totonicapán","San Bartolo Aguas Calientes",15.1171,-91.4609],["Totonicapán","San Cristóbal Totonicapán",14.9258,-91.4725],["Totonicapán","San Francisco El Alto",14.9698,-91.4774],["Totonicapán","Santa Lucía La Reforma",15.1512,-91.2785],["Totonicapán","Santa María Chiquimula",15.0135,-91.3172],["Totonicapán","Totonicapán",14.898,-91.3211],["Zacapa","Cabañas",14.8851,-89.7766],["Zacapa","Estanzuela",14.9792,-89.6128],["Zacapa","Gualán",15.1468,-89.3024],["Zacapa","Huité",14.9182,-89.6977],["Zacapa","La Unión",14.9552,-89.2781],["Zacapa","Río Hondo",15.0985,-89.6003],["Zacapa","San Diego",14.798,-89.7601],["Zacapa","San Jorge",14.9093,-89.6036],["Zacapa","Teculután",15.0796,-89.7826],["Zacapa","Usumatlán",14.9947,-89.8004],["Zacapa","Zacapa",14.9774,-89.4612]];   // [departamento, municipio, lat, lon]
 const PLACE_PARAMS = 'T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR,WS2M_MAX,ALLSKY_SFC_SW_DWN';
@@ -3091,8 +3084,7 @@ function renderExtView(){
     ['Temp. máxima', s.tmax+'°C'], ['Temp. promedio', s.tavg+'°C'], ['Temp. mínima', s.tmin+'°C'],
     ['Días con T máx ≥ 35°C', s.hot], ['Humedad promedio', s.havg+(s.havg==='—'?'':'%')],
     ['Lluvia total', s.rain+' mm'], ['Días con lluvia', `${s.dRain} de ${cOur.length}`],
-    ['Viento prom. máx', s.wmax+(s.wmax==='—'?'':' km/h')], [`GDU acumulados (base ${tbase}, tope ${ttop}°C)`, s.gdu],
-    ['Registros', s.n.toLocaleString('es-GT')]
+    ['Viento prom. máx', s.wmax+(s.wmax==='—'?'':' km/h')], [`GDU acumulados (base ${tbase}, tope ${ttop}°C)`, s.gdu]
   ].map(([l,v])=>`<div class="cmp-stat"><span class="lbl">${l}</span><span class="val">${v}</span></div>`).join('');
   $('ext-stats-our').innerHTML = card(So); $('ext-stats-ext').innerHTML = card(Se);
 
@@ -3147,11 +3139,6 @@ function renderExtView(){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('relleno-toggle').addEventListener('change', () => {
-    if (!MAIN_ROWS_RAW.length) return;
-    KEEP_STATION = CUR_STATION;
-    buildFromRows(mergedRows(), 'sheets');
-  });
 });
 document.addEventListener('DOMContentLoaded', () => {
   const dz = document.getElementById('ext-drop'), fi = document.getElementById('ext-file');
@@ -3252,13 +3239,9 @@ function hideNoData(){
 }
 
 let MAIN_ROWS_RAW = [], RELLENO_ROWS = [];
-function rellenoOn(){ const t = document.getElementById('relleno-toggle'); return !t || t.checked; }
+function rellenoOn(){ return true; }   // el relleno estimado se incluye siempre
 function mergedRows(){ return rellenoOn() ? MAIN_ROWS_RAW.concat(RELLENO_ROWS) : MAIN_ROWS_RAW; }
-function updateRellenoUI(){
-  const w = document.getElementById('relleno-wrap');
-  w.style.display = RELLENO_ROWS.length ? 'inline-flex' : 'none';
-  document.getElementById('relleno-n').textContent = RELLENO_ROWS.length;
-}
+function updateRellenoUI(){}
 function loadFromSheets(){
   // Primero "Datos"; después (sin bloquear) la pestaña de relleno.
   let main = null, rell = null, done = false;
