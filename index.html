@@ -935,22 +935,23 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
   <div id="cuartos-content" style="display:none">
     <div class="kpi-grid" id="cuartos-kpi-grid">
-      <div class="kpi"><div class="kl">&Uacute;ltima lectura</div>
-        <div class="kv" id="ck-last-temp" style="color:var(--coral)">—</div>
-        <div class="ks" id="ck-last-ts">—</div>
-        <div class="ks" id="ck-fresh" style="margin-top:2px">—</div></div>
       <div class="kpi"><div class="kl">Humedad actual</div>
         <div class="kv" id="ck-last-hum" style="color:var(--blue)">—</div>
-        <div class="ks">&uacute;ltima lectura</div></div>
-      <div class="kpi"><div class="kl">Punto de roc&iacute;o</div>
-        <div class="kv" id="ck-dewpoint" style="color:var(--steel)">—</div>
-        <div class="ks" id="ck-dew-spread">—</div></div>
-      <div class="kpi"><div class="kl">Temp. m&iacute;n / m&aacute;x</div>
-        <div class="kv" id="ck-minmax-temp" style="color:var(--navy);font-size:18px">—</div>
-        <div class="ks" id="ck-range">del per&iacute;odo mostrado</div></div>
+        <div class="ks" id="ck-last-ts">—</div>
+        <div class="ks" id="ck-fresh" style="margin-top:2px">—</div></div>
+      <div class="kpi"><div class="kl">Humedad m&iacute;n / m&aacute;x</div>
+        <div class="kv" id="ck-minmax-hum" style="color:var(--blue);font-size:18px">—</div>
+        <div class="ks" id="ck-hum-avg">del per&iacute;odo mostrado</div></div>
       <div class="kpi"><div class="kl">Humedad de equilibrio del grano</div>
         <div class="kv" id="ck-emc" style="color:var(--teal)">—</div>
         <div class="ks" id="ck-emc-s">meta 11–12.5%</div></div>
+      <div class="kpi"><div class="kl">Punto de roc&iacute;o</div>
+        <div class="kv" id="ck-dewpoint" style="color:var(--steel);font-size:18px">—</div>
+        <div class="ks" id="ck-dew-spread">—</div></div>
+      <div class="kpi"><div class="kl">Temperatura</div>
+        <div class="kv" id="ck-last-temp" style="color:var(--navy);font-size:18px">—</div>
+        <div class="ks" id="ck-minmax-temp">—</div>
+        <div class="ks" id="ck-range">del per&iacute;odo mostrado</div></div>
       <div class="kpi th-only"><div class="kl">Alertas activas</div>
         <div class="kv" id="ck-alert-count" style="color:var(--coral)">—</div>
         <div class="ks" id="ck-alert-note">fuera de umbral</div></div>
@@ -962,10 +963,10 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
     <div class="panels r1"><div class="panel">
       <div class="ph">
-        <span class="pt" id="cuartos-serie-title">&#128202; Serie temporal &mdash; Temperatura y Humedad</span>
+        <span class="pt" id="cuartos-serie-title">&#128202; Serie temporal &mdash; Humedad y temperatura</span>
         <div class="leg">
-          <span class="li"><span class="ll" style="background:#E05A2B"></span>Temperatura (°C)</span>
-          <span class="li"><span class="ld" style="border-color:#1F7FDF"></span>Humedad %</span>
+          <span class="li"><span class="ll" style="background:#1F7FDF"></span>Humedad %</span>
+          <span class="li"><span class="ld" style="border-color:#E05A2B"></span>Temperatura (°C)</span>
         </div>
       </div>
       <p class="hint" id="cuartos-threshold-note" style="font-size:11px;color:var(--muted);margin-bottom:8px"></p>
@@ -974,12 +975,12 @@ footer{text-align:center;font-size:11px;color:var(--sub);
 
     <div class="panels r2">
       <div class="panel">
-        <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
-        <div style="position:relative;height:200px"><canvas id="cCuartosDailyTemp"></canvas></div>
-      </div>
-      <div class="panel">
         <div class="ph"><span class="pt">&#128167; Humedad diaria &mdash; rango y promedio</span></div>
         <div style="position:relative;height:200px"><canvas id="cCuartosDailyHum"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">&#127777; Temperatura diaria &mdash; rango y promedio</span></div>
+        <div style="position:relative;height:200px"><canvas id="cCuartosDailyTemp"></canvas></div>
       </div>
     </div>
 
@@ -3744,7 +3745,7 @@ document.addEventListener('DOMContentLoaded', () => {
           body: JSON.stringify({ sheet:'Datos_Cuartos', probe:true }) })).json();
       } catch (e) {}
       if (!pr || !pr.cuartos) {
-        wd3Log('El Apps Script todavía no acepta datos del Thermo-Hygrometer. Falta agregarle la función appendCuartos y publicar una nueva versión (ver GoogleAppsScript-Cuartos.gs). No se subió nada.', 'err');
+        wd3Log('El Apps Script todavía no acepta datos del Thermo-Hygrometer. Hay que pegar el Code.gs actualizado en el archivo Code y publicar una NUEVA VERSIÓN de "Estacion v1" (Implementar → Administrar implementaciones → lápiz → Nueva versión). No se subió nada.', 'err');
         btn.disabled = false;
         return;
       }
@@ -4117,7 +4118,7 @@ function renderCuartos() {
     : 'Sin umbrales de alerta para CE (por ahora solo aplican a los Cuartos Fríos). La humedad de equilibrio del grano se muestra como referencia frente a la meta de secado.';
 
   const last = D[D.length - 1];
-  document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;
+  document.getElementById('ck-last-temp').textContent = `${last.temp}°C`;   // última lectura
   document.getElementById('ck-last-hum').textContent  = `${last.hum}%`;
   document.getElementById('ck-last-ts').textContent   = new Date(last.ts).toLocaleString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
@@ -4145,7 +4146,10 @@ function renderCuartos() {
   }
 
   const temps = D.map(r => r.temp);
-  document.getElementById('ck-minmax-temp').textContent = `${Math.min(...temps).toFixed(1)} / ${Math.max(...temps).toFixed(1)}°C`;
+  document.getElementById('ck-minmax-temp').textContent = `mín ${Math.min(...temps).toFixed(1)} / máx ${Math.max(...temps).toFixed(1)}°C`;
+  const hums = D.map(r => r.hum).filter(v => v != null && !isNaN(v));
+  document.getElementById('ck-minmax-hum').textContent = hums.length ? `${Math.min(...hums).toFixed(0)} / ${Math.max(...hums).toFixed(0)}%` : '—';
+  document.getElementById('ck-hum-avg').textContent = hums.length ? `promedio ${(hums.reduce((a,b)=>a+b,0)/hums.length).toFixed(0)}% del período` : 'del período mostrado';
   document.getElementById('ck-range').textContent =
     `${new Date(D[0].ts).toLocaleDateString('es-GT')} – ${new Date(last.ts).toLocaleDateString('es-GT')}`;
 
@@ -4182,10 +4186,10 @@ function renderCuartos() {
     data: {
       labels,
       datasets: [
-        { type:'line', label:'Temperatura (°C)', data:D.map(r=>r.temp), borderColor:'#E05A2B',
-          backgroundColor:'#E05A2B', yAxisID:'y', pointRadius:0, borderWidth:1.5, tension:.2 },
         { type:'line', label:'Humedad %', data:D.map(r=>r.hum), borderColor:'#1F7FDF',
-          backgroundColor:'#1F7FDF', yAxisID:'y1', pointRadius:0, borderWidth:1.5, borderDash:[4,3], tension:.2 }
+          backgroundColor:'#1F7FDF', yAxisID:'y', pointRadius:0, borderWidth:2, tension:.2 },
+        { type:'line', label:'Temperatura (°C)', data:D.map(r=>r.temp), borderColor:'#E05A2B',
+          backgroundColor:'#E05A2B', yAxisID:'y1', pointRadius:0, borderWidth:1.2, borderDash:[4,3], tension:.2 }
       ]
     },
     options: {
@@ -4194,8 +4198,8 @@ function renderCuartos() {
       plugins:{ legend:{display:false} },
       scales:{
         x:{ ticks:{ maxTicksLimit:10, font:{size:10} }, grid:{display:false} },
-        y:{ position:'left', title:{display:true,text:'°C'}, ticks:{font:{size:10}} },
-        y1:{ position:'right', title:{display:true,text:'%HR'}, grid:{drawOnChartArea:false}, ticks:{font:{size:10}} }
+        y:{ position:'left', title:{display:true,text:'%HR'}, ticks:{font:{size:10}} },
+        y1:{ position:'right', title:{display:true,text:'°C'}, grid:{drawOnChartArea:false}, ticks:{font:{size:10}} }
       }
     }
   });
