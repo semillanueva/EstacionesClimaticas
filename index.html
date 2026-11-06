@@ -3070,35 +3070,44 @@ const repTxt = t => String(t ?? '').replace(/✓\s*/g,'').replace(/≈\s*/g,'apr
 const tsToISO = ts => { const d = new Date(ts); return isoDay(d); };
 const isoToKey = iso => iso.split('-').reverse().join('/');
 
+function repSyncCropUI(){
+  const $ = id => document.getElementById(id), none = $('rcrop-type').value === 'none';
+  $('rep-gdu-box').style.visibility = none ? 'hidden' : 'visible';
+  $('rep-from-lbl').textContent = none ? 'Desde' : 'Fecha de siembra';
+  $('rep-help').innerHTML = none
+    ? 'El reporte incluye el clima del período elegido (resumen, gráficas y tabla), sin ciclo de cultivo.'
+    : 'El reporte cubre desde la siembra hasta la cosecha (o hasta la fecha de hoy si el cultivo sigue en campo): clima del período y avance del cultivo en esas mismas fechas. No cambia lo que está configurado en la pestaña Cultivo.';
+}
 function openReport(kind){
   const $ = id => document.getElementById(id);
   $('rep-msg').textContent = '';
-  let src, from = '', to = '', sow = '', cropOk = false;
+  let src, from = '', to = '', pf;
   if (kind === 'station') {
     if (CUR_STATION !== 'CE' && CUR_STATION !== 'Ovejero') { alert('Elija la pestaña CE u Ovejero para descargar el reporte de una estación.'); return; }
     const D = (LAST_STATION_ROWS && LAST_STATION_ROWS.length) ? aggregateByDay(LAST_STATION_ROWS) : [];
     if (!D.length) { alert('No hay datos de esta estación.'); return; }
     src = CUR_STATION === 'CE' ? 'Estación CE — Centro Experimental, Suchitepéquez (datos medidos)' : 'Estación Ovejero — Jutiapa (datos medidos)';
     const firstISO = tsToISO(parseDiaKey(D[0].key)), lastISO = tsToISO(parseDiaKey(D[D.length-1].key));
-    sow = $('crop-date').value; cropOk = !!(sow && CROP_LAST['']);
-    from = cropOk ? sow : (CUR_FROM || firstISO);
-    const C = CROP_LAST[''];
+    pf = 'crop-';
+    from = $('crop-date').value || CUR_FROM || firstISO;
     to = CUR_TO || lastISO;
-    if (cropOk && C && C.days.length) { const lastCrop = tsToISO(C.days[C.days.length-1].ts); if (!CUR_TO) to = lastCrop; }
     REP_CTX = { kind, station: CUR_STATION, firstISO, lastISO };
   } else {
     if (!PLACE_DATA) { alert('Primero consulte un lugar.'); return; }
     src = `Red regional — ${PLACE_DATA.place.name} (datos estimados de NASA POWER)`;
-    sow = $('pcrop-date').value; cropOk = !!(sow && CROP_LAST['p']);
-    from = cropOk ? sow : PLACE_DATA.per.from;
+    pf = 'pcrop-';
+    from = $('pcrop-date').value || PLACE_DATA.per.from;
     to = PLACE_DATA.per.to;
-    if (cropOk && CROP_LAST['p'].days.length) to = tsToISO(CROP_LAST['p'].days[CROP_LAST['p'].days.length-1].ts);
     REP_CTX = { kind, place: { ...PLACE_DATA.place } };
   }
+  if (to < from) to = from;
+  // Se proponen los valores del panel de Cultivo, pero aquí se pueden cambiar sin tocarlo
+  $('rcrop-type').value = $(pf + 'type').value || 'maiz';
+  $('rcrop-flor').value = $(pf + 'flor').value || CROP_PRESETS[$('rcrop-type').value].flor;
+  $('rcrop-mad').value  = $(pf + 'mad').value  || CROP_PRESETS[$('rcrop-type').value].mad;
   $('rep-src').textContent = src;
-  $('rep-from').value = from; $('rep-to').value = to;
-  $('rep-crop').checked = cropOk; $('rep-crop').disabled = !cropOk;
-  $('rep-crop-lbl').textContent = cropOk ? `Incluir ciclo de cultivo (siembra ${isoToKey(sow)})` : 'Ciclo de cultivo: ingrese antes la fecha de siembra en el panel';
+  $('rcrop-date').value = from; $('rep-to').value = to;
+  repSyncCropUI();
   $('rep-modal').style.display = 'flex';
   setTimeout(() => $('rep-name').focus(), 50);
 }
@@ -3117,7 +3126,7 @@ function nasaRange(place, fromISO, toISO){
     const H = {}, T = jh && jh.properties && jh.properties.parameter && jh.properties.parameter.T2M;
     if (T) Object.keys(T).forEach(k => { const x = T[k]; if (x == null || x <= -998) return; (H[k.slice(0,8)] = H[k.slice(0,8)] || []).push(x); });
     return { hourly: !!T, days: Object.keys(P.T2M_MAX || {}).sort().map(d => ({
-      key:`${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, y:+d.slice(0,4), m:+d.slice(4,6), d:+d.slice(6,8),
+      key:`${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, dia:`${d.slice(6,8)}/${d.slice(4,6)}`, y:+d.slice(0,4), m:+d.slice(4,6), d:+d.slice(6,8),
       tmax:v('T2M_MAX',d), tmin:v('T2M_MIN',d), tavg:v('T2M',d), havg:v('RH2M',d), rain:v('PRECTOTCORR',d) ?? 0,
       tArr:H[d] || [], hArr:[], step:60 })).filter(x => x.tmax != null && x.tmin != null) };
   });
@@ -3155,14 +3164,16 @@ const repLegend = { display:true, position:'top', align:'end', labels:{ font:{si
 
 function generateReport(){
   const $ = id => document.getElementById(id);
-  const name = $('rep-name').value.trim(), fromISO = $('rep-from').value, toISO = $('rep-to').value;
-  if (!fromISO || !toISO) { $('rep-msg').textContent = 'Elija las fechas desde y hasta.'; return; }
-  if (fromISO > toISO) { $('rep-msg').textContent = 'La fecha "desde" es posterior a "hasta".'; return; }
-  const withCrop = $('rep-crop').checked && !$('rep-crop').disabled, withTable = $('rep-table').checked;
+  const name = $('rep-name').value.trim(), fromISO = $('rcrop-date').value, toISO = $('rep-to').value;
+  const withCrop = $('rcrop-type').value !== 'none', withTable = $('rep-table').checked;
+  if (!fromISO || !toISO) { $('rep-msg').textContent = withCrop ? 'Elija la fecha de siembra y la de cosecha (o hasta hoy).' : 'Elija las fechas desde y hasta.'; return; }
+  if (fromISO > toISO) { $('rep-msg').textContent = withCrop ? 'La fecha de siembra es posterior a la de cosecha.' : 'La fecha "desde" es posterior a "hasta".'; return; }
   const btn = $('rep-go'); btn.disabled = true; btn.textContent = 'Generando…'; $('rep-msg').textContent = '';
   const done = () => { btn.disabled = false; btn.textContent = 'Generar PDF'; };
   Promise.all([repLoadLibs(), repDays(fromISO, toISO)]).then(([, R]) => {
     if (!R.days.length) { $('rep-msg').textContent = 'No hay datos en ese período.'; done(); return; }
+    if (withCrop) cropEngine({ pfx:'r', Dall:R.days, lat:R.lat, tbase:R.tbase, ttop:R.ttop, hotThr:R.hot,
+      srcLbl: REP_CTX.kind === 'station' ? 'esta estación' : 'NASA POWER para este lugar', noteStart:'' });
     buildReportPdf({ name, fromISO, toISO, withCrop, withTable, R });
     $('rep-modal').style.display = 'none'; done();
   }).catch(err => { $('rep-msg').textContent = 'No se pudo generar el reporte (' + err.message + '). Revise la conexión e intente de nuevo.'; done(); });
@@ -3246,9 +3257,9 @@ function buildReportPdf({ name, fromISO, toISO, withCrop, withTable, R }){
     columnStyles:{ 0:{ cellWidth:52, fontStyle:'bold' }, 1:{ cellWidth:32 } } });
 
   // ── 2. Ciclo de cultivo ──
-  const pfx = station ? '' : 'p', C = CROP_LAST[pfx];
+  const pfx = 'r', C = CROP_LAST[pfx];
   if (withCrop && C && C.days.length) {
-    h2(`Ciclo de cultivo — ${C.label}, siembra ${fmtDate(C.sowTS)}`);
+    h2(`Ciclo de cultivo — ${C.label}, siembra ${fmtDate(C.sowTS)} a ${fK(toISO)}`);
     const g = id => repTxt(document.getElementById(pfx + id)?.textContent || '—').replace(/\s+/g,' ').trim();
     const cards = [
       ['Días desde siembra','cr-days','cr-days-s'], ['GDU acumulados','cr-gdu','cr-gdu-s'], ['Etapa actual','cr-stage','cr-stage-s'],
@@ -3345,6 +3356,11 @@ function repInitUI(){
   document.getElementById('rep-cancel').addEventListener('click', () => { document.getElementById('rep-modal').style.display = 'none'; });
   document.getElementById('rep-modal').addEventListener('click', e => { if (e.target.id === 'rep-modal') e.target.style.display = 'none'; });
   document.getElementById('rep-go').addEventListener('click', generateReport);
+  document.getElementById('rcrop-type').addEventListener('change', e => {
+    if (e.target.value !== 'none') { const P = CROP_PRESETS[e.target.value];
+      document.getElementById('rcrop-flor').value = P.flor; document.getElementById('rcrop-mad').value = P.mad; }
+    repSyncCropUI();
+  });
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', repInitUI); else repInitUI();
 
@@ -4856,10 +4872,20 @@ function renderCuartos() {
     <label class="rl" for="rep-name">Ensayo / nursery</label>
     <input type="text" id="rep-name" placeholder="Ej.: Vivero F1 2026B">
     <div class="rep-row">
-      <div><label class="rl" for="rep-from">Desde</label><input type="date" id="rep-from"></div>
-      <div><label class="rl" for="rep-to">Hasta</label><input type="date" id="rep-to"></div>
+      <div><label class="rl" for="rcrop-date" id="rep-from-lbl">Fecha de siembra</label><input type="date" id="rcrop-date"></div>
+      <div><label class="rl" for="rep-to">Cosecha o hasta hoy</label><input type="date" id="rep-to"></div>
     </div>
-    <label class="rep-chk"><input type="checkbox" id="rep-crop" checked> <span id="rep-crop-lbl">Incluir ciclo de cultivo</span></label>
+    <div class="rep-row">
+      <div><label class="rl" for="rcrop-type">Cultivo</label>
+        <select id="rcrop-type" class="inl-sel" style="width:100%;padding:7px 10px">
+          <option value="maiz">Ma&iacute;z</option><option value="frijol">Frijol</option>
+          <option value="none">Ninguno (solo datos de clima)</option>
+        </select></div>
+      <div id="rep-gdu-box"><label class="rl">GDU a floraci&oacute;n / madurez</label>
+        <span style="display:flex;gap:6px"><input type="number" id="rcrop-flor" class="inl-num" style="width:100%;padding:7px 8px;font-size:12px" step="10" min="100">
+        <input type="number" id="rcrop-mad" class="inl-num" style="width:100%;padding:7px 8px;font-size:12px" step="10" min="200"></span></div>
+    </div>
+    <div class="rep-sub" style="margin:10px 0 0" id="rep-help">El reporte cubre desde la siembra hasta la cosecha (o hasta la fecha de hoy si el cultivo sigue en campo): clima del per&iacute;odo y avance del cultivo en esas mismas fechas. No cambia lo que est&aacute; configurado en la pesta&ntilde;a Cultivo.</div>
     <label class="rep-chk"><input type="checkbox" id="rep-table" checked> Incluir tabla de datos diarios</label>
     <div class="rep-msg" id="rep-msg"></div>
     <div class="rep-actions">
@@ -4867,6 +4893,59 @@ function renderCuartos() {
       <button class="rep-btn" id="rep-go">Generar PDF</button>
     </div>
   </div>
+</div>
+<!-- Resultados del ciclo de cultivo para el reporte (no se muestran) -->
+<div id="rep-crop-host" style="position:fixed;left:-10000px;top:0;width:1200px" aria-hidden="true">
+      <p id="rcrop-empty" style="font-size:12px;color:var(--muted);text-align:center;padding:22px 10px">
+        Eleg&iacute; la fecha de siembra para ver el avance del cultivo y su consumo de agua.
+      </p>
+      <div id="rcrop-body" style="display:none">
+        <div class="dry-stats">
+          <div class="dry-box"><div class="l">D&iacute;as desde siembra</div><div class="v" id="rcr-days">&mdash;</div><div class="s" id="rcr-days-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">GDU acumulados</div><div class="v" id="rcr-gdu">&mdash;</div><div class="s" id="rcr-gdu-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Etapa actual</div><div class="v" id="rcr-stage" style="font-size:16px">&mdash;</div><div class="s" id="rcr-stage-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Floraci&oacute;n</div><div class="v" id="rcr-flor" style="font-size:16px">&mdash;</div><div class="s" id="rcr-flor-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Madurez</div><div class="v" id="rcr-mad" style="font-size:16px">&mdash;</div><div class="s" id="rcr-mad-s">&mdash;</div></div>
+        </div>
+        <div class="dry-stats">
+          <div class="dry-box"><div class="l">Lluvia desde siembra</div><div class="v" id="rcr-rain" style="color:var(--steel)">&mdash;</div><div class="s">total</div></div>
+          <div class="dry-box"><div class="l">Consumo del cultivo (ETc)</div><div class="v" id="rcr-etc" style="color:#C98A1C">&mdash;</div><div class="s" id="rcr-etc-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance del ciclo</div><div class="v" id="rcr-bal">&mdash;</div><div class="s" id="rcr-bal-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance en floraci&oacute;n / llenado</div><div class="v" id="rcr-balmid">&mdash;</div><div class="s" id="rcr-balmid-s">etapa m&aacute;s sensible al agua</div></div>
+          <div class="dry-box"><div class="l">Calor en floraci&oacute;n / llenado</div><div class="v" id="rcr-hot">&mdash;</div><div class="s" id="rcr-hot-s">horas sobre el umbral de estr&eacute;s</div></div>
+        </div>
+        <div class="panels r2" style="margin-bottom:0">
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Agua: lluvia vs. consumo del cultivo</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:rgba(46,134,171,.8);height:8px"></span>Lluvia</span>
+                <span class="li"><span class="ll" style="background:rgba(232,168,56,.8);height:8px"></span>ETc</span>
+                <span class="li"><span class="ll" style="background:#1D3461"></span>Balance acum.</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="rcCropWater"></canvas></div>
+          </div>
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Desarrollo: GDU acumulados y Kc</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:#1A9E72"></span>GDU</span>
+                <span class="li"><span class="ld" style="border-color:#1A9E72"></span>Proyecci&oacute;n</span>
+                <span class="li"><span class="ll" style="background:#E8A838"></span>Kc</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="rcCropGDU"></canvas></div>
+          </div>
+        </div>
+        <div class="leg" style="margin-top:8px">
+          <span class="li"><span class="ll" style="background:rgba(46,134,171,.12);height:8px"></span>Inicial</span>
+          <span class="li"><span class="ll" style="background:rgba(26,158,114,.12);height:8px"></span>Desarrollo</span>
+          <span class="li"><span class="ll" style="background:rgba(232,168,56,.18);height:8px"></span>Floraci&oacute;n / llenado</span>
+          <span class="li"><span class="ll" style="background:rgba(224,90,43,.10);height:8px"></span>Maduraci&oacute;n</span>
+        </div>
+        <p id="rcrop-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
+      </div>
 </div>
 <div id="rep-canvas-host" style="position:fixed;left:-10000px;top:0;width:1600px"></div>
 </body>
