@@ -64,6 +64,24 @@ nav{background:var(--navy);color:#fff;padding:14px 20px;display:flex;
 .filter-clear{font-size:11px;color:var(--blue);cursor:pointer;background:none;border:none;
   text-decoration:underline;font-family:inherit;display:none}
 
+/* REPORTE PDF */
+.rep-btn{font-size:11px;font-weight:600;color:#fff;background:var(--navy);border:none;border-radius:6px;
+  padding:6px 12px;cursor:pointer;font-family:inherit;white-space:nowrap}
+.rep-btn:hover{opacity:.9}
+.filter-bar .rep-btn{margin-left:auto}
+#rep-modal{position:fixed;inset:0;background:rgba(20,28,45,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px}
+#rep-modal .rep-card{background:#fff;border-radius:12px;max-width:440px;width:100%;padding:20px 22px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+#rep-modal h3{font-size:15px;color:var(--navy);margin-bottom:4px}
+#rep-modal .rep-sub{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+#rep-modal label.rl{display:block;font-size:11px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+#rep-modal input[type=text],#rep-modal input[type=date]{width:100%;padding:7px 10px;border:1px solid var(--brd);border-radius:6px;font-size:12px;font-family:inherit}
+#rep-modal .rep-row{display:flex;gap:10px}
+#rep-modal .rep-row>div{flex:1}
+#rep-modal .rep-chk{display:flex;gap:8px;align-items:center;font-size:12px;margin-top:8px;color:var(--txt)}
+#rep-modal .rep-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+#rep-modal .rep-cancel{background:none;border:1px solid var(--brd);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit}
+#rep-modal .rep-msg{font-size:11px;color:var(--coral);margin-top:10px;min-height:14px}
+
 /* LOADING / PICKER */
 #loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:14px}
 .spinner{width:42px;height:42px;border:4px solid var(--brd);border-top-color:var(--navy);
@@ -292,6 +310,7 @@ footer{text-align:center;font-size:11px;color:var(--sub);
   <span class="fl">Hasta</span>
   <input type="date" id="filter-to">
   <button class="filter-clear" id="filter-clear">Quitar filtro</button>
+  <button class="rep-btn" id="btn-report" title="Reporte en PDF para adjuntar al informe del ensayo o nursery">&#128196; Descargar reporte PDF</button>
 </div>
 
 <!-- Loading / Picker -->
@@ -791,7 +810,8 @@ footer{text-align:center;font-size:11px;color:var(--sub);
     <div id="pl-result" style="display:none">
       <div class="panel" style="margin-bottom:16px">
         <div class="ph"><span class="pt" id="pl-title">&mdash;</span>
-          <button id="pl-csv" class="inl-sel" style="cursor:pointer">&#11015; Descargar CSV</button></div>
+          <span style="display:flex;gap:6px;flex-wrap:wrap"><button id="pl-csv" class="inl-sel" style="cursor:pointer">&#11015; Descargar CSV</button>
+          <button id="pl-report" class="rep-btn">&#128196; Descargar reporte PDF</button></span></div>
         <p style="font-size:11px;color:var(--muted);line-height:1.7" id="pl-meta">&mdash;</p>
       </div>
       <div class="pl-kpis" id="pl-kpis"></div>
@@ -2246,7 +2266,9 @@ function renderCropCycle(stationRows){
 // Motor común: nuestras estaciones (pfx '') y Red regional con NASA POWER (pfx 'p').
 // Cada día de Dall necesita: key 'DD/MM/AAAA', dia (etiqueta), tmin, tmax, rain,
 // y tArr/step para las horas de calor (lecturas del día y minutos entre ellas).
+const CROP_LAST = {};
 function cropEngine(o){
+  CROP_LAST[o.pfx] = null;
   const $ = id => document.getElementById(o.pfx + id);
   const cid = id => o.pfx + id;
   [cid('cCropWater'),cid('cCropGDU')].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
@@ -2442,6 +2464,7 @@ function cropEngine(o){
   if(midDays && noHourly) notes.push(`⚠ ${noHourly} día(s) de floración/llenado sin datos por hora: no sumaron horas de calor.`);
   if(o.extraNotes) notes.push(...o.extraNotes);
   $('crop-note').textContent = notes.join(' ');
+  CROP_LAST[o.pfx] = { days, projDays, flor, mad, label:P.label, sowTS, B, P, notes };
 }
 
 // ── Horas sobre/bajo un umbral, a partir de las lecturas del día ────
@@ -3021,6 +3044,309 @@ function renderPlaceCrop(){
     extraNotes: extra
   });
 }
+
+// ════════════════════════════════════════════════════════════════════
+// REPORTE PDF POR ENSAYO / NURSERY
+// Arma un PDF con el resumen, el ciclo de cultivo, las gráficas y la tabla
+// diaria del período elegido, para adjuntar al informe final del ensayo.
+// Funciona para CE, Ovejero (datos medidos) y Red regional (NASA POWER).
+// jsPDF y jsPDF-AutoTable se cargan solo la primera vez que se usa.
+// ════════════════════════════════════════════════════════════════════
+const REP_LIBS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'
+];
+let REP_LIBS_P = null, REP_CTX = null;
+function repLoadLibs(){
+  if (window.jspdf && window.jspdf.jsPDF && window.jspdf.jsPDF.API.autoTable) return Promise.resolve();
+  if (REP_LIBS_P) return REP_LIBS_P;
+  const load = src => new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error('No se pudo cargar ' + src.split('/').pop())); document.head.appendChild(sc); });
+  REP_LIBS_P = load(REP_LIBS[0]).then(() => load(REP_LIBS[1])).catch(e => { REP_LIBS_P = null; throw e; });
+  return REP_LIBS_P;
+}
+// La fuente estándar del PDF no tiene algunos símbolos: se cambian por texto.
+const repTxt = t => String(t ?? '').replace(/✓\s*/g,'').replace(/≈\s*/g,'aprox. ').replace(/≥/g,'>=').replace(/≤/g,'<=')
+  .replace(/₀/g,'0').replace(/[−–]/g,'-').replace(/—/g,'-').replace(/⚠\s*/g,'').replace(/[^\x00-\xFF]/g,'');
+const tsToISO = ts => { const d = new Date(ts); return isoDay(d); };
+const isoToKey = iso => iso.split('-').reverse().join('/');
+
+function openReport(kind){
+  const $ = id => document.getElementById(id);
+  $('rep-msg').textContent = '';
+  let src, from = '', to = '', sow = '', cropOk = false;
+  if (kind === 'station') {
+    if (CUR_STATION !== 'CE' && CUR_STATION !== 'Ovejero') { alert('Elija la pestaña CE u Ovejero para descargar el reporte de una estación.'); return; }
+    const D = (LAST_STATION_ROWS && LAST_STATION_ROWS.length) ? aggregateByDay(LAST_STATION_ROWS) : [];
+    if (!D.length) { alert('No hay datos de esta estación.'); return; }
+    src = CUR_STATION === 'CE' ? 'Estación CE — Centro Experimental, Suchitepéquez (datos medidos)' : 'Estación Ovejero — Jutiapa (datos medidos)';
+    const firstISO = tsToISO(parseDiaKey(D[0].key)), lastISO = tsToISO(parseDiaKey(D[D.length-1].key));
+    sow = $('crop-date').value; cropOk = !!(sow && CROP_LAST['']);
+    from = cropOk ? sow : (CUR_FROM || firstISO);
+    const C = CROP_LAST[''];
+    to = CUR_TO || lastISO;
+    if (cropOk && C && C.days.length) { const lastCrop = tsToISO(C.days[C.days.length-1].ts); if (!CUR_TO) to = lastCrop; }
+    REP_CTX = { kind, station: CUR_STATION, firstISO, lastISO };
+  } else {
+    if (!PLACE_DATA) { alert('Primero consulte un lugar.'); return; }
+    src = `Red regional — ${PLACE_DATA.place.name} (datos estimados de NASA POWER)`;
+    sow = $('pcrop-date').value; cropOk = !!(sow && CROP_LAST['p']);
+    from = cropOk ? sow : PLACE_DATA.per.from;
+    to = PLACE_DATA.per.to;
+    if (cropOk && CROP_LAST['p'].days.length) to = tsToISO(CROP_LAST['p'].days[CROP_LAST['p'].days.length-1].ts);
+    REP_CTX = { kind, place: { ...PLACE_DATA.place } };
+  }
+  $('rep-src').textContent = src;
+  $('rep-from').value = from; $('rep-to').value = to;
+  $('rep-crop').checked = cropOk; $('rep-crop').disabled = !cropOk;
+  $('rep-crop-lbl').textContent = cropOk ? `Incluir ciclo de cultivo (siembra ${isoToKey(sow)})` : 'Ciclo de cultivo: ingrese antes la fecha de siembra en el panel';
+  $('rep-modal').style.display = 'flex';
+  setTimeout(() => $('rep-name').focus(), 50);
+}
+
+// Datos diarios del período para el reporte
+function nasaRange(place, fromISO, toISO){
+  const ymd = x => x.replace(/-/g,'');
+  const base = `&community=AG&latitude=${place.lat}&longitude=${place.lon}&start=${ymd(fromISO)}&end=${ymd(toISO)}&format=JSON`;
+  const getJ = u => fetch(u).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  return Promise.all([
+    getJ(`https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M,T2M_MAX,T2M_MIN,RH2M,PRECTOTCORR${base}`),
+    getJ(`https://power.larc.nasa.gov/api/temporal/hourly/point?parameters=T2M${base}&time-standard=LST`).catch(() => null)
+  ]).then(([jd, jh]) => {
+    const P = (jd.properties && jd.properties.parameter) || {};
+    const v = (prm, d) => { const x = P[prm] && P[prm][d]; return (x == null || x <= -998) ? null : x; };
+    const H = {}, T = jh && jh.properties && jh.properties.parameter && jh.properties.parameter.T2M;
+    if (T) Object.keys(T).forEach(k => { const x = T[k]; if (x == null || x <= -998) return; (H[k.slice(0,8)] = H[k.slice(0,8)] || []).push(x); });
+    return { hourly: !!T, days: Object.keys(P.T2M_MAX || {}).sort().map(d => ({
+      key:`${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`, y:+d.slice(0,4), m:+d.slice(4,6), d:+d.slice(6,8),
+      tmax:v('T2M_MAX',d), tmin:v('T2M_MIN',d), tavg:v('T2M',d), havg:v('RH2M',d), rain:v('PRECTOTCORR',d) ?? 0,
+      tArr:H[d] || [], hArr:[], step:60 })).filter(x => x.tmax != null && x.tmin != null) };
+  });
+}
+function repDays(fromISO, toISO){
+  const f = isoToTS(fromISO), t = isoToTS(toISO);
+  if (REP_CTX.kind === 'station') {
+    const D = aggregateByDay(LAST_STATION_ROWS).filter(d => { const ts = parseDiaKey(d.key); return ts >= f && ts <= t && d.tmax > 0; });
+    return Promise.resolve({ days: D.map(d => ({ ...d, y:parseDiaParts(d.key).y, m:parseDiaParts(d.key).m, d:parseDiaParts(d.key).d })),
+      hourly:true, wet:true, lat: STATION_LAT[REP_CTX.station] ?? 14.3,
+      tbase: parseFloat(document.getElementById('gdd-tbase').value) || 10, ttop: parseFloat(document.getElementById('gdd-ttop').value) || 32,
+      hot: getHotThr(), wetThr: getWetThr() });
+  }
+  return nasaRange(REP_CTX.place, fromISO, toISO).then(r => ({ ...r, wet:false, lat: REP_CTX.place.lat,
+    tbase: placeTbase(), ttop: placeTtop(),
+    hot: (v => isNaN(v) ? 35 : v)(parseFloat(document.getElementById('pcrop-hot').value)), wetThr: 90 }));
+}
+
+// Gráfica fuera de pantalla → imagen PNG
+function repChart(cfg, w = 1600, h = 520){
+  const host = document.getElementById('rep-canvas-host');
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; host.appendChild(cv);
+  cfg.options = Object.assign({ responsive:false, animation:false, devicePixelRatio:1 }, cfg.options || {});
+  const ch = new Chart(cv.getContext('2d'), cfg);
+  const url = ch.toBase64Image('image/png', 1);
+  ch.destroy(); cv.remove();
+  return url;
+}
+const REP_FONT = { size:20 };
+function repAxes(yTitle, extra = {}){
+  return { x:{ ticks:{ font:{size:18}, maxRotation:0, autoSkip:true, maxTicksLimit:14, color:'#555' }, grid:{ display:false } },
+           y:{ ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' }, title:{ display:!!yTitle, text:yTitle, font:{size:18} } }, ...extra };
+}
+const repLegend = { display:true, position:'top', align:'end', labels:{ font:{size:18}, boxWidth:26, color:'#333' } };
+
+function generateReport(){
+  const $ = id => document.getElementById(id);
+  const name = $('rep-name').value.trim(), fromISO = $('rep-from').value, toISO = $('rep-to').value;
+  if (!fromISO || !toISO) { $('rep-msg').textContent = 'Elija las fechas desde y hasta.'; return; }
+  if (fromISO > toISO) { $('rep-msg').textContent = 'La fecha "desde" es posterior a "hasta".'; return; }
+  const withCrop = $('rep-crop').checked && !$('rep-crop').disabled, withTable = $('rep-table').checked;
+  const btn = $('rep-go'); btn.disabled = true; btn.textContent = 'Generando…'; $('rep-msg').textContent = '';
+  const done = () => { btn.disabled = false; btn.textContent = 'Generar PDF'; };
+  Promise.all([repLoadLibs(), repDays(fromISO, toISO)]).then(([, R]) => {
+    if (!R.days.length) { $('rep-msg').textContent = 'No hay datos en ese período.'; done(); return; }
+    buildReportPdf({ name, fromISO, toISO, withCrop, withTable, R });
+    $('rep-modal').style.display = 'none'; done();
+  }).catch(err => { $('rep-msg').textContent = 'No se pudo generar el reporte (' + err.message + '). Revise la conexión e intente de nuevo.'; done(); });
+}
+
+function buildReportPdf({ name, fromISO, toISO, withCrop, withTable, R }){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'letter' });
+  const PW = 215.9, PH = 279.4, M = 14, CW = PW - 2*M;
+  const NAVY = [29,52,97], MUT = [110,109,104];
+  const station = REP_CTX.kind === 'station';
+  const srcName = station ? (REP_CTX.station === 'CE' ? 'Estación CE — Centro Experimental, Suchitepéquez' : 'Estación Ovejero — Jutiapa')
+                          : `${REP_CTX.place.name} (NASA POWER, estimado)`;
+  const coords = station ? (REP_CTX.station === 'CE' ? `${NASA_POINTS.CE.lat}, ${NASA_POINTS.CE.lon}` : `${NASA_POINTS.Ovejero.lat}, ${NASA_POINTS.Ovejero.lon}`)
+                         : `${REP_CTX.place.lat}, ${REP_CTX.place.lon}`;
+  const fuente = station ? 'Datos medidos por la estación WatchDog 3000 de Semilla Nueva.'
+                         : 'Datos estimados por NASA POWER (modelo, celda de ~50 km), no medidos en el lugar. La lluvia del modelo no es confiable día a día.';
+  const fK = iso => isoToKey(iso);
+
+  // ── Cálculos del período ──
+  const days = R.days.map(d => {
+    const g = gddDay(d.tmin, d.tmax, R.tbase, R.ttop);
+    const et = et0Hargreaves(d.tmin, d.tmax, R.lat, dayOfYear(d.y, d.m, d.d));
+    const hot = (d.tArr && d.tArr.length) ? hoursAbove(d.tArr, R.hot, d.step) : null;
+    const wet = (R.wet && d.hArr && d.hArr.length) ? hoursAbove(d.hArr, R.wetThr, d.step) : null;
+    return { ...d, g, et, hot, wet };
+  });
+  let gC = 0, rC = 0, bC = 0, etC = 0;
+  days.forEach(d => { gC += d.g; rC += d.rain || 0; if (d.et != null) { etC += d.et; bC += (d.rain||0) - d.et; } d.gC = gC; d.rC = rC; d.bC = bC; });
+  const avg = a => { a = a.filter(x => x != null && !isNaN(x)); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : null; };
+  const tmaxD = days.reduce((a,b) => b.tmax > a.tmax ? b : a), tminD = days.reduce((a,b) => b.tmin < a.tmin ? b : a);
+  const rainDays = days.filter(d => (d.rain||0) >= 1).length;
+  let run = 0, best = 0; days.forEach(d => { run = (d.rain||0) < 1 ? run + 1 : 0; best = Math.max(best, run); });
+  const hotTot = days.reduce((a,d) => a + (d.hot || 0), 0), hotDays = days.filter(d => (d.hot||0) > 0).length;
+  const wetTot = days.reduce((a,d) => a + (d.wet || 0), 0), wetDays = days.filter(d => (d.wet||0) >= 10).length;
+  const shortK = k => k.slice(0,5);
+  const estDays = days.filter(d => d.altSource);
+
+  // ── Encabezado y pie ──
+  const header = () => {
+    doc.setFillColor(...NAVY); doc.rect(0, 0, PW, 30, 'F');
+    doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text(repTxt('Reporte climático' + (name ? ' — ' + name : '')), M, 13);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(repTxt(`${srcName} · ${coords}`), M, 20);
+    doc.text(repTxt(`Período: ${fK(fromISO)} al ${fK(toISO)} · ${days.length} días con datos`), M, 25.5);
+    doc.setTextColor(0,0,0);
+  };
+  let y = 0;
+  const newPage = () => { doc.addPage(); y = 16; };
+  const need = h => { if (y + h > PH - 16) newPage(); };
+  const h2 = t => { need(14); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...NAVY); doc.text(repTxt(t), M, y + 5); doc.setTextColor(0,0,0); y += 9; };
+  const note = (t, size = 8) => { doc.setFont('helvetica','normal'); doc.setFontSize(size); doc.setTextColor(...MUT);
+    const L = doc.splitTextToSize(repTxt(t), CW); need(L.length * size * 0.42 + 2); doc.text(L, M, y + 3); y += L.length * size * 0.42 + 3; doc.setTextColor(0,0,0); };
+  const img = (url, h = 58) => { need(h + 4); doc.addImage(url, 'PNG', M, y, CW, h); y += h + 5; };
+  const table = (opts) => { doc.autoTable(Object.assign({ startY: y, margin:{ left:M, right:M, bottom:16 }, theme:'grid',
+      styles:{ font:'helvetica', fontSize:8, cellPadding:1.6, lineColor:[217,214,207], lineWidth:0.2, textColor:[24,24,26] },
+      headStyles:{ fillColor:NAVY, textColor:255, fontStyle:'bold' }, alternateRowStyles:{ fillColor:[247,245,241] } }, opts));
+    y = doc.lastAutoTable.finalY + 6; };
+
+  header(); y = 37;
+  note(`Generado el ${fmtDate(Date.now())} desde el Dashboard Climático de Semilla Nueva (semillanueva.github.io/EstacionesClimaticas). ${fuente}`, 8.5);
+
+  // ── 1. Resumen ──
+  h2('Resumen del período');
+  const f1 = v => v == null ? '—' : v.toFixed(1);
+  const rows = [
+    ['Lluvia total', `${rC.toFixed(1)} mm`, `${rainDays} día(s) con lluvia de 1 mm o más`],
+    ['Temperatura máxima', `${tmaxD.tmax.toFixed(1)} °C`, `el ${tmaxD.key}`],
+    ['Temperatura mínima', `${tminD.tmin.toFixed(1)} °C`, `el ${tminD.key}`],
+    ['Temperatura promedio', `${f1(avg(days.map(d => d.tavg)))} °C`, 'promedio de los días del período'],
+    ['Humedad relativa promedio', `${f1(avg(days.map(d => d.havg)))} %`, ''],
+    ['GDU acumulados', `${Math.round(gC)}`, `base ${R.tbase} °C, tope ${R.ttop} °C`],
+    ['Evapotranspiración (ET0)', `${etC.toFixed(0)} mm`, 'Hargreaves (FAO-56)'],
+    ['Balance lluvia - ET0', `${bC > 0 ? '+' : ''}${bC.toFixed(0)} mm`, bC >= 0 ? 'excedente' : 'déficit'],
+    ['Racha seca más larga', `${best} día(s)`, 'días seguidos con menos de 1 mm'],
+  ];
+  if (R.hourly) rows.push(['Horas de calor', `${hotTot.toFixed(1)} h`, `>= ${R.hot} °C · ${hotDays} día(s) con al menos una hora`]);
+  if (R.wet) rows.push(['Horas de mojadura', `${wetTot.toFixed(0)} h`, `HR >= ${R.wetThr} % · ${wetDays} día(s) con 10 h o más`]);
+  table({ head:[['Indicador','Valor','Detalle']], body: rows.map(r => r.map(repTxt)),
+    columnStyles:{ 0:{ cellWidth:52, fontStyle:'bold' }, 1:{ cellWidth:32 } } });
+
+  // ── 2. Ciclo de cultivo ──
+  const pfx = station ? '' : 'p', C = CROP_LAST[pfx];
+  if (withCrop && C && C.days.length) {
+    h2(`Ciclo de cultivo — ${C.label}, siembra ${fmtDate(C.sowTS)}`);
+    const g = id => repTxt(document.getElementById(pfx + id)?.textContent || '—').replace(/\s+/g,' ').trim();
+    const cards = [
+      ['Días desde siembra','cr-days','cr-days-s'], ['GDU acumulados','cr-gdu','cr-gdu-s'], ['Etapa actual','cr-stage','cr-stage-s'],
+      ['Floración','cr-flor','cr-flor-s'], ['Madurez','cr-mad','cr-mad-s'], ['Lluvia desde siembra','cr-rain',null],
+      ['Consumo del cultivo (ETc)','cr-etc','cr-etc-s'], ['Balance del ciclo','cr-bal','cr-bal-s'],
+      ['Balance en floración / llenado','cr-balmid','cr-balmid-s'], ['Calor en floración / llenado','cr-hot','cr-hot-s']];
+    table({ head:[['Indicador','Valor','Detalle']], body: cards.map(([l,v,sId]) => [repTxt(l), g(v), sId ? g(sId) : '']),
+      columnStyles:{ 0:{ cellWidth:52, fontStyle:'bold' }, 1:{ cellWidth:32 } } });
+    const STF = ['rgba(46,134,171,.10)','rgba(26,158,114,.10)','rgba(232,168,56,.16)','rgba(224,90,43,.08)'];
+    const allL = C.days.map(d => d.dia).concat(C.projDays.map(p => p.dia));
+    const idxAt = i => i < C.days.length ? C.days[i].idx : kcAt(C.projDays[i - C.days.length].g, C.P, C.B).idx;
+    const bands = n => ({ id:'repBands', beforeDatasetsDraw(chart){ const { ctx, chartArea:a, scales:{x} } = chart; if (!a) return;
+      const w = a.width / n; ctx.save(); for (let i = 0; i < n; i++){ const f = STF[idxAt(i)]; if (!f) continue; ctx.fillStyle = f; ctx.fillRect(x.getPixelForValue(i) - w/2, a.top, w + .5, a.bottom - a.top); } ctx.restore(); } });
+    img(repChart({ data:{ labels:C.days.map(d => d.dia), datasets:[
+        { type:'bar', label:'Lluvia (mm)', data:C.days.map(d => d.rain), backgroundColor:'rgba(46,134,171,.85)', yAxisID:'y' },
+        { type:'bar', label:'Consumo del cultivo ETc (mm)', data:C.days.map(d => d.etc), backgroundColor:'rgba(232,168,56,.85)', yAxisID:'y' },
+        { type:'line', label:'Balance acumulado (mm)', data:C.days.map(d => d.cumBal), borderColor:'#1D3461', borderWidth:3, pointRadius:0, yAxisID:'y2' } ]},
+      options:{ plugins:{ legend:repLegend, title:{ display:true, text:'Agua: lluvia vs. consumo del cultivo', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+        scales: repAxes('mm', { y2:{ position:'right', grid:{ display:false }, ticks:{ font:{size:18}, color:'#1D3461' } } }) },
+      plugins:[bands(C.days.length)] }));
+    const nAll = allL.length;
+    img(repChart({ type:'line', data:{ labels:allL, datasets:[
+        { label:'GDU acumulados', data:C.days.map(d => d.cumG).concat(C.projDays.map(() => null)), borderColor:'#1A9E72', borderWidth:3.5, pointRadius:0 },
+        { label:'Proyección', data:C.days.map((d,i) => i === C.days.length-1 ? d.cumG : null).concat(C.projDays.map(p => p.g)), borderColor:'#1A9E72', borderDash:[8,6], borderWidth:3, pointRadius:0 },
+        { label:`Floración (${C.flor})`, data:Array(nAll).fill(C.flor), borderColor:'rgba(232,168,56,.95)', borderDash:[3,4], borderWidth:2, pointRadius:0 },
+        { label:`Madurez (${C.mad})`, data:Array(nAll).fill(C.mad), borderColor:'rgba(224,90,43,.95)', borderDash:[3,4], borderWidth:2, pointRadius:0 } ]},
+      options:{ plugins:{ legend:repLegend, title:{ display:true, text:'Desarrollo: GDU acumulados desde la siembra', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+        scales: repAxes('GDU', { y:{ min:0, suggestedMax:C.mad*1.05, ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' } } }) },
+      plugins:[bands(nAll)] }));
+    note('Franjas de fondo: inicial (azul), desarrollo (verde), floración/llenado (ámbar), maduración (coral). La línea punteada proyecta el ritmo de GDU de los últimos 14 días. '
+      + `GDU a floración y madurez usados: ${C.flor} / ${C.mad}.`);
+  }
+
+  // ── 3. Gráficas del período ──
+  h2('Gráficas del período');
+  const L = days.map(d => shortK(d.key));
+  img(repChart({ type:'line', data:{ labels:L, datasets:[
+      { label:'Máxima', data:days.map(d => d.tmax), borderColor:'#E05A2B', borderWidth:3, pointRadius:0 },
+      { label:'Promedio', data:days.map(d => d.tavg), borderColor:'#7B5EA7', borderWidth:3, pointRadius:0 },
+      { label:'Mínima', data:days.map(d => d.tmin), borderColor:'#2E86AB', borderWidth:3, pointRadius:0 } ]},
+    options:{ plugins:{ legend:repLegend, title:{ display:true, text:'Temperatura diaria (°C)', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } }, scales:repAxes('°C') } }));
+  img(repChart({ data:{ labels:L, datasets:[
+      { type:'bar', label:'Lluvia del día', data:days.map(d => d.rain), backgroundColor:'rgba(46,134,171,.85)', yAxisID:'y' },
+      { type:'line', label:'Acumulada', data:days.map(d => +d.rC.toFixed(1)), borderColor:'#1B3A5C', borderWidth:3, pointRadius:0, yAxisID:'y2' } ]},
+    options:{ plugins:{ legend:repLegend, title:{ display:true, text:'Lluvia diaria y acumulada (mm)', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+      scales:repAxes('mm', { y:{ min:0, ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' } }, y2:{ position:'right', min:0, grid:{ display:false }, ticks:{ font:{size:18}, color:'#1B3A5C' } } }) } }));
+  img(repChart({ type:'line', data:{ labels:L, datasets:[
+      { label:'Humedad relativa promedio', data:days.map(d => d.havg), borderColor:'#1F7FDF', borderWidth:3, pointRadius:0 } ]},
+    options:{ plugins:{ legend:repLegend, title:{ display:true, text:'Humedad relativa promedio diaria (%)', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+      scales:repAxes('%', { y:{ suggestedMin:40, max:100, ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' } } }) } }), 50);
+  img(repChart({ type:'line', data:{ labels:L, datasets:[
+      { label:'GDU acumulados', data:days.map(d => Math.round(d.gC)), borderColor:'#1A9E72', borderWidth:3, pointRadius:0, yAxisID:'y' },
+      { label:'Balance lluvia - ET0 acumulado (mm)', data:days.map(d => +d.bC.toFixed(1)), borderColor:'#E8A838', borderWidth:3, pointRadius:0, yAxisID:'y2' } ]},
+    options:{ plugins:{ legend:repLegend, title:{ display:true, text:'GDU acumulados y balance hídrico del período', font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+      scales:repAxes('GDU', { y:{ min:0, ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' } }, y2:{ position:'right', grid:{ display:false }, ticks:{ font:{size:18}, color:'#C98A1C' } } }) } }), 50);
+  if (R.hourly) {
+    img(repChart({ type:'bar', data:{ labels:L, datasets:[
+        { label:`Horas >= ${R.hot} °C`, data:days.map(d => d.hot == null ? null : +d.hot.toFixed(1)), backgroundColor:days.map(d => (d.hot||0) >= 4 ? 'rgba(224,90,43,.85)' : 'rgba(232,168,56,.85)') } ]},
+      options:{ plugins:{ legend:{ display:false }, title:{ display:true, text:repTxt(`Horas de estrés por calor por día (>= ${R.hot} °C)`), font:{size:22, weight:'bold'}, color:'#1D3461', align:'start' } },
+        scales:repAxes('horas', { y:{ min:0, ticks:{ font:{size:18}, color:'#555' }, grid:{ color:'#e6e3dc' } } }) } }), 45);
+  }
+  if (!station) note('Al comparar NASA POWER con Ovejero (jun-nov 2026), la temperatura promedio y la mínima coinciden bien (±1 °C), la máxima sale más baja en zonas bajas y calientes (hasta 4 °C), por lo que las horas de calor pueden quedarse cortas, y la lluvia no es confiable día a día.');
+
+  // ── 4. Tabla diaria ──
+  if (withTable) {
+    need(40); h2('Datos diarios');
+    const head = ['Fecha','T máx (°C)','T mín (°C)','T prom (°C)','HR prom (%)','Lluvia (mm)','GDU'];
+    if (R.hourly) head.push(`Horas >= ${R.hot} °C`);
+    table({ head:[head.map(repTxt)], body: days.map(d => {
+      const r = [d.key + (d.altSource ? ' *' : ''), f1(d.tmax), f1(d.tmin), f1(d.tavg), d.havg == null ? '—' : d.havg.toFixed(0), (d.rain||0).toFixed(1), d.g.toFixed(1)];
+      if (R.hourly) r.push(d.hot == null ? '—' : d.hot.toFixed(1));
+      return r.map(repTxt);
+    }), styles:{ font:'helvetica', fontSize:7.5, cellPadding:1.2, halign:'right', lineColor:[217,214,207], lineWidth:0.2 },
+      columnStyles:{ 0:{ halign:'left' } } });
+    if (estDays.length) note(`* Día sin registro de la estación, completado con datos estimados (${estDays.length} día(s)).`);
+  }
+
+  // ── Pie de página ──
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+    doc.setDrawColor(217,214,207); doc.setLineWidth(0.2); doc.line(M, PH - 11, PW - M, PH - 11);
+    doc.text(repTxt(`Semilla Nueva · Dashboard Climático${name ? ' · ' + name : ''}`), M, PH - 7);
+    doc.text(`Página ${i} de ${n}`, PW - M, PH - 7, { align:'right' });
+  }
+  const slug = t => normTxt(t).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40);
+  const who = station ? REP_CTX.station : slug(REP_CTX.place.name.split('—').pop());
+  doc.save(`Reporte_clima_${name ? slug(name) + '_' : ''}${who}_${fromISO}_${toISO}.pdf`);
+}
+
+function repInitUI(){
+  document.getElementById('btn-report').addEventListener('click', () => openReport('station'));
+  document.getElementById('pl-report').addEventListener('click', () => openReport('place'));
+  document.getElementById('rep-cancel').addEventListener('click', () => { document.getElementById('rep-modal').style.display = 'none'; });
+  document.getElementById('rep-modal').addEventListener('click', e => { if (e.target.id === 'rep-modal') e.target.style.display = 'none'; });
+  document.getElementById('rep-go').addEventListener('click', generateReport);
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', repInitUI); else repInitUI();
 
 function showExtView(){
   initPlaceUI();
@@ -4521,5 +4847,27 @@ function renderCuartos() {
 }
 </script>
 
+
+<!-- Reporte PDF por ensayo / nursery -->
+<div id="rep-modal">
+  <div class="rep-card">
+    <h3>&#128196; Reporte clim&aacute;tico en PDF</h3>
+    <div class="rep-sub" id="rep-src">&mdash;</div>
+    <label class="rl" for="rep-name">Ensayo / nursery</label>
+    <input type="text" id="rep-name" placeholder="Ej.: Vivero F1 2026B">
+    <div class="rep-row">
+      <div><label class="rl" for="rep-from">Desde</label><input type="date" id="rep-from"></div>
+      <div><label class="rl" for="rep-to">Hasta</label><input type="date" id="rep-to"></div>
+    </div>
+    <label class="rep-chk"><input type="checkbox" id="rep-crop" checked> <span id="rep-crop-lbl">Incluir ciclo de cultivo</span></label>
+    <label class="rep-chk"><input type="checkbox" id="rep-table" checked> Incluir tabla de datos diarios</label>
+    <div class="rep-msg" id="rep-msg"></div>
+    <div class="rep-actions">
+      <button class="rep-cancel" id="rep-cancel">Cancelar</button>
+      <button class="rep-btn" id="rep-go">Generar PDF</button>
+    </div>
+  </div>
+</div>
+<div id="rep-canvas-host" style="position:fixed;left:-10000px;top:0;width:1600px"></div>
 </body>
 </html>
