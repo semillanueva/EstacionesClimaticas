@@ -811,6 +811,82 @@ footer{text-align:center;font-size:11px;color:var(--sub);
           <div style="position:relative;height:210px"><canvas id="cPlG"></canvas></div>
           <p style="font-size:10px;color:var(--sub);margin-top:6px" id="pl-gdd-note"></p></div>
       </div>
+    <div class="panels r1" id="pcrop-wrap"><div class="panel">
+      <div class="ph">
+        <span class="pt">&#127793; Ciclo de cultivo en este lugar &mdash; con datos de NASA POWER</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);flex-wrap:wrap">
+          Siembra
+          <input type="date" id="pcrop-date" class="inl-sel">
+          Cultivo
+          <select id="pcrop-type" class="inl-sel">
+            <option value="maiz">Ma&iacute;z</option>
+            <option value="frijol">Frijol</option>
+          </select>
+          GDU a floraci&oacute;n
+          <input type="number" id="pcrop-flor" class="inl-num" style="width:58px" step="10" min="100">
+          GDU a madurez
+          <input type="number" id="pcrop-mad" class="inl-num" style="width:58px" step="10" min="200">
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);flex-wrap:wrap;justify-content:flex-end;margin:-4px 0 10px">
+        Temp. base
+        <input type="number" id="pcrop-tbase" class="inl-num" value="10" step="0.5" min="0" max="20"> &deg;C
+        &middot; tope
+        <input type="number" id="pcrop-ttop" class="inl-num" value="32" step="0.5" min="25" max="40"> &deg;C
+        &middot; Umbral de calor
+        <input type="number" id="pcrop-hot" class="inl-num" value="35" step="0.5" min="25" max="45"> &deg;C
+      </div>
+      <p id="pcrop-empty" style="font-size:12px;color:var(--muted);text-align:center;padding:22px 10px">
+        Elija la fecha de siembra para ver el avance del cultivo en este lugar.
+      </p>
+      <div id="pcrop-body" style="display:none">
+        <div class="dry-stats">
+          <div class="dry-box"><div class="l">D&iacute;as desde siembra</div><div class="v" id="pcr-days">&mdash;</div><div class="s" id="pcr-days-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">GDU acumulados</div><div class="v" id="pcr-gdu">&mdash;</div><div class="s" id="pcr-gdu-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Etapa actual</div><div class="v" id="pcr-stage" style="font-size:16px">&mdash;</div><div class="s" id="pcr-stage-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Floraci&oacute;n</div><div class="v" id="pcr-flor" style="font-size:16px">&mdash;</div><div class="s" id="pcr-flor-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Madurez</div><div class="v" id="pcr-mad" style="font-size:16px">&mdash;</div><div class="s" id="pcr-mad-s">&mdash;</div></div>
+        </div>
+        <div class="dry-stats">
+          <div class="dry-box"><div class="l">Lluvia desde siembra</div><div class="v" id="pcr-rain" style="color:var(--steel)">&mdash;</div><div class="s">total</div></div>
+          <div class="dry-box"><div class="l">Consumo del cultivo (ETc)</div><div class="v" id="pcr-etc" style="color:#C98A1C">&mdash;</div><div class="s" id="pcr-etc-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance del ciclo</div><div class="v" id="pcr-bal">&mdash;</div><div class="s" id="pcr-bal-s">&mdash;</div></div>
+          <div class="dry-box"><div class="l">Balance en floraci&oacute;n / llenado</div><div class="v" id="pcr-balmid">&mdash;</div><div class="s" id="pcr-balmid-s">etapa m&aacute;s sensible al agua</div></div>
+          <div class="dry-box"><div class="l">Calor en floraci&oacute;n / llenado</div><div class="v" id="pcr-hot">&mdash;</div><div class="s" id="pcr-hot-s">horas sobre el umbral de estr&eacute;s</div></div>
+        </div>
+        <div class="panels r2" style="margin-bottom:0">
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Agua: lluvia vs. consumo del cultivo</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:rgba(46,134,171,.8);height:8px"></span>Lluvia</span>
+                <span class="li"><span class="ll" style="background:rgba(232,168,56,.8);height:8px"></span>ETc</span>
+                <span class="li"><span class="ll" style="background:#1D3461"></span>Balance acum.</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="pcCropWater"></canvas></div>
+          </div>
+          <div>
+            <div class="ph" style="margin-bottom:6px">
+              <span style="font-size:11px;font-weight:600">Desarrollo: GDU acumulados y Kc</span>
+              <div class="leg">
+                <span class="li"><span class="ll" style="background:#1A9E72"></span>GDU</span>
+                <span class="li"><span class="ld" style="border-color:#1A9E72"></span>Proyecci&oacute;n</span>
+                <span class="li"><span class="ll" style="background:#E8A838"></span>Kc</span>
+              </div>
+            </div>
+            <div style="position:relative;height:210px"><canvas id="pcCropGDU"></canvas></div>
+          </div>
+        </div>
+        <div class="leg" style="margin-top:8px">
+          <span class="li"><span class="ll" style="background:rgba(46,134,171,.12);height:8px"></span>Inicial</span>
+          <span class="li"><span class="ll" style="background:rgba(26,158,114,.12);height:8px"></span>Desarrollo</span>
+          <span class="li"><span class="ll" style="background:rgba(232,168,56,.18);height:8px"></span>Floraci&oacute;n / llenado</span>
+          <span class="li"><span class="ll" style="background:rgba(224,90,43,.10);height:8px"></span>Maduraci&oacute;n</span>
+        </div>
+        <p id="pcrop-note" style="font-size:10px;color:var(--sub);margin-top:6px;line-height:1.6"></p>
+      </div>
+    </div></div>
       <div class="panel" style="margin-bottom:16px">
         <div class="ph" style="margin-bottom:14px"><span class="pt">&#128203; Datos diarios</span><span style="font-size:10px;color:var(--sub)">m&aacute;s reciente primero</span></div>
         <div class="tw" style="max-height:420px;overflow-y:auto"><table>
@@ -2151,16 +2227,40 @@ function fmtDate(ts){
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
 }
 
+// Envoltorio para nuestras estaciones (sub-pestaña Cultivo)
 function renderCropCycle(stationRows){
   const st = (CUR_STATION==='Ovejero') ? 'Ovejero' : 'CE';
   if(CROP_LOADED_FOR !== CUR_STATION) loadCropInputs(CUR_STATION);
   const $ = id => document.getElementById(id);
-  ['cCropWater','cCropGDU'].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
+  cropEngine({
+    pfx:'', Dall: (stationRows && stationRows.length) ? aggregateByDay(stationRows) : [],
+    lat: STATION_LAT[st] ?? 14.3,
+    tbase: parseFloat($('gdd-tbase').value) || 10,
+    ttop:  parseFloat($('gdd-ttop').value)  || 32,
+    hotThr: getHotThr(),
+    srcLbl: 'esta estación',
+    noteStart: 'Este panel usa todo el historial desde la siembra (no el filtro de fechas de arriba) y la misma temp. base y tope del panel de GDU.'
+  });
+}
+
+// Motor común: nuestras estaciones (pfx '') y Red regional con NASA POWER (pfx 'p').
+// Cada día de Dall necesita: key 'DD/MM/AAAA', dia (etiqueta), tmin, tmax, rain,
+// y tArr/step para las horas de calor (lecturas del día y minutos entre ellas).
+function cropEngine(o){
+  const $ = id => document.getElementById(o.pfx + id);
+  const cid = id => o.pfx + id;
+  [cid('cCropWater'),cid('cCropGDU')].forEach(id=>{ if(chartRefs[id]){ chartRefs[id].destroy(); delete chartRefs[id]; } });
 
   const sowISO = $('crop-date').value;
-  if(!sowISO || !stationRows || !stationRows.length){
+  const Dall = o.Dall || [];
+  if(o.loading){
     $('crop-empty').style.display = 'block'; $('crop-body').style.display = 'none';
-    $('crop-empty').textContent = 'Elegí la fecha de siembra para ver el avance del cultivo y su consumo de agua.';
+    $('crop-empty').textContent = o.loading;
+    return;
+  }
+  if(!sowISO || !Dall.length){
+    $('crop-empty').style.display = 'block'; $('crop-body').style.display = 'none';
+    $('crop-empty').textContent = o.emptyMsg || 'Elegí la fecha de siembra para ver el avance del cultivo y su consumo de agua.';
     return;
   }
   const P0 = CROP_PRESETS[$('crop-type').value] || CROP_PRESETS.maiz;
@@ -2169,23 +2269,20 @@ function renderCropCycle(stationRows){
   if(mad <= flor) mad = flor + 100;
   const P = { ...P0, flor, mad };
   const B = cropStages(flor, mad);
-  const tbase = parseFloat($('gdd-tbase').value) || 10;
-  const ttop  = parseFloat($('gdd-ttop').value)  || 32;
-  const lat = STATION_LAT[st] ?? 14.3;
+  const tbase = o.tbase, ttop = o.ttop, lat = o.lat;
 
   const sowTS = isoToTS(sowISO);
-  const Dall = aggregateByDay(stationRows);
   const D = Dall.filter(d => parseDiaKey(d.key) >= sowTS);
   if(!D.length){
     $('crop-empty').style.display = 'block'; $('crop-body').style.display = 'none';
-    $('crop-empty').textContent = `No hay datos de esta estación desde el ${fmtDate(sowTS)}. El último registro es del ${Dall.length?Dall[Dall.length-1].key:'—'}.`;
+    $('crop-empty').textContent = `No hay datos de ${o.srcLbl} desde el ${fmtDate(sowTS)}. El último registro es del ${Dall.length?Dall[Dall.length-1].key:'—'}.`;
     return;
   }
   $('crop-empty').style.display = 'none'; $('crop-body').style.display = 'block';
 
   // Recorrido día por día desde la siembra (se detiene al llegar a madurez)
-  let cumG = 0, cumBal = 0, rainT = 0, etcT = 0, balMid = 0, midDays = 0, noTemp = 0, midHot = 0, midHotDays = 0;
-  const hotThr = getHotThr();
+  let noHourly = 0, cumG = 0, cumBal = 0, rainT = 0, etcT = 0, balMid = 0, midDays = 0, noTemp = 0, midHot = 0, midHotDays = 0;
+  const hotThr = o.hotThr;
   let florTS = null, madTS = null, gaps = 0, prevTS = sowTS - 864e5;
   const days = [];
   for(const d of D){
@@ -2207,7 +2304,7 @@ function renderCropCycle(stationRows){
       rainT += d.rain; etcT += etc; cumBal += d.rain - etc;
       if(K.idx===2){ balMid += d.rain - etc; midDays++; }
     }
-    if(K.idx===2){ const hh = hoursAbove(d.tArr, hotThr, d.step); midHot += hh; if(hh>0) midHotDays++; }
+    if(K.idx===2){ const hh = (d.tArr && d.tArr.length) ? hoursAbove(d.tArr, hotThr, d.step) : 0; if(!(d.tArr && d.tArr.length)) noHourly++; midHot += hh; if(hh>0) midHotDays++; }
     days.push({ dia:d.dia, ts, rain:d.rain, etc: etc===null?null:+etc.toFixed(1),
       cumBal:+cumBal.toFixed(1), cumG:+cumG.toFixed(0), kc:+K.kc.toFixed(2), stage:K.stage, idx:K.idx });
     if(madTS!==null) break;
@@ -2285,7 +2382,7 @@ function renderCropCycle(stationRows){
   }});
   const labels = days.map(d=>d.dia);
 
-  chartRefs['cCropWater'] = new Chart('cCropWater', {data:{labels, datasets:[
+  chartRefs[cid('cCropWater')] = new Chart(cid('cCropWater'), {data:{labels, datasets:[
       {type:'bar', label:'Lluvia', yAxisID:'yD', data:days.map(d=>d.rain), backgroundColor:'rgba(46,134,171,.8)', borderRadius:3, borderWidth:0, order:2},
       {type:'bar', label:'ETc', yAxisID:'yD', data:days.map(d=>d.etc), backgroundColor:'rgba(232,168,56,.8)', borderRadius:3, borderWidth:0, order:2},
       {type:'line', label:'Balance acumulado', yAxisID:'yC', data:days.map(d=>d.cumBal), borderColor:'#1D3461', borderWidth:2.2, pointRadius:0, tension:0.15, order:1}
@@ -2311,7 +2408,7 @@ function renderCropCycle(stationRows){
   const realG = days.map(d=>d.cumG).concat(projDays.map(()=>null));
   const projG = days.map((d,i)=> i===days.length-1 ? d.cumG : null).concat(projDays.map(p=>p.g));
   const kcLine = days.map(d=>d.kc).concat(projDays.map(p=>p.kc));
-  chartRefs['cCropGDU'] = new Chart('cCropGDU', {type:'line', data:{labels:allLabels, datasets:[
+  chartRefs[cid('cCropGDU')] = new Chart(cid('cCropGDU'), {type:'line', data:{labels:allLabels, datasets:[
       {label:'GDU', yAxisID:'yG', data:realG, borderColor:'#1A9E72', borderWidth:2.5, pointRadius:0, tension:0.1},
       {label:'Proyección', yAxisID:'yG', data:projG, borderColor:'#1A9E72', borderWidth:2, borderDash:[5,4], pointRadius:0, tension:0.1, spanGaps:false},
       {label:`Floración (${flor})`, yAxisID:'yG', data:Array(nAll).fill(flor), borderColor:'rgba(232,168,56,.9)', borderWidth:1, borderDash:[2,3], pointRadius:0},
@@ -2336,12 +2433,14 @@ function renderCropCycle(stationRows){
   });
 
   const notes = [];
-  notes.push(`Este panel usa todo el historial desde la siembra (no el filtro de fechas de arriba) y la misma temp. base (${tbase}°C) y tope (${ttop}°C) del panel de GDU.`);
+  notes.push(`${o.noteStart} GDU con base ${tbase}°C y tope ${ttop}°C.`);
   notes.push(`Los GDU a floración y madurez vienen con valores genéricos de ${P.label.toLowerCase()} tropical: reemplazalos con los de cada variedad para que las etapas y las fechas sean precisas.`);
   if(projDays.length) notes.push(`Las fechas estimadas (≈) proyectan el ritmo de los últimos ${recent.length} días (~${gRecent.toFixed(1)} GDU/día); se recalculan con cada dato nuevo.`);
   if(gaps) notes.push(`⚠ Faltan ${gaps} día(s) de datos desde la siembra: esos días no suman GDU ni consumo, así que el avance real va un poco más adelante y el balance puede estar desfasado.`);
   if(noTemp) notes.push(`⚠ ${noTemp} día(s) sin temperatura válida no sumaron GDU.`);
-  if(sowTS < parseDiaKey(Dall[0].key)) notes.push(`⚠ La siembra es anterior al primer dato de la estación (${Dall[0].key}): los GDU y el consumo empiezan a contarse desde ese día.`);
+  if(sowTS < parseDiaKey(Dall[0].key)) notes.push(`⚠ La siembra es anterior al primer dato de ${o.srcLbl} (${Dall[0].key}): los GDU y el consumo empiezan a contarse desde ese día.`);
+  if(midDays && noHourly) notes.push(`⚠ ${noHourly} día(s) de floración/llenado sin datos por hora: no sumaron horas de calor.`);
+  if(o.extraNotes) notes.push(...o.extraNotes);
   $('crop-note').textContent = notes.join(' ');
 }
 
@@ -2768,7 +2867,7 @@ function renderPlace(){
     + ` · ${days.length} días, del ${formatDiaShort(days[0].key)}/${days[0].y} al ${formatDiaShort(last.key)}/${last.y}`
     + (last.key !== `${per.to.slice(8,10)}/${per.to.slice(5,7)}/${per.to.slice(0,4)}` ? ' (los días más recientes todavía no están publicados por NASA)' : '');
 
-  const tbase = parseFloat($('gdd-tbase')?.value) || 10, ttop = parseFloat($('gdd-ttop')?.value) || 32;
+  const tbase = placeTbase(), ttop = placeTtop();
   let gC = 0, bC = 0, rC = 0, etT = 0;
   const rows = days.map(d => {
     const g = gddDay(d.tmin, d.tmax, tbase, ttop), et = et0Hargreaves(d.tmin, d.tmax, place.lat, dayOfYear(d.y, d.m, d.d));
@@ -2810,13 +2909,14 @@ function renderPlace(){
     ln('Lluvia − ET₀ acumulado', rows.map(d=>d.bC), '#E8A838', {pointRadius:0, yAxisID:'y2'}) ]},
     options:(o=>{ o.plugins.tooltip={callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}${c.dataset.yAxisID==='y2'?' mm':''}`}}; return o; })(
       opt(v=>v,{min:0},{position:'right',grid:{display:false},ticks:{color:TC,font:{size:9},callback:v=>v+' mm'}})) });
-  $('pl-gdd-note').textContent = `GDU con base ${tbase} °C y tope ${ttop} °C (los mismos del panel de GDU). ET₀ por Hargreaves; el balance usa la lluvia del modelo, así que tomalo como orientación.`;
+  $('pl-gdd-note').textContent = `GDU con base ${tbase} °C y tope ${ttop} °C (se cambian en el panel de ciclo de cultivo, más abajo). ET₀ por Hargreaves; el balance usa la lluvia del modelo, así que tomalo como orientación.`;
 
   const f = (v,u,dec=1) => v==null ? '<span style="color:#ccc">—</span>' : (+v).toFixed(dec)+u;
   $('pl-tb').innerHTML = rows.slice().reverse().map(d => `<tr${(d.rain||0)>=1?' class="rn"':''}><td>${formatDiaShort(d.key)}/${d.y}</td>`
     + `<td>${f(d.tmax,'°C')}</td><td>${f(d.tmin,'°C')}</td><td>${f(d.tavg,'°C')}</td><td>${f(d.havg,'%',0)}</td>`
     + `<td>${(d.rain||0)>=0.1?`<span class="rb">${(+d.rain).toFixed(1)}</span>`:'<span style="color:#ccc">—</span>'}</td>`
     + `<td>${f(d.rad,' MJ/m²')}</td><td>${f(d.wmax,' km/h')}</td><td>${d.g}</td></tr>`).join('');
+  renderPlaceCrop();
 }
 
 function downloadPlaceCsv(){
@@ -2829,6 +2929,97 @@ function downloadPlaceCsv(){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = `nasa_power_${normTxt(place.name).replace(/[^a-z0-9]+/g,'_').slice(0,40)}.csv`; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CICLO DE CULTIVO EN RED REGIONAL (NASA POWER)
+// Igual que la sub-pestaña Cultivo de nuestras estaciones, con datos de NASA
+// para el lugar elegido. Se consulta aparte del período de arriba: siempre
+// desde la fecha de siembra hasta hoy. Diario: T máx/mín y lluvia. Por hora:
+// T2M, para contar las horas de calor en floración.
+// ════════════════════════════════════════════════════════════════════
+const PCROP_CACHE = {};
+const PCROP_STORE = 'sn_ciclo_RedRegional';
+let PCROP_READY = false;
+function pcropInputsInit(){
+  if (PCROP_READY) return; PCROP_READY = true;
+  const $ = id => document.getElementById(id);
+  let cfg = null;
+  try { cfg = JSON.parse(localStorage.getItem(PCROP_STORE) || 'null'); } catch(e){}
+  const type = (cfg && CROP_PRESETS[cfg.crop]) ? cfg.crop : 'maiz';
+  $('pcrop-type').value = type;
+  $('pcrop-date').value = cfg?.date || '';
+  $('pcrop-flor').value = cfg?.flor || CROP_PRESETS[type].flor;
+  $('pcrop-mad').value  = cfg?.mad  || CROP_PRESETS[type].mad;
+  const save = () => { try { localStorage.setItem(PCROP_STORE, JSON.stringify({
+    date:$('pcrop-date').value, crop:$('pcrop-type').value,
+    flor:parseFloat($('pcrop-flor').value)||null, mad:parseFloat($('pcrop-mad').value)||null })); } catch(e){} };
+  $('pcrop-type').addEventListener('change', e => {
+    const P = CROP_PRESETS[e.target.value];
+    $('pcrop-flor').value = P.flor; $('pcrop-mad').value = P.mad; save(); renderPlaceCrop();
+  });
+  ['pcrop-flor','pcrop-mad'].forEach(id => $(id).addEventListener('change', () => { save(); renderPlaceCrop(); }));
+  $('pcrop-date').addEventListener('change', () => { save(); loadPlaceCrop(); });
+  ['pcrop-tbase','pcrop-ttop'].forEach(id => $(id).addEventListener('change', () => { renderPlace(); }));
+  $('pcrop-hot').addEventListener('change', renderPlaceCrop);
+}
+function placeTbase(){ const v = parseFloat(document.getElementById('pcrop-tbase')?.value); return isNaN(v) ? 10 : v; }
+function placeTtop(){  const v = parseFloat(document.getElementById('pcrop-ttop')?.value);  return isNaN(v) ? 32 : v; }
+function pcropKey(){
+  if (!PLACE_DATA) return null;
+  const sow = document.getElementById('pcrop-date').value;
+  return sow ? `${PLACE_DATA.place.lat},${PLACE_DATA.place.lon},${sow}` : null;
+}
+function loadPlaceCrop(){
+  pcropInputsInit();
+  if (!PLACE_DATA) return;
+  const key = pcropKey();
+  if (!key || PCROP_CACHE[key]) return renderPlaceCrop();
+  const sowISO = document.getElementById('pcrop-date').value;
+  const today = new Date(), sow = isoToTS(sowISO);
+  if (sow > today.getTime()) return renderPlaceCrop();
+  const place = PLACE_DATA.place, ymd = s => s.replace(/-/g,'');
+  const start = ymd(sowISO), end = ymd(isoDay(today));
+  const base = `&community=AG&latitude=${place.lat}&longitude=${place.lon}&start=${start}&end=${end}&format=JSON`;
+  const uD = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR${base}`;
+  const uH = `https://power.larc.nasa.gov/api/temporal/hourly/point?parameters=T2M${base}&time-standard=LST`;
+  cropEngine({ pfx:'p', loading:'Consultando NASA POWER desde la fecha de siembra…' });
+  const getJ = u => fetch(u).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  Promise.all([getJ(uD), getJ(uH).catch(() => null)]).then(([jd, jh]) => {
+    const P = (jd.properties && jd.properties.parameter) || {};
+    const v = (prm, d) => { const x = P[prm] && P[prm][d]; return (x == null || x <= -998) ? null : x; };
+    const H = {};
+    const T = jh && jh.properties && jh.properties.parameter && jh.properties.parameter.T2M;
+    if (T) Object.keys(T).forEach(k => { const x = T[k]; if (x == null || x <= -998) return; (H[k.slice(0,8)] = H[k.slice(0,8)] || []).push(x); });
+    const ds = Object.keys(P.T2M_MAX || {}).sort();
+    const multi = ds.length && ds[0].slice(0,4) !== ds[ds.length-1].slice(0,4);
+    const days = ds.map(d => ({
+      key:`${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(0,4)}`,
+      dia: multi ? `${d.slice(6,8)}/${d.slice(4,6)}/${d.slice(2,4)}` : `${d.slice(6,8)}/${d.slice(4,6)}`,
+      tmax:v('T2M_MAX',d), tmin:v('T2M_MIN',d), rain:v('PRECTOTCORR',d) ?? 0,
+      tArr: H[d] || [], step:60
+    })).filter(x => x.tmax != null && x.tmin != null);
+    PCROP_CACHE[key] = { days, hourly: !!T };
+    renderPlaceCrop();
+  }).catch(err => cropEngine({ pfx:'p', loading:`No se pudo consultar NASA POWER (${err.message}). Revise la conexión o pruebe más tarde.` }));
+}
+function renderPlaceCrop(){
+  pcropInputsInit();
+  if (!PLACE_DATA) return;
+  const key = pcropKey(), C = key ? PCROP_CACHE[key] : null;
+  const sowISO = document.getElementById('pcrop-date').value;
+  if (sowISO && !C && isoToTS(sowISO) <= Date.now()) return loadPlaceCrop();
+  const extra = ['Datos de NASA POWER para este lugar (estimados, no medidos). La temperatura máxima del modelo suele salir más baja en zonas bajas y calientes, así que las horas de calor pueden quedarse cortas, y la lluvia no es confiable día a día: tome el balance de agua como orientación.'];
+  if (C && !C.hourly) extra.push('⚠ NASA no devolvió datos por hora: las horas de calor no se pudieron calcular.');
+  cropEngine({
+    pfx:'p', Dall: C ? C.days : [],
+    lat: PLACE_DATA.place.lat, tbase: placeTbase(), ttop: placeTtop(),
+    hotThr: (v => isNaN(v) ? 35 : v)(parseFloat(document.getElementById('pcrop-hot').value)),
+    srcLbl: 'NASA POWER para este lugar',
+    emptyMsg: 'Elija la fecha de siembra para ver el avance del cultivo en este lugar.',
+    noteStart: 'Este panel se calcula desde la fecha de siembra hasta hoy, sin importar el período elegido arriba.',
+    extraNotes: extra
+  });
 }
 
 function showExtView(){
